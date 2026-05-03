@@ -306,6 +306,44 @@ export async function updateParticipant(form: FormData) {
   }
 }
 
+export async function bulkMarkPaid(
+  form: FormData,
+): Promise<{ ok: boolean; count: number }> {
+  const supabase = createClient();
+  const ids = form
+    .getAll("ids[]")
+    .filter((v): v is string => typeof v === "string");
+  const eventId = s(form, "event_id");
+  if (ids.length === 0) return { ok: true, count: 0 };
+  const { data: rows } = await supabase
+    .from("participants")
+    .select("id, rate")
+    .in("id", ids);
+  for (const row of rows ?? []) {
+    const rate = Number(row.rate);
+    await supabase
+      .from("participants")
+      .update({ paid: rate, status: rate === 0 ? "comp" : "paid" })
+      .eq("id", row.id);
+  }
+  if (eventId) revalidatePath(`/events/${eventId}`);
+  return { ok: true, count: rows?.length ?? 0 };
+}
+
+export async function bulkRemoveParticipants(
+  form: FormData,
+): Promise<{ ok: boolean; count: number }> {
+  const supabase = createClient();
+  const ids = form
+    .getAll("ids[]")
+    .filter((v): v is string => typeof v === "string");
+  const eventId = s(form, "event_id");
+  if (ids.length === 0) return { ok: true, count: 0 };
+  await supabase.from("participants").delete().in("id", ids);
+  if (eventId) revalidatePath(`/events/${eventId}`);
+  return { ok: true, count: ids.length };
+}
+
 export async function removeParticipant(form: FormData) {
   const supabase = createClient();
   const id = s(form, "id");

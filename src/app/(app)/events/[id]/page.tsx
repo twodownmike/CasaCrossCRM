@@ -16,6 +16,17 @@ import { ChatPanel } from "./chat-panel";
 import { AddParticipantSheet } from "./add-participant-sheet";
 import { EventTabs } from "./event-tabs";
 import { MoodUploader } from "./mood-uploader";
+import { RosterClient } from "./roster-client";
+import { createClient as createSupabase } from "@/lib/supabase/server";
+
+async function loadTemplates(): Promise<Array<{ id: string; name: string }>> {
+  const supabase = createSupabase();
+  const { data } = await supabase
+    .from("contract_templates")
+    .select("id, name")
+    .order("updated_at", { ascending: false });
+  return (data ?? []) as Array<{ id: string; name: string }>;
+}
 import { relTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -255,94 +266,27 @@ export default async function EventDetail({
 
       {tab === "roster" && (
         <div className="fade-in">
-          {ROLE_ORDER.filter((r) => byRole[r]).map((role) => (
-            <div key={role}>
-              <div className="section-label" style={{ marginTop: 24 }}>
-                <h2>{ROLE_META[role].plural}</h2>
-                <span className="muted" style={{ fontSize: 12 }}>
-                  {byRole[role]!.length}
-                </span>
-              </div>
-              <div style={{ padding: "0 var(--s-5)" }}>
-                <div className="card elev">
-                  {byRole[role]!.map((part) => {
-                    const note = part.role_note || part.person.specialty;
-                    return (
-                      <Link
-                        key={part.id}
-                        href={`/events/${e.id}/participants/${part.id}`}
-                        className="card-row"
-                        style={{
-                          alignItems: "flex-start",
-                          paddingTop: 14,
-                          paddingBottom: 14,
-                        }}
-                      >
-                        <Avatar person={part.person} />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div
-                            style={{
-                              fontSize: 14,
-                              fontWeight: 500,
-                              color: "var(--ink)",
-                            }}
-                          >
-                            {part.person.name}
-                          </div>
-                          {note && (
-                            <div
-                              style={{
-                                fontSize: 12,
-                                color: "var(--ink-3)",
-                                marginTop: 2,
-                                lineHeight: 1.4,
-                                display: "-webkit-box",
-                                WebkitLineClamp: 2,
-                                WebkitBoxOrient: "vertical",
-                                overflow: "hidden",
-                              }}
-                            >
-                              {note}
-                            </div>
-                          )}
-                          <div
-                            style={{
-                              fontSize: 11.5,
-                              color: "var(--ink-3)",
-                              marginTop: 6,
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 6,
-                              flexWrap: "wrap",
-                            }}
-                          >
-                            {Number(part.rate) > 0 ? (
-                              <span className="tabnums">
-                                {fmtMoney(Number(part.rate))}
-                              </span>
-                            ) : (
-                              <span>Comp</span>
-                            )}
-                            <span>·</span>
-                            <span
-                              className="muted"
-                              style={{ fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase" }}
-                            >
-                              Contract
-                            </span>
-                            <StatusPill status={part.contract} />
-                          </div>
-                        </div>
-                        {Number(part.rate) > 0 && (
-                          <StatusPill status={part.status} />
-                        )}
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          ))}
+          <RosterClient
+            eventId={e.id}
+            participants={e.participants.map((p) => ({
+              id: p.id,
+              role: p.role,
+              rate: Number(p.rate),
+              paid: Number(p.paid),
+              status: p.status,
+              contract: p.contract,
+              role_note: p.role_note,
+              person: {
+                id: p.person.id,
+                name: p.person.name,
+                initials: p.person.initials,
+                tint: p.person.tint,
+                ink: p.person.ink,
+                specialty: p.person.specialty,
+              },
+            }))}
+            templates={await loadTemplates()}
+          />
           <div style={{ padding: "var(--s-6) var(--s-5)" }}>
             <AddParticipantSheet
               eventId={e.id}

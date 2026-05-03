@@ -205,6 +205,31 @@ export async function sendContract(
   return { ok: true, url: link };
 }
 
+export async function bulkSendContracts(
+  form: FormData,
+): Promise<{ ok: true; sent: number; urls: string[]; errors: string[] }> {
+  const ids = form
+    .getAll("participant_ids[]")
+    .filter((v): v is string => typeof v === "string");
+  const templateId = nullable(form, "template_id");
+  const title = s(form, "title") || "Booking Agreement";
+
+  const urls: string[] = [];
+  const errors: string[] = [];
+
+  for (const pid of ids) {
+    const f = new FormData();
+    f.set("participant_id", pid);
+    if (templateId) f.set("template_id", templateId);
+    f.set("title", title);
+    const r = await sendContract(f);
+    if (r.ok) urls.push(r.url);
+    else errors.push(r.error);
+  }
+
+  return { ok: true, sent: urls.length, urls, errors };
+}
+
 export async function voidContract(form: FormData) {
   const supabase = createClient();
   const id = s(form, "id");
