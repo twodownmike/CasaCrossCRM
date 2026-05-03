@@ -1274,3 +1274,16 @@ select.input {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
 }
+
+/* Logo brand link replaces the text wordmark */
+.brand-link {
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+  line-height: 0;
+}
+.brand-link img { display: block; }
+
+.ds-brand img { display: block; }
+
+.auth-card .brand img { margin: 0 auto; }

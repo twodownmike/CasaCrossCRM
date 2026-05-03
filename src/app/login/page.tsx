@@ -1,4 +1,5 @@
 import { LoginForm } from "./login-form";
+import { Logo } from "@/components/logo";
 
 export default function LoginPage({
   searchParams,
@@ -8,9 +9,8 @@ export default function LoginPage({
   return (
     <div className="auth-shell">
       <div className="auth-card">
-        <div className="brand">
-          <span className="mark" />
-          <span>Casa Cross</span>
+        <div className="brand" style={{ justifyContent: "center" }}>
+          <Logo variant="auth" />
         </div>
         <h1>
           Sign <em>in</em>

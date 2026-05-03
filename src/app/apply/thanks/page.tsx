@@ -1,3 +1,5 @@
+import { Logo } from "@/components/logo";
+
 export const metadata = { title: "Thank you — Casa Cross" };
 
 export default function ThanksPage() {
@@ -8,8 +10,7 @@ export default function ThanksPage() {
           className="brand"
           style={{ justifyContent: "center", marginBottom: 12 }}
         >
-          <span className="mark" />
-          <span>Casa Cross</span>
+          <Logo variant="auth" />
         </div>
         <h1>
           Got <em>it</em>.

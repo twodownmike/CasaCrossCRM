@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "./icons";
+import { Logo } from "./logo";
 import { fmtDate, deriveInitials } from "@/lib/format";
 
 type NavItem = {
@@ -76,10 +77,9 @@ export function DesktopSidebar({
 
   return (
     <aside className="ds-sidebar">
-      <div className="ds-brand">
-        <span className="mark" />
-        <span>Casa Cross</span>
-      </div>
+      <Link href="/home" className="ds-brand" aria-label="Casa Cross — home">
+        <Logo variant="sidebar" />
+      </Link>
 
       <nav className="ds-nav">
         {items.map((it) => {

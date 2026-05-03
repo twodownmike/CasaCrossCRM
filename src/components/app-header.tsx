@@ -2,14 +2,14 @@
 
 import { Icon } from "./icons";
 import Link from "next/link";
+import { Logo } from "./logo";
 
-export function AppHeader({ title = "Casa Cross" }: { title?: string }) {
+export function AppHeader() {
   return (
     <header className="app-header">
-      <div className="title">
-        <span className="mark" />
-        <span>{title}</span>
-      </div>
+      <Link href="/home" aria-label="Casa Cross — home" className="brand-link">
+        <Logo variant="header" />
+      </Link>
       <div className="actions">
         <Link className="icon-btn" href="/account" aria-label="Account">
           <Icon.exit />

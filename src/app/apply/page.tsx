@@ -1,4 +1,5 @@
 import { ApplyForm } from "./apply-form";
+import { Logo } from "@/components/logo";
 
 export const metadata = {
   title: "Apply to Casa Cross",
@@ -9,9 +10,8 @@ export default function ApplyPage() {
   return (
     <div className="auth-shell">
       <div className="auth-card" style={{ maxWidth: 460 }}>
-        <div className="brand">
-          <span className="mark" />
-          <span>Casa Cross</span>
+        <div className="brand" style={{ justifyContent: "center" }}>
+          <Logo variant="auth" />
         </div>
         <h1>
           Work with <em>us</em>
