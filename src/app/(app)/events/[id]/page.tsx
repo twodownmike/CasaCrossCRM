@@ -55,7 +55,18 @@ export default async function EventDetail({
   return (
     <div className="fade-in">
       <div className="hero">
-        <div className={`hero-img cover-${e.cover || "modern"}`} />
+        <div
+          className={e.cover_image_url ? "hero-img" : `hero-img cover-${e.cover || "modern"}`}
+          style={
+            e.cover_image_url
+              ? {
+                  backgroundImage: `url(${e.cover_image_url})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                }
+              : undefined
+          }
+        />
         <Link className="back" href="/events">
           <Icon.back />
         </Link>

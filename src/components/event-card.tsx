@@ -36,8 +36,16 @@ export function EventCard({ event }: { event: EventCardData }) {
       }}
     >
       <div
-        className={`cover-${event.cover || "modern"}`}
-        style={{ height: 110, position: "relative" }}
+        className={event.cover_image_url ? "" : `cover-${event.cover || "modern"}`}
+        style={{
+          height: 110,
+          position: "relative",
+          backgroundImage: event.cover_image_url
+            ? `url(${event.cover_image_url})`
+            : undefined,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
       >
         <div
           style={{

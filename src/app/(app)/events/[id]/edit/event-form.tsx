@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { createEvent, updateEvent, deleteEvent } from "@/app/actions";
 import type { EventRow } from "@/lib/types";
+import { CoverUploader } from "@/components/cover-uploader";
 
 const COVERS = [
   "magnolia",
@@ -95,8 +96,12 @@ export function EventForm({ event }: { event?: EventRow }) {
           />
         </div>
       </div>
+      <CoverUploader
+        initialUrl={event?.cover_image_url}
+        fallbackCover={event?.cover}
+      />
       <div>
-        <label className="form-label">Cover</label>
+        <label className="form-label">Gradient fallback</label>
         <select
           name="cover"
           className="input"

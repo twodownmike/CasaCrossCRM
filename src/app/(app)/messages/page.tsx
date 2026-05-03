@@ -8,7 +8,7 @@ export default async function MessagesPage() {
   const supabase = createClient();
   const { data: events } = await supabase
     .from("events")
-    .select("id, name, cover")
+    .select("id, name, cover, cover_image_url")
     .order("date", { ascending: true });
 
   const { data: lastMsgs } = await supabase
@@ -68,12 +68,17 @@ export default async function MessagesPage() {
             }}
           >
             <div
-              className={`cover-${event.cover || "modern"}`}
+              className={event.cover_image_url ? "" : `cover-${event.cover || "modern"}`}
               style={{
                 width: 48,
                 height: 48,
                 borderRadius: 12,
                 flexShrink: 0,
+                backgroundImage: event.cover_image_url
+                  ? `url(${event.cover_image_url})`
+                  : undefined,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
               }}
             />
             <div style={{ flex: 1, minWidth: 0 }}>

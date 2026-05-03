@@ -186,8 +186,16 @@ export default async function PersonDetail({
               >
                 <div style={{ display: "flex", alignItems: "stretch" }}>
                   <div
-                    className={`cover-${e.cover || "modern"}`}
-                    style={{ width: 70, flexShrink: 0 }}
+                    className={e.cover_image_url ? "" : `cover-${e.cover || "modern"}`}
+                    style={{
+                      width: 70,
+                      flexShrink: 0,
+                      backgroundImage: e.cover_image_url
+                        ? `url(${e.cover_image_url})`
+                        : undefined,
+                      backgroundSize: "cover",
+                      backgroundPosition: "center",
+                    }}
                   />
                   <div style={{ flex: 1, padding: 14 }}>
                     <div className="row between">
@@ -294,12 +302,17 @@ export default async function PersonDetail({
                   style={{ cursor: "default" }}
                 >
                   <div
-                    className={`cover-${e.cover || "modern"}`}
+                    className={e.cover_image_url ? "" : `cover-${e.cover || "modern"}`}
                     style={{
                       width: 28,
                       height: 28,
                       borderRadius: "var(--r-2)",
                       flexShrink: 0,
+                      backgroundImage: e.cover_image_url
+                        ? `url(${e.cover_image_url})`
+                        : undefined,
+                      backgroundSize: "cover",
+                      backgroundPosition: "center",
                     }}
                   />
                   <div style={{ flex: 1, minWidth: 0 }}>

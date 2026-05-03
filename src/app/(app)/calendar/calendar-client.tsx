@@ -190,6 +190,19 @@ export function CalendarClient({ events }: { events: EventWithParticipants[] }) 
               href={`/events/${e.id}`}
               className="card-row"
             >
+              {e.cover_image_url ? (
+                <div
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: "var(--r-2)",
+                    backgroundImage: `url(${e.cover_image_url})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                    flexShrink: 0,
+                  }}
+                />
+              ) : (
               <div style={{ width: 44, textAlign: "center" }}>
                 <div
                   style={{
@@ -215,6 +228,7 @@ export function CalendarClient({ events }: { events: EventWithParticipants[] }) 
                   {new Date(e.date + "T12:00:00").getDate()}
                 </div>
               </div>
+              )}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 500 }}>{e.name}</div>
                 {e.time_label && (
