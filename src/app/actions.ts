@@ -360,6 +360,123 @@ export async function toggleTask(form: FormData) {
   revalidatePath("/home");
 }
 
+// ─── Submissions (public intake form) ───
+export async function submitApplication(
+  form: FormData,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = createClient();
+  const role = s(form, "role") as RoleKind;
+  const name = s(form, "name");
+  if (!role || !name) {
+    return { ok: false, error: "Name and role are required." };
+  }
+  const { error } = await supabase.from("submissions").insert({
+    role,
+    name,
+    email: nullable(form, "email"),
+    phone: nullable(form, "phone"),
+    instagram: nullable(form, "instagram"),
+    location: nullable(form, "location"),
+    specialty: nullable(form, "specialty"),
+    portfolio_url: nullable(form, "portfolio_url"),
+    message: nullable(form, "message"),
+  });
+  if (error) {
+    console.error("submitApplication failed", error);
+    return { ok: false, error: error.message };
+  }
+  return { ok: true };
+}
+
+const ROLE_TINTS_FOR_SUBMISSION: Record<RoleKind, { tint: string; ink: string }> = {
+  photographer: { tint: "var(--slate-tint)", ink: "var(--slate)" },
+  model: { tint: "var(--rose-tint)", ink: "#a04e60" },
+  vendor: { tint: "var(--gold-tint)", ink: "#8a6c2e" },
+  venue: { tint: "var(--sage-tint)", ink: "var(--sage-deep)" },
+  hmua: { tint: "#f0e8f0", ink: "#7a5a8a" },
+  stylist: { tint: "var(--sage-tint)", ink: "var(--sage-deep)" },
+  sponsor: { tint: "#ece8e0", ink: "#6e5e3a" },
+};
+
+export async function approveSubmission(form: FormData) {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+  const id = s(form, "id");
+  if (!id) return;
+
+  const { data: sub } = await supabase
+    .from("submissions")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (!sub || sub.status !== "pending") return;
+
+  const { tint, ink } = ROLE_TINTS_FOR_SUBMISSION[sub.role as RoleKind] || {
+    tint: "var(--hair-2)",
+    ink: "var(--ink-2)",
+  };
+
+  const { data: person, error: personErr } = await supabase
+    .from("people")
+    .insert({
+      name: sub.name,
+      role: sub.role,
+      email: sub.email,
+      phone: sub.phone,
+      instagram: sub.instagram,
+      location: sub.location,
+      specialty: sub.specialty,
+      bio: sub.message,
+      initials: deriveInitials(sub.name),
+      tint,
+      ink,
+      created_by: user.id,
+    })
+    .select("id")
+    .single();
+  if (personErr) {
+    console.error("approveSubmission: failed to create person", personErr);
+    return;
+  }
+
+  await supabase
+    .from("submissions")
+    .update({
+      status: "approved",
+      reviewed_by: user.id,
+      reviewed_at: new Date().toISOString(),
+      converted_person_id: person!.id,
+    })
+    .eq("id", id);
+
+  revalidatePath("/inbox");
+  revalidatePath("/people");
+  redirect(`/people/${person!.id}`);
+}
+
+export async function archiveSubmission(form: FormData) {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+  const id = s(form, "id");
+  if (!id) return;
+  await supabase
+    .from("submissions")
+    .update({
+      status: "archived",
+      reviewed_by: user.id,
+      reviewed_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+  revalidatePath("/inbox");
+  redirect("/inbox");
+}
+
 // ─── Mood images ───
 export async function addMoodImage(form: FormData) {
   const supabase = createClient();

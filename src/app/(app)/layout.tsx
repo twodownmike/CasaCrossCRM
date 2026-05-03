@@ -32,6 +32,7 @@ export default async function AppLayout({
     { count: upcomingCountReal },
     { count: peopleCount },
     { count: messageCount },
+    { count: inboxCount },
     { data: pinned },
   ] = await Promise.all([
     supabase
@@ -43,6 +44,10 @@ export default async function AppLayout({
       .from("messages")
       .select("*", { count: "exact", head: true })
       .gt("created_at", fourteenDaysAgo),
+    supabase
+      .from("submissions")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "pending"),
     supabase
       .from("events")
       .select("id, name, date, cover, cover_image_url")
@@ -74,6 +79,7 @@ export default async function AppLayout({
         upcomingCount={upcomingCountReal ?? 0}
         peopleCount={peopleCount ?? 0}
         messageCount={messageCount ?? 0}
+        inboxCount={inboxCount ?? 0}
         pinned={sidebarPins}
         user={{
           name:

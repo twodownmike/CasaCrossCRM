@@ -92,6 +92,11 @@ export default async function Home() {
   });
   todos.sort((a, b) => a.due.localeCompare(b.due));
 
+  const { count: inboxCount } = await supabase
+    .from("submissions")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "pending");
+
   return (
     <div className="fade-in">
       <div className="page-head">
@@ -103,6 +108,49 @@ export default async function Home() {
           {upcoming.length} active events · {actions.length} need attention
         </div>
       </div>
+
+      {inboxCount && inboxCount > 0 ? (
+        <div style={{ padding: "0 var(--s-5) var(--s-4)" }}>
+          <Link
+            href="/inbox"
+            className="card elev"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 14,
+              padding: 14,
+              border: "1px solid var(--hair)",
+              background: "var(--paper)",
+            }}
+          >
+            <span
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 10,
+                background: "var(--terracotta-tint)",
+                color: "var(--terracotta)",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Icon.mail />
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 500 }}>
+                {inboxCount} new application{inboxCount === 1 ? "" : "s"}
+              </div>
+              <div
+                style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 2 }}
+              >
+                Tap to review and approve.
+              </div>
+            </div>
+            <Icon.chev style={{ color: "var(--ink-4)" }} />
+          </Link>
+        </div>
+      ) : null}
 
       <div className="stat-grid">
         <div className="stat">

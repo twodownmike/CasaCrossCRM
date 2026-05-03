@@ -25,12 +25,14 @@ export function DesktopSidebar({
   upcomingCount,
   peopleCount,
   messageCount,
+  inboxCount,
   pinned,
   user,
 }: {
   upcomingCount: number;
   peopleCount: number;
   messageCount: number;
+  inboxCount: number;
   pinned: SidebarPin[];
   user: { name: string; email: string | null } | null;
 }) {
@@ -59,6 +61,13 @@ export function DesktopSidebar({
       label: "Messages",
       icon: "chat",
       count: messageCount || undefined,
+    },
+    {
+      href: "/inbox",
+      match: /^\/inbox/,
+      label: "Inbox",
+      icon: "mail",
+      count: inboxCount || undefined,
     },
   ];
 

@@ -99,6 +99,26 @@ export type MoodImage = {
   created_at: string;
 };
 
+export type SubmissionStatus = "pending" | "approved" | "archived";
+
+export type Submission = {
+  id: string;
+  role: RoleKind;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  instagram: string | null;
+  location: string | null;
+  specialty: string | null;
+  portfolio_url: string | null;
+  message: string | null;
+  status: SubmissionStatus;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  converted_person_id: string | null;
+  created_at: string;
+};
+
 export const ROLE_META: Record<RoleKind, { label: string; plural: string }> = {
   photographer: { label: "Photographer", plural: "Photographers" },
   model: { label: "Model", plural: "Models" },
