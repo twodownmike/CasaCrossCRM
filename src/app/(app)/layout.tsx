@@ -94,7 +94,7 @@ export default async function AppLayout({
       <div className="scroll">{children}</div>
 
       <Fab />
-      <BottomNav />
+      <BottomNav inboxCount={inboxCount ?? 0} />
     </div>
   );
 }

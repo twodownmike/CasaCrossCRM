@@ -29,7 +29,6 @@ export function Logo({
         width: "auto",
         maxWidth: w,
         display: "block",
-        mixBlendMode: "multiply",
       }}
       className={className}
     />
