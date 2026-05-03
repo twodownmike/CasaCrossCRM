@@ -133,6 +133,48 @@ export function EventForm({ event }: { event?: EventRow }) {
         />
       </div>
 
+      <label
+        className="checkbox-row"
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 12,
+          padding: 14,
+          border: "1px solid var(--hair)",
+          borderRadius: "var(--r-2)",
+          background: "var(--paper)",
+          cursor: "pointer",
+        }}
+      >
+        <input
+          type="checkbox"
+          name="is_public"
+          defaultChecked={!!event?.is_public}
+          style={{ marginTop: 2 }}
+        />
+        <span style={{ flex: 1 }}>
+          <span style={{ fontSize: 14, fontWeight: 500 }}>
+            Publish a public landing page
+          </span>
+          <span
+            style={{
+              display: "block",
+              fontSize: 12,
+              color: "var(--ink-3)",
+              marginTop: 4,
+              lineHeight: 1.4,
+            }}
+          >
+            Anyone with the URL can see the event title, date, location, mood
+            board, and inspiration photos. Hides money, tasks, and the team
+            roster.
+          </span>
+          {event?.is_public && event?.public_slug && (
+            <PublicLink slug={event.public_slug} />
+          )}
+        </span>
+      </label>
+
       <button className="btn primary block" type="submit">
         {editing ? "Save changes" : "Create event"}
       </button>
@@ -149,6 +191,36 @@ export function EventForm({ event }: { event?: EventRow }) {
         Cancel
       </Link>
     </form>
+  );
+}
+
+function PublicLink({ slug }: { slug: string }) {
+  const url =
+    typeof window === "undefined"
+      ? `/e/${slug}`
+      : `${window.location.origin}/e/${slug}`;
+  return (
+    <span
+      style={{
+        display: "block",
+        marginTop: 10,
+        padding: "6px 10px",
+        borderRadius: 6,
+        background: "var(--hair-2)",
+        fontSize: 12,
+        color: "var(--ink-2)",
+        wordBreak: "break-all",
+      }}
+    >
+      <a
+        href={`/e/${slug}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {url}
+      </a>
+    </span>
   );
 }
 

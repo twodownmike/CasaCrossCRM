@@ -11,6 +11,9 @@ export function AppHeader() {
         <Logo variant="header" />
       </Link>
       <div className="actions">
+        <Link className="icon-btn" href="/search" aria-label="Search">
+          <Icon.search />
+        </Link>
         <Link className="icon-btn" href="/account" aria-label="Account">
           <Icon.exit />
         </Link>

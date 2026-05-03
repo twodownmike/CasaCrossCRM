@@ -36,6 +36,8 @@ export type EventRow = {
   time_label: string | null;
   cover: string | null;
   cover_image_url: string | null;
+  is_public: boolean | null;
+  public_slug: string | null;
   venue_id: string | null;
   location: string | null;
   status: EventStatus;

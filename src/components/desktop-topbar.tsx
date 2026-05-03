@@ -1,8 +1,53 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { Icon } from "./icons";
+
+function TopbarSearch() {
+  const router = useRouter();
+  const [q, setQ] = useState("");
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.key.toLowerCase() === "k" &&
+        !e.shiftKey
+      ) {
+        e.preventDefault();
+        const target = document.getElementById("topbar-search-input") as
+          | HTMLInputElement
+          | null;
+        target?.focus();
+        target?.select();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const value = q.trim();
+    if (!value) return;
+    router.push(`/search?q=${encodeURIComponent(value)}`);
+  }
+
+  return (
+    <form onSubmit={submit} className="ds-search">
+      <Icon.search />
+      <input
+        id="topbar-search-input"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="Search events, people, vendors…"
+      />
+      <span className="kbd">⌘K</span>
+    </form>
+  );
+}
 
 export function DesktopTopbar() {
   const pathname = usePathname();
@@ -31,11 +76,7 @@ export function DesktopTopbar() {
         })}
       </div>
       <div className="grow" />
-      <div className="ds-search">
-        <Icon.search />
-        <input placeholder="Search events, people, vendors…" />
-        <span className="kbd">⌘K</span>
-      </div>
+      <TopbarSearch />
       <PrimaryCta pathname={pathname} />
     </div>
   );
