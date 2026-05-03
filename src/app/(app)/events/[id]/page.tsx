@@ -264,50 +264,80 @@ export default async function EventDetail({
               </div>
               <div style={{ padding: "0 var(--s-5)" }}>
                 <div className="card elev">
-                  {byRole[role]!.map((part) => (
-                    <Link
-                      key={part.id}
-                      href={`/people/${part.person.id}`}
-                      className="card-row"
-                    >
-                      <Avatar person={part.person} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div
-                          style={{
-                            fontSize: 14,
-                            fontWeight: 500,
-                            color: "var(--ink)",
-                          }}
-                        >
-                          {part.person.name}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: 12,
-                            color: "var(--ink-3)",
-                            marginTop: 2,
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 6,
-                            flexWrap: "wrap",
-                          }}
-                        >
-                          {Number(part.rate) > 0 ? (
-                            <span className="tabnums">
-                              {fmtMoney(Number(part.rate))}
-                            </span>
-                          ) : (
-                            <span>Comp</span>
+                  {byRole[role]!.map((part) => {
+                    const note = part.role_note || part.person.specialty;
+                    return (
+                      <Link
+                        key={part.id}
+                        href={`/events/${e.id}/participants/${part.id}`}
+                        className="card-row"
+                        style={{
+                          alignItems: "flex-start",
+                          paddingTop: 14,
+                          paddingBottom: 14,
+                        }}
+                      >
+                        <Avatar person={part.person} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div
+                            style={{
+                              fontSize: 14,
+                              fontWeight: 500,
+                              color: "var(--ink)",
+                            }}
+                          >
+                            {part.person.name}
+                          </div>
+                          {note && (
+                            <div
+                              style={{
+                                fontSize: 12,
+                                color: "var(--ink-3)",
+                                marginTop: 2,
+                                lineHeight: 1.4,
+                                display: "-webkit-box",
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: "vertical",
+                                overflow: "hidden",
+                              }}
+                            >
+                              {note}
+                            </div>
                           )}
-                          <span>·</span>
-                          <StatusPill status={part.contract} />
+                          <div
+                            style={{
+                              fontSize: 11.5,
+                              color: "var(--ink-3)",
+                              marginTop: 6,
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 6,
+                              flexWrap: "wrap",
+                            }}
+                          >
+                            {Number(part.rate) > 0 ? (
+                              <span className="tabnums">
+                                {fmtMoney(Number(part.rate))}
+                              </span>
+                            ) : (
+                              <span>Comp</span>
+                            )}
+                            <span>·</span>
+                            <span
+                              className="muted"
+                              style={{ fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase" }}
+                            >
+                              Contract
+                            </span>
+                            <StatusPill status={part.contract} />
+                          </div>
                         </div>
-                      </div>
-                      {Number(part.rate) > 0 && (
-                        <StatusPill status={part.status} />
-                      )}
-                    </Link>
-                  ))}
+                        {Number(part.rate) > 0 && (
+                          <StatusPill status={part.status} />
+                        )}
+                      </Link>
+                    );
+                  })}
                 </div>
               </div>
             </div>

@@ -50,6 +50,7 @@ export type Participant = {
   event_id: string;
   person_id: string;
   role: RoleKind;
+  role_note: string | null;
   rate: number;
   paid: number;
   status: PayStatus;

@@ -30,7 +30,7 @@ export default async function ParticipantPage({
   return (
     <div className="fade-in">
       <header className="app-header">
-        <Link className="icon-btn" href={`/events/${params.id}?tab=money`}>
+        <Link className="icon-btn" href={`/events/${params.id}?tab=roster`}>
           <Icon.back />
         </Link>
         <div
@@ -69,12 +69,20 @@ export default async function ParticipantPage({
         <div className="muted" style={{ fontSize: 13, marginBottom: 8 }}>
           {ROLE_META[person.role as RoleKind]?.label}
         </div>
+        <Link
+          href={`/people/${person.id}`}
+          className="more"
+          style={{ fontSize: 12, color: "var(--ink-3)" }}
+        >
+          View full profile ›
+        </Link>
       </div>
 
       <div style={{ padding: "0 var(--s-5) var(--s-7)" }}>
         <ParticipantForm
           participant={part}
           eventId={params.id}
+          personSpecialty={person.specialty}
         />
       </div>
     </div>

@@ -223,6 +223,7 @@ export async function addParticipant(form: FormData) {
       event_id: eventId,
       person_id: personId,
       role,
+      role_note: nullable(form, "role_note"),
       rate,
       paid: 0,
       status: rate === 0 ? "comp" : "due",
@@ -245,12 +246,18 @@ export async function updateParticipant(form: FormData) {
   const status = form.get("status");
   const contract = form.get("contract");
   const due = form.get("due_date");
+  const role = form.get("role");
+  const roleNote = form.get("role_note");
   if (typeof rate === "string" && rate !== "") updates.rate = Number(rate);
   if (typeof paid === "string" && paid !== "") updates.paid = Number(paid);
   if (typeof status === "string") updates.status = status as PayStatus;
   if (typeof contract === "string")
     updates.contract = contract as ContractStatus;
   if (typeof due === "string") updates.due_date = due === "" ? null : due;
+  if (typeof role === "string" && role !== "")
+    updates.role = role as RoleKind;
+  if (typeof roleNote === "string")
+    updates.role_note = roleNote === "" ? null : roleNote;
 
   await supabase.from("participants").update(updates).eq("id", id);
   if (eventId) revalidatePath(`/events/${eventId}`);
