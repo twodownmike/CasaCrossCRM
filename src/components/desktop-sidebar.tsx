@@ -76,6 +76,12 @@ export function DesktopSidebar({
       label: "Forms",
       icon: "doc",
     },
+    {
+      href: "/contracts",
+      match: /^\/contracts/,
+      label: "Contracts",
+      icon: "check",
+    },
   ];
 
   const userName = user?.name || user?.email?.split("@")[0] || "Anna";

@@ -103,6 +103,50 @@ export type MoodImage = {
   created_at: string;
 };
 
+export type ContractDocStatus = "draft" | "sent" | "signed" | "void";
+
+export type ContractTemplate = {
+  id: string;
+  name: string;
+  description: string | null;
+  body_md: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Contract = {
+  id: string;
+  event_id: string;
+  participant_id: string;
+  template_id: string | null;
+  title: string;
+  body_md: string;
+  status: ContractDocStatus;
+  share_token: string;
+  sent_at: string | null;
+  signed_at: string | null;
+  signature_url: string | null;
+  signed_name: string | null;
+  signer_ip: string | null;
+  signer_ua: string | null;
+  created_at: string;
+};
+
+export type ContractTokenView = {
+  id: string;
+  title: string;
+  body_md: string;
+  status: ContractDocStatus;
+  sent_at: string | null;
+  signed_at: string | null;
+  signature_url: string | null;
+  signed_name: string | null;
+  event_name: string;
+  event_date: string;
+  event_location: string | null;
+  recipient_name: string;
+};
+
 export type FormFieldType =
   | "text"
   | "email"

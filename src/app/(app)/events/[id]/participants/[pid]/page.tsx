@@ -3,8 +3,11 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Icon } from "@/components/icons";
 import { Avatar } from "@/components/avatar";
+import { StatusPill } from "@/components/pill";
 import { ROLE_META, type RoleKind } from "@/lib/types";
 import { ParticipantForm } from "./participant-form";
+import { ContractsBlock } from "./contracts-block";
+import { relTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -78,13 +81,137 @@ export default async function ParticipantPage({
         </Link>
       </div>
 
-      <div style={{ padding: "0 var(--s-5) var(--s-7)" }}>
+      <div style={{ padding: "0 var(--s-5) 24px" }}>
         <ParticipantForm
           participant={part}
           eventId={params.id}
           personSpecialty={person.specialty}
         />
       </div>
+
+      <ContractsSection
+        participantId={params.pid}
+        recipientName={person.name}
+      />
     </div>
+  );
+}
+
+async function ContractsSection({
+  participantId,
+  recipientName,
+}: {
+  participantId: string;
+  recipientName: string;
+}) {
+  const supabase = createClient();
+  const [{ data: contracts }, { data: templates }] = await Promise.all([
+    supabase
+      .from("contracts")
+      .select("*")
+      .eq("participant_id", participantId)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("contract_templates")
+      .select("id, name")
+      .order("updated_at", { ascending: false }),
+  ]);
+
+  return (
+    <>
+      <div className="section-label" style={{ marginTop: 12 }}>
+        <h2>Contracts</h2>
+        <span className="muted" style={{ fontSize: 12 }}>
+          {(contracts ?? []).length}
+        </span>
+      </div>
+      <div style={{ padding: "0 var(--s-5)" }}>
+        <div className="card elev">
+          {(contracts ?? []).length === 0 ? (
+            <div
+              style={{
+                padding: 24,
+                textAlign: "center",
+                color: "var(--ink-3)",
+                fontSize: 13,
+              }}
+            >
+              No contracts sent yet.
+            </div>
+          ) : (
+            (contracts ?? []).map((c) => (
+              <Link
+                key={c.id}
+                href={`/sign/${c.share_token}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="card-row"
+              >
+                <span
+                  className="avatar"
+                  style={{
+                    background:
+                      c.status === "signed"
+                        ? "var(--sage-tint)"
+                        : "var(--gold-tint)",
+                    color:
+                      c.status === "signed" ? "var(--sage)" : "#8a6c2e",
+                  }}
+                >
+                  <Icon.doc />
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                      alignItems: "center",
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <span style={{ fontSize: 14, fontWeight: 500 }}>
+                      {c.title}
+                    </span>
+                    <StatusPill
+                      status={
+                        c.status === "signed"
+                          ? "signed"
+                          : c.status === "sent"
+                            ? "sent"
+                            : c.status === "void"
+                              ? "wrapped"
+                              : "unsent"
+                      }
+                    />
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 11.5,
+                      color: "var(--ink-4)",
+                      marginTop: 4,
+                    }}
+                  >
+                    {c.signed_at
+                      ? `Signed ${relTime(c.signed_at)} by ${c.signed_name || ""}`
+                      : c.sent_at
+                        ? `Sent ${relTime(c.sent_at)}`
+                        : `Created ${relTime(c.created_at)}`}
+                  </div>
+                </div>
+                <Icon.share style={{ color: "var(--ink-4)" }} />
+              </Link>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div style={{ padding: "var(--s-5) var(--s-5) var(--s-7)" }}>
+        <ContractsBlock
+          participantId={participantId}
+          recipientName={recipientName}
+          templates={(templates ?? []) as Array<{ id: string; name: string }>}
+        />
+      </div>
+    </>
   );
 }

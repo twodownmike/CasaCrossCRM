@@ -1401,3 +1401,145 @@ select.input {
   .public-prose { font-size: 16px; }
   .public-body { padding: 36px 22px 60px; }
 }
+
+/* ═══════════════════════════════════════════════════
+   Public e-sign page
+   ═══════════════════════════════════════════════════ */
+.sign-shell {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
+  padding-bottom: 32px;
+}
+.sign-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 28px;
+  border-bottom: 1px solid var(--hair);
+  background: var(--bg);
+}
+.sign-doc {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 32px 24px 48px;
+}
+.sign-meta {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  padding: 18px;
+  background: var(--paper);
+  border: 1px solid var(--hair);
+  border-radius: 14px;
+  margin-bottom: 24px;
+}
+.sign-meta .eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+  font-weight: 500;
+  margin-bottom: 5px;
+}
+.sign-meta .ival { font-size: 14px; font-weight: 500; color: var(--ink); }
+.sign-title {
+  font-family: var(--serif-display);
+  font-weight: 400;
+  font-size: 36px;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin: 0 0 24px;
+}
+.sign-body {
+  background: var(--paper);
+  border: 1px solid var(--hair);
+  border-radius: 14px;
+  padding: 28px 32px;
+  font-family: var(--serif);
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--ink-2);
+}
+.sign-body h1, .sign-body h2, .sign-body h3 {
+  font-family: var(--serif);
+  color: var(--ink);
+  margin: 24px 0 8px;
+  font-weight: 500;
+}
+.sign-body h1 { font-size: 22px; }
+.sign-body h2 { font-size: 18px; }
+.sign-body h3 { font-size: 16px; }
+.sign-body p { margin: 0 0 12px; }
+.sign-body ul { padding-left: 22px; margin: 6px 0 12px; }
+.sign-body li { margin: 4px 0; }
+.sign-body hr { border: none; border-top: 1px solid var(--hair-2); margin: 18px 0; }
+.sign-body strong { color: var(--ink); font-weight: 600; }
+
+.sign-block {
+  margin-top: 24px;
+  background: var(--paper);
+  border: 1px solid var(--hair);
+  border-radius: 14px;
+  padding: 22px;
+}
+.sign-block.signed { background: var(--sage-tint); border-color: var(--sage); }
+.sign-block .eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  font-weight: 500;
+  margin-bottom: 10px;
+}
+.sign-strip { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
+.sign-image {
+  max-height: 80px;
+  background: white;
+  border: 1px solid var(--hair);
+  border-radius: 8px;
+  padding: 4px 10px;
+}
+.sign-name {
+  font-family: var(--serif);
+  font-size: 18px;
+  color: var(--ink);
+  font-weight: 500;
+}
+.sign-when { font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+
+.sign-canvas-wrap {
+  position: relative;
+  border: 1px dashed var(--ink-4);
+  background: white;
+  border-radius: 12px;
+  height: 180px;
+  overflow: hidden;
+  touch-action: none;
+}
+.sign-canvas { width: 100%; height: 100%; display: block; cursor: crosshair; }
+.sign-canvas-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-4);
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 16px;
+  pointer-events: none;
+}
+.sign-footer {
+  text-align: center;
+  padding: 24px;
+  font-size: 12px;
+  color: var(--ink-4);
+}
+
+@media (max-width: 599px) {
+  .sign-doc { padding: 18px 14px 36px; }
+  .sign-body { padding: 20px 18px; font-size: 15px; }
+  .sign-title { font-size: 28px; }
+  .sign-meta { grid-template-columns: 1fr; gap: 10px; padding: 14px; }
+}
