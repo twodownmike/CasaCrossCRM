@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Icon } from "@/components/icons";
 import { StatusPill } from "@/components/pill";
 import { relTime } from "@/lib/format";
+import { NewContractButton } from "./new-contract-button";
 
 export const dynamic = "force-dynamic";
 
@@ -13,42 +14,93 @@ export default async function ContractsPage() {
     .select("*")
     .order("created_at", { ascending: false });
 
-  const eventIds = Array.from(
+  // For the per-row labels (existing contracts):
+  const contractEventIds = Array.from(
     new Set((contracts ?? []).map((c) => c.event_id)),
   );
-  const partIds = Array.from(
+  const contractPartIds = Array.from(
     new Set((contracts ?? []).map((c) => c.participant_id)),
   );
 
-  const [{ data: events }, { data: parts }] = await Promise.all([
-    eventIds.length
-      ? supabase.from("events").select("id, name").in("id", eventIds)
+  // For the New Contract picker: every event + every active participant.
+  const [
+    { data: rowEvents },
+    { data: rowParts },
+    { data: allEvents },
+    { data: allParticipants },
+    { data: allPeople },
+    { data: templates },
+  ] = await Promise.all([
+    contractEventIds.length
+      ? supabase.from("events").select("id, name").in("id", contractEventIds)
       : Promise.resolve({ data: [] as Array<{ id: string; name: string }> }),
-    partIds.length
+    contractPartIds.length
       ? supabase
           .from("participants")
           .select("id, person_id")
-          .in("id", partIds)
+          .in("id", contractPartIds)
       : Promise.resolve(
           { data: [] as Array<{ id: string; person_id: string }> },
         ),
+    supabase
+      .from("events")
+      .select("id, name, date")
+      .order("date", { ascending: false }),
+    supabase
+      .from("participants")
+      .select("id, event_id, person_id, role")
+      .range(0, 9999),
+    supabase
+      .from("people")
+      .select("id, name, preferred_name, legal_name")
+      .range(0, 9999),
+    supabase
+      .from("contract_templates")
+      .select("id, name")
+      .order("updated_at", { ascending: false }),
   ]);
-  const personIds = (parts ?? []).map((p) => p.person_id);
-  const { data: people } = personIds.length
-    ? await supabase
-        .from("people")
-        .select("id, name")
-        .in("id", personIds)
+
+  const personIds = (rowParts ?? []).map((p) => p.person_id);
+  const { data: rowPeople } = personIds.length
+    ? await supabase.from("people").select("id, name").in("id", personIds)
     : { data: [] as Array<{ id: string; name: string }> };
 
   const eventName = new Map(
-    (events ?? []).map((e) => [e.id, e.name] as const),
+    (rowEvents ?? []).map((e) => [e.id, e.name] as const),
   );
   const personByPart = new Map<string, string>();
-  for (const p of parts ?? []) {
-    const person = (people ?? []).find((pp) => pp.id === p.person_id);
+  for (const p of rowParts ?? []) {
+    const person = (rowPeople ?? []).find((pp) => pp.id === p.person_id);
     if (person) personByPart.set(p.id, person.name);
   }
+
+  // Build the picker payload: events with embedded participants + person names
+  const peopleById = new Map(
+    (allPeople ?? []).map(
+      (p) =>
+        [
+          p.id,
+          {
+            name:
+              p.preferred_name || p.legal_name || p.name,
+          },
+        ] as const,
+    ),
+  );
+
+  const pickerEvents = (allEvents ?? [])
+    .map((e) => {
+      const eventParts = (allParticipants ?? [])
+        .filter((p) => p.event_id === e.id)
+        .map((p) => ({
+          id: p.id,
+          name: peopleById.get(p.person_id)?.name || "Unknown",
+          role: p.role,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+      return { ...e, participants: eventParts };
+    })
+    .filter((e) => e.participants.length > 0);
 
   return (
     <div className="fade-in">
@@ -66,6 +118,10 @@ export default async function ContractsPage() {
           <Link href="/contracts/templates" className="btn">
             Templates
           </Link>
+          <NewContractButton
+            events={pickerEvents}
+            templates={(templates ?? []) as Array<{ id: string; name: string }>}
+          />
         </div>
       </div>
 
@@ -164,8 +220,8 @@ export default async function ContractsPage() {
                 fontSize: 13,
               }}
             >
-              No contracts yet. Send one from a participant&apos;s booking
-              page.
+              No contracts yet. Tap{" "}
+              <strong>New contract</strong> above to send your first one.
             </div>
           )}
         </div>
