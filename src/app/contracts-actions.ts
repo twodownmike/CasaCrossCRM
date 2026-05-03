@@ -31,12 +31,17 @@ export async function createTemplate(form: FormData) {
   if (!user) redirect("/login");
   const name = s(form, "name");
   if (!name) return;
+  const pdfUrl = nullable(form, "pdf_url");
   const { data, error } = await supabase
     .from("contract_templates")
     .insert({
       name,
       description: nullable(form, "description"),
-      body_md: s(form, "body_md") || DEFAULT_TEMPLATE_BODY,
+      // If a PDF is attached, the markdown body is optional;
+      // otherwise fall back to the default boilerplate.
+      body_md:
+        s(form, "body_md") || (pdfUrl ? "" : DEFAULT_TEMPLATE_BODY),
+      pdf_url: pdfUrl,
       created_by: user.id,
     })
     .select("id")
@@ -56,6 +61,7 @@ export async function updateTemplate(form: FormData) {
       name: s(form, "name"),
       description: nullable(form, "description"),
       body_md: s(form, "body_md"),
+      pdf_url: nullable(form, "pdf_url"),
     })
     .eq("id", id);
   revalidatePath("/contracts/templates");
@@ -105,31 +111,38 @@ export async function sendContract(
   }
 
   let templateBody = customBody;
-  if (!templateBody && templateId) {
+  let pdfUrl: string | null = null;
+  if (templateId) {
     const { data: tpl } = await supabase
       .from("contract_templates")
-      .select("body_md")
+      .select("body_md, pdf_url")
       .eq("id", templateId)
       .maybeSingle();
-    templateBody = tpl?.body_md ?? null;
+    if (tpl) {
+      pdfUrl = tpl.pdf_url ?? null;
+      if (!templateBody) templateBody = tpl.body_md ?? null;
+    }
   }
-  if (!templateBody) templateBody = DEFAULT_TEMPLATE_BODY;
+  // No body and no PDF → fall back to the default markdown boilerplate.
+  if (!templateBody && !pdfUrl) templateBody = DEFAULT_TEMPLATE_BODY;
 
   const role = part.role as RoleKind;
-  const renderedBody = renderMerge(templateBody, {
-    participantName:
-      person.preferred_name || person.legal_name || person.name,
-    participantLegalName: person.legal_name || person.name,
-    participantEmail: person.email,
-    participantPhone: person.phone,
-    role: ROLE_META[role]?.label || role,
-    rate: Number(part.rate),
-    ratePaid: Number(part.paid),
-    eventName: event.name,
-    eventDate: event.date,
-    eventTime: event.time_label,
-    eventLocation: event.location,
-  });
+  const renderedBody = templateBody
+    ? renderMerge(templateBody, {
+        participantName:
+          person.preferred_name || person.legal_name || person.name,
+        participantLegalName: person.legal_name || person.name,
+        participantEmail: person.email,
+        participantPhone: person.phone,
+        role: ROLE_META[role]?.label || role,
+        rate: Number(part.rate),
+        ratePaid: Number(part.paid),
+        eventName: event.name,
+        eventDate: event.date,
+        eventTime: event.time_label,
+        eventLocation: event.location,
+      })
+    : "";
 
   const token = generateShareToken();
 
@@ -141,6 +154,7 @@ export async function sendContract(
       template_id: templateId,
       title,
       body_md: renderedBody,
+      pdf_url: pdfUrl,
       status: "sent",
       share_token: token,
       sent_at: new Date().toISOString(),

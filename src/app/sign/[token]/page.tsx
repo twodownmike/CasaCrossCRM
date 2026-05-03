@@ -28,6 +28,7 @@ export default async function SignPage({
   const html = mdToHtml(contract.body_md);
   const signed = contract.status === "signed";
   const isVoid = contract.status === "void";
+  const hasPdf = !!contract.pdf_url;
 
   return (
     <div className="sign-shell">
@@ -59,7 +60,38 @@ export default async function SignPage({
 
         <h1 className="sign-title">{contract.title}</h1>
 
-        <div className="sign-body" dangerouslySetInnerHTML={{ __html: html }} />
+        {contract.body_md && contract.body_md.trim() !== "" && (
+          <div
+            className="sign-body"
+            dangerouslySetInnerHTML={{ __html: html }}
+          />
+        )}
+
+        {hasPdf && (
+          <div
+            className="sign-pdf-wrap"
+            style={{ marginTop: contract.body_md ? 18 : 0 }}
+          >
+            <iframe
+              src={contract.pdf_url!}
+              title={contract.title}
+              className="sign-pdf"
+            />
+            <div className="sign-pdf-actions">
+              <a
+                href={contract.pdf_url!}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn sm"
+              >
+                Open PDF in new tab
+              </a>
+              <a href={contract.pdf_url!} download className="btn sm">
+                Download
+              </a>
+            </div>
+          </div>
+        )}
 
         {signed ? (
           <div className="sign-block signed">

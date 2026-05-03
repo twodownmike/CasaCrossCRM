@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { updateTemplate, deleteTemplate } from "@/app/contracts-actions";
 import { MERGE_FIELDS } from "@/lib/contracts";
 import { Icon } from "@/components/icons";
+import { PdfUploader } from "@/components/pdf-uploader";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +58,11 @@ export default async function TemplateEdit({
             />
           </div>
           <div>
-            <label className="form-label">Body (Markdown)</label>
+            <label className="form-label">PDF (optional)</label>
+            <PdfUploader initialUrl={t.pdf_url} />
+          </div>
+          <div>
+            <label className="form-label">Or — Body (Markdown)</label>
             <textarea
               name="body_md"
               className="input textarea"
@@ -69,6 +74,13 @@ export default async function TemplateEdit({
                 fontSize: 13,
               }}
             />
+            <p
+              className="muted"
+              style={{ fontSize: 11, marginTop: 6, lineHeight: 1.4 }}
+            >
+              If a PDF is attached, the markdown body is shown as a preface
+              only — the PDF is what people sign.
+            </p>
           </div>
 
           <details

@@ -110,6 +110,7 @@ export type ContractTemplate = {
   name: string;
   description: string | null;
   body_md: string;
+  pdf_url: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -121,6 +122,7 @@ export type Contract = {
   template_id: string | null;
   title: string;
   body_md: string;
+  pdf_url: string | null;
   status: ContractDocStatus;
   share_token: string;
   sent_at: string | null;
@@ -136,6 +138,7 @@ export type ContractTokenView = {
   id: string;
   title: string;
   body_md: string;
+  pdf_url: string | null;
   status: ContractDocStatus;
   sent_at: string | null;
   signed_at: string | null;

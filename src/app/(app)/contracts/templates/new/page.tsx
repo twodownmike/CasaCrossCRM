@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createTemplate } from "@/app/contracts-actions";
 import { DEFAULT_TEMPLATE_BODY, MERGE_FIELDS } from "@/lib/contracts";
 import { Icon } from "@/components/icons";
+import { PdfUploader } from "@/components/pdf-uploader";
 
 export default function NewTemplatePage() {
   return (
@@ -51,8 +52,14 @@ export default function NewTemplatePage() {
               placeholder="What this template is for"
             />
           </div>
+
           <div>
-            <label className="form-label">Body (Markdown)</label>
+            <label className="form-label">Upload a PDF (optional)</label>
+            <PdfUploader />
+          </div>
+
+          <div>
+            <label className="form-label">Or — Body (Markdown)</label>
             <textarea
               name="body_md"
               className="input textarea"
@@ -60,6 +67,13 @@ export default function NewTemplatePage() {
               defaultValue={DEFAULT_TEMPLATE_BODY}
               style={{ minHeight: 320, fontFamily: "ui-monospace, Menlo, monospace", fontSize: 13 }}
             />
+            <p
+              className="muted"
+              style={{ fontSize: 11, marginTop: 6, lineHeight: 1.4 }}
+            >
+              If a PDF is attached above, the markdown body is shown as a
+              preface only — the PDF is what people sign.
+            </p>
           </div>
 
           <details
