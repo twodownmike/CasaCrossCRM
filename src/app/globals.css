@@ -1228,3 +1228,23 @@ select.input {
     padding-right: 0 !important;
   }
 }
+
+/* Page head action button (mobile: stacks neatly under headline; desktop: aligned right) */
+.page-head-actions {
+  margin-top: 14px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.page-head-actions .btn { padding: 10px 16px; }
+
+@media (min-width: 1024px) {
+  .page-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+  }
+  .page-head-text { min-width: 0; }
+  .page-head-actions { margin-top: 0; flex-shrink: 0; }
+}

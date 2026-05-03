@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { listEvents } from "@/lib/queries";
 import { EventCard } from "@/components/event-card";
+import { Icon } from "@/components/icons";
 import { EventsTabs } from "./events-tabs";
 
 export const dynamic = "force-dynamic";
@@ -20,13 +22,20 @@ export default async function EventsPage({
   return (
     <div className="fade-in">
       <div className="page-head">
-        <div className="eyebrow">Studio</div>
-        <h1>
-          All <em>events</em>
-        </h1>
-        <div className="sub">
-          {events.length} total ·{" "}
-          {events.filter((e) => e.status !== "wrapped").length} active
+        <div className="page-head-text">
+          <div className="eyebrow">Studio</div>
+          <h1>
+            All <em>events</em>
+          </h1>
+          <div className="sub">
+            {events.length} total ·{" "}
+            {events.filter((e) => e.status !== "wrapped").length} active
+          </div>
+        </div>
+        <div className="page-head-actions">
+          <Link href="/events/new" className="btn primary">
+            <Icon.plus /> New event
+          </Link>
         </div>
       </div>
 

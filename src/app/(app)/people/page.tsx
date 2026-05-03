@@ -35,12 +35,19 @@ export default async function PeoplePage({
   return (
     <div className="fade-in">
       <div className="page-head">
-        <div className="eyebrow">Roster</div>
-        <h1>
-          The <em>people</em>
-        </h1>
-        <div className="sub">
-          {all.length} contacts across {Object.keys(ROLE_META).length} roles
+        <div className="page-head-text">
+          <div className="eyebrow">Roster</div>
+          <h1>
+            The <em>people</em>
+          </h1>
+          <div className="sub">
+            {all.length} contacts across {Object.keys(ROLE_META).length} roles
+          </div>
+        </div>
+        <div className="page-head-actions">
+          <Link href="/people/new" className="btn primary">
+            <Icon.plus /> Add person
+          </Link>
         </div>
       </div>
 

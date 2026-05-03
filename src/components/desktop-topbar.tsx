@@ -36,10 +36,27 @@ export function DesktopTopbar() {
         <input placeholder="Search events, people, vendors…" />
         <span className="kbd">⌘K</span>
       </div>
-      <Link className="btn primary sm" href="/events/new">
-        <Icon.plus /> New event
-      </Link>
+      <PrimaryCta pathname={pathname} />
     </div>
+  );
+}
+
+function PrimaryCta({ pathname }: { pathname: string }) {
+  const onPeople =
+    pathname.startsWith("/people") &&
+    !pathname.includes("/new") &&
+    !pathname.includes("/edit");
+  if (onPeople) {
+    return (
+      <Link className="btn primary sm" href="/people/new">
+        <Icon.plus /> Add person
+      </Link>
+    );
+  }
+  return (
+    <Link className="btn primary sm" href="/events/new">
+      <Icon.plus /> New event
+    </Link>
   );
 }
 
