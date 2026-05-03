@@ -71,8 +71,17 @@ export default async function SubmissionDetail({
             margin: "8px 0 4px",
           }}
         >
-          {sub.name}
+          {sub.preferred_name || sub.name}
         </h1>
+        {sub.legal_name &&
+          sub.legal_name !== (sub.preferred_name || sub.name) && (
+            <div
+              className="muted"
+              style={{ fontSize: 12, marginBottom: 2 }}
+            >
+              Legal: {sub.legal_name}
+            </div>
+          )}
         <div className="muted" style={{ fontSize: 12 }}>
           Submitted {relTime(sub.created_at)}
           {sub.location ? ` · ${sub.location}` : ""}

@@ -14,6 +14,8 @@ export type ContractStatus = "signed" | "sent" | "unsent" | "na";
 export type Person = {
   id: string;
   name: string;
+  legal_name: string | null;
+  preferred_name: string | null;
   role: RoleKind;
   email: string | null;
   phone: string | null;
@@ -107,6 +109,8 @@ export type Submission = {
   id: string;
   role: RoleKind;
   name: string;
+  legal_name: string | null;
+  preferred_name: string | null;
   email: string | null;
   phone: string | null;
   instagram: string | null;

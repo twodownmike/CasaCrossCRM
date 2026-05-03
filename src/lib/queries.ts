@@ -25,6 +25,8 @@ function placeholderPerson(id: string): Person {
   return {
     id,
     name: "Unknown person",
+    legal_name: null,
+    preferred_name: null,
     role: "vendor",
     email: null,
     phone: null,

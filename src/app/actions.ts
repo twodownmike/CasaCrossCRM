@@ -57,6 +57,8 @@ export async function createPerson(form: FormData) {
     .from("people")
     .insert({
       name,
+      legal_name: nullable(form, "legal_name"),
+      preferred_name: nullable(form, "preferred_name"),
       role,
       email: nullable(form, "email"),
       phone: nullable(form, "phone"),
@@ -90,6 +92,8 @@ export async function updatePerson(form: FormData) {
     .from("people")
     .update({
       name: s(form, "name"),
+      legal_name: nullable(form, "legal_name"),
+      preferred_name: nullable(form, "preferred_name"),
       role,
       email: nullable(form, "email"),
       phone: nullable(form, "phone"),
@@ -370,13 +374,19 @@ export async function submitApplication(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const supabase = createClient();
   const role = s(form, "role") as RoleKind;
-  const name = s(form, "name");
-  if (!role || !name) {
-    return { ok: false, error: "Name and role are required." };
+  const legalName = s(form, "legal_name");
+  const preferredName = s(form, "preferred_name");
+  // Backward compat: older form used a single 'name' field.
+  const fallbackName = s(form, "name");
+  const displayName = preferredName || legalName || fallbackName;
+  if (!role || !displayName) {
+    return { ok: false, error: "Legal name and role are required." };
   }
   const payload = {
     role,
-    name,
+    name: displayName,
+    legal_name: legalName || null,
+    preferred_name: preferredName || null,
     email: nullable(form, "email"),
     phone: nullable(form, "phone"),
     instagram: nullable(form, "instagram"),
@@ -487,6 +497,8 @@ export async function approveSubmission(form: FormData) {
     .from("people")
     .insert({
       name: sub.name,
+      legal_name: sub.legal_name,
+      preferred_name: sub.preferred_name,
       role: sub.role,
       email: sub.email,
       phone: sub.phone,

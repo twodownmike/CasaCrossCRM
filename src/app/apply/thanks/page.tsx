@@ -13,11 +13,14 @@ export default function ThanksPage() {
           <Logo variant="auth" />
         </div>
         <h1>
-          Got <em>it</em>.
+          Thank <em>you</em>
         </h1>
-        <div className="sub" style={{ marginBottom: 24 }}>
+        <div
+          className="sub"
+          style={{ marginBottom: 24, fontFamily: "var(--serif)", fontSize: 16 }}
+        >
           Thanks for reaching out. We&apos;ll be in touch when there&apos;s a
-          shoot that fits.
+          shoot that fits you best.
         </div>
       </div>
     </div>

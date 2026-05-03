@@ -11,13 +11,38 @@ export function PersonForm({ person }: { person?: Person }) {
     <form action={editing ? updatePerson : createPerson} className="form-grid">
       {editing && <input type="hidden" name="id" value={person!.id} />}
       <div>
-        <label className="form-label">Name</label>
+        <label className="form-label">Display name</label>
         <input
           name="name"
           required
           className="input"
           defaultValue={person?.name || ""}
         />
+        <p
+          className="muted"
+          style={{ fontSize: 11, marginTop: 6, lineHeight: 1.4 }}
+        >
+          What shows up in lists, rosters, and chats.
+        </p>
+      </div>
+      <div className="form-row">
+        <div>
+          <label className="form-label">Legal name</label>
+          <input
+            name="legal_name"
+            className="input"
+            defaultValue={person?.legal_name || ""}
+            placeholder="For contracts & payments"
+          />
+        </div>
+        <div>
+          <label className="form-label">Preferred name</label>
+          <input
+            name="preferred_name"
+            className="input"
+            defaultValue={person?.preferred_name || ""}
+          />
+        </div>
       </div>
       <div>
         <label className="form-label">Role</label>
