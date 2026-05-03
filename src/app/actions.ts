@@ -248,8 +248,17 @@ export async function updateParticipant(form: FormData) {
   const due = form.get("due_date");
   const role = form.get("role");
   const roleNote = form.get("role_note");
-  if (typeof rate === "string" && rate !== "") updates.rate = Number(rate);
-  if (typeof paid === "string" && paid !== "") updates.paid = Number(paid);
+
+  let rateValue: number | undefined;
+  let paidValue: number | undefined;
+  if (typeof rate === "string" && rate !== "") {
+    rateValue = Number(rate);
+    updates.rate = rateValue;
+  }
+  if (typeof paid === "string" && paid !== "") {
+    paidValue = Number(paid);
+    updates.paid = paidValue;
+  }
   if (typeof status === "string") updates.status = status as PayStatus;
   if (typeof contract === "string")
     updates.contract = contract as ContractStatus;
@@ -259,8 +268,25 @@ export async function updateParticipant(form: FormData) {
   if (typeof roleNote === "string")
     updates.role_note = roleNote === "" ? null : roleNote;
 
+  // If rate becomes $0, this is a comp booking — force status + paid to match.
+  if (rateValue === 0) {
+    updates.status = "comp";
+    updates.paid = 0;
+  } else if (
+    rateValue !== undefined &&
+    paidValue !== undefined &&
+    paidValue >= rateValue &&
+    rateValue > 0
+  ) {
+    // If paid >= rate, mark fully paid automatically.
+    updates.status = "paid";
+  }
+
   await supabase.from("participants").update(updates).eq("id", id);
-  if (eventId) revalidatePath(`/events/${eventId}`);
+  if (eventId) {
+    revalidatePath(`/events/${eventId}`);
+    revalidatePath(`/events/${eventId}/participants/${id}`);
+  }
 }
 
 export async function removeParticipant(form: FormData) {
@@ -283,11 +309,19 @@ export async function markPaid(form: FormData) {
     .eq("id", id)
     .single();
   if (!row) return;
+  const rate = Number(row.rate);
   await supabase
     .from("participants")
-    .update({ paid: row.rate, status: "paid" })
+    .update({
+      paid: rate,
+      status: rate === 0 ? "comp" : "paid",
+    })
     .eq("id", id);
-  if (eventId) revalidatePath(`/events/${eventId}`);
+  if (eventId) {
+    revalidatePath(`/events/${eventId}`);
+    revalidatePath(`/events/${eventId}/participants/${id}`);
+    redirect(`/events/${eventId}?tab=money`);
+  }
 }
 
 // ─── Tasks ───
