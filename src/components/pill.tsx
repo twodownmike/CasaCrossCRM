@@ -13,6 +13,7 @@ const STATUS_CLASS: Record<string, string> = {
   signed: "confirmed",
   sent: "planning",
   unsent: "warn",
+  na: "wrapped",
 };
 
 export function StatusPill({

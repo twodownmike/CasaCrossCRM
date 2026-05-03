@@ -9,7 +9,7 @@ export type RoleKind =
 
 export type EventStatus = "confirmed" | "planning" | "pending" | "wrapped";
 export type PayStatus = "paid" | "partial" | "due" | "comp";
-export type ContractStatus = "signed" | "sent" | "unsent";
+export type ContractStatus = "signed" | "sent" | "unsent" | "na";
 
 export type Person = {
   id: string;
@@ -131,4 +131,5 @@ export const STATUS_LABEL: Record<string, string> = {
   signed: "Signed",
   sent: "Sent",
   unsent: "Unsent",
+  na: "N/A",
 };

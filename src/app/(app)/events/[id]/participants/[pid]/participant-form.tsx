@@ -10,7 +10,7 @@ import type { Participant } from "@/lib/types";
 import { ROLE_META, ROLE_ORDER } from "@/lib/types";
 
 const PAY_OPTS = ["paid", "partial", "due", "comp"] as const;
-const CONTRACT_OPTS = ["unsent", "sent", "signed"] as const;
+const CONTRACT_OPTS = ["unsent", "sent", "signed", "na"] as const;
 
 export function ParticipantForm({
   participant,
@@ -114,7 +114,9 @@ export function ParticipantForm({
                     ? "Not sent yet"
                     : s === "sent"
                       ? "Sent — awaiting signature"
-                      : "Signed"}
+                      : s === "signed"
+                        ? "Signed"
+                        : "Not applicable"}
                 </option>
               ))}
             </select>

@@ -238,9 +238,15 @@ export function AddParticipantSheet({
                 ← Pick someone else
               </button>
             </div>
-            <button className="btn primary" type="submit" disabled={pending}>
-              {pending ? "Adding…" : "Add to event"}
-            </button>
+            <div className="sheet-footer">
+              <button
+                className="btn primary block"
+                type="submit"
+                disabled={pending}
+              >
+                {pending ? "Adding…" : "Add to event"}
+              </button>
+            </div>
           </form>
         )}
       </Sheet>

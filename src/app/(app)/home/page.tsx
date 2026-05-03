@@ -45,6 +45,7 @@ export default async function Home() {
     if (e.status === "wrapped") return;
     e.participants.forEach((p) => {
       if (p.contract === "unsent") {
+        // unsent + needs a contract; "na" signals no contract needed
         actions.push({
           kind: "contract",
           eventId: e.id,

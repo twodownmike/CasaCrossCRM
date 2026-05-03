@@ -1253,3 +1253,24 @@ select.input {
   .page-head-actions { margin-top: 0; flex-shrink: 0; }
 }
 
+
+/* Sticky action bar at the bottom of a sheet form */
+.sheet-footer {
+  position: sticky;
+  bottom: 0;
+  margin: 8px -20px 0;
+  padding: 12px 20px calc(12px + var(--safe-bottom));
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0) 0%,
+    var(--paper) 30%,
+    var(--paper) 100%
+  );
+  z-index: 1;
+}
+
+/* Make the sheet body scroll smoothly on iOS even with a sticky footer */
+.sheet .body {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
