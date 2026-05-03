@@ -1,0 +1,200 @@
+import { createClient } from "@/lib/supabase/server";
+import type {
+  EventRow,
+  Participant,
+  Person,
+  Task,
+  Activity,
+  Message,
+  Note,
+} from "./types";
+
+export type ParticipantWithPerson = Participant & { person: Person };
+export type EventWithParticipants = EventRow & {
+  participants: ParticipantWithPerson[];
+};
+export type EventFull = EventWithParticipants & {
+  tasks: Task[];
+  activity: Activity[];
+  messages: Message[];
+};
+
+export async function listEvents(): Promise<EventWithParticipants[]> {
+  const supabase = createClient();
+  const { data: events } = await supabase
+    .from("events")
+    .select("*")
+    .order("date", { ascending: true });
+  if (!events) return [];
+
+  const ids = events.map((e) => e.id);
+  if (ids.length === 0) return events.map((e) => ({ ...e, participants: [] }));
+
+  const [{ data: parts }, { data: people }] = await Promise.all([
+    supabase.from("participants").select("*").in("event_id", ids),
+    supabase.from("people").select("*"),
+  ]);
+
+  const peopleById = new Map<string, Person>();
+  (people ?? []).forEach((p) => peopleById.set(p.id, p));
+
+  return events.map((e) => {
+    const ps = (parts ?? []).filter((pp) => pp.event_id === e.id);
+    return {
+      ...e,
+      participants: ps
+        .map((pp) => ({
+          ...pp,
+          person: peopleById.get(pp.person_id)!,
+        }))
+        .filter((pp) => pp.person),
+    };
+  });
+}
+
+export async function getEvent(id: string): Promise<EventFull | null> {
+  const supabase = createClient();
+  const { data: event } = await supabase
+    .from("events")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (!event) return null;
+
+  const [
+    { data: parts },
+    { data: people },
+    { data: tasks },
+    { data: activity },
+    { data: messages },
+  ] = await Promise.all([
+    supabase.from("participants").select("*").eq("event_id", id),
+    supabase.from("people").select("*"),
+    supabase
+      .from("tasks")
+      .select("*")
+      .eq("event_id", id)
+      .order("due", { ascending: true, nullsFirst: false }),
+    supabase
+      .from("activity")
+      .select("*")
+      .eq("event_id", id)
+      .order("occurred_at", { ascending: false })
+      .limit(8),
+    supabase
+      .from("messages")
+      .select("*")
+      .eq("event_id", id)
+      .order("created_at", { ascending: true })
+      .limit(200),
+  ]);
+
+  const peopleById = new Map<string, Person>();
+  (people ?? []).forEach((p) => peopleById.set(p.id, p));
+
+  return {
+    ...event,
+    participants: (parts ?? [])
+      .map((p) => ({ ...p, person: peopleById.get(p.person_id)! }))
+      .filter((p) => p.person),
+    tasks: tasks ?? [],
+    activity: activity ?? [],
+    messages: messages ?? [],
+  };
+}
+
+export async function listPeople(): Promise<Person[]> {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("people")
+    .select("*")
+    .order("name", { ascending: true });
+  return data ?? [];
+}
+
+export async function getPerson(
+  id: string,
+): Promise<{
+  person: Person;
+  events: EventWithParticipants[];
+  notes: Note[];
+} | null> {
+  const supabase = createClient();
+  const { data: person } = await supabase
+    .from("people")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (!person) return null;
+
+  const { data: parts } = await supabase
+    .from("participants")
+    .select("*")
+    .eq("person_id", id);
+  const eventIds = (parts ?? []).map((p) => p.event_id);
+  if (eventIds.length === 0) {
+    const { data: notes } = await supabase
+      .from("notes")
+      .select("*")
+      .eq("person_id", id)
+      .order("created_at", { ascending: false });
+    return { person, events: [], notes: notes ?? [] };
+  }
+
+  const [{ data: events }, { data: allParts }, { data: people }, { data: notes }] =
+    await Promise.all([
+      supabase.from("events").select("*").in("id", eventIds),
+      supabase.from("participants").select("*").in("event_id", eventIds),
+      supabase.from("people").select("*"),
+      supabase
+        .from("notes")
+        .select("*")
+        .eq("person_id", id)
+        .order("created_at", { ascending: false }),
+    ]);
+
+  const peopleById = new Map<string, Person>();
+  (people ?? []).forEach((p) => peopleById.set(p.id, p));
+
+  const fullEvents: EventWithParticipants[] = (events ?? []).map((e) => {
+    const ps = (allParts ?? []).filter((pp) => pp.event_id === e.id);
+    return {
+      ...e,
+      participants: ps
+        .map((pp) => ({ ...pp, person: peopleById.get(pp.person_id)! }))
+        .filter((pp) => pp.person),
+    };
+  });
+
+  fullEvents.sort((a, b) => a.date.localeCompare(b.date));
+
+  return { person, events: fullEvents, notes: notes ?? [] };
+}
+
+export function aggregateFinances(events: EventWithParticipants[]) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  let owed = 0,
+    paid = 0,
+    overdue = 0;
+  events.forEach((e) => {
+    if (e.status === "wrapped") {
+      paid += e.participants.reduce((s, p) => s + Number(p.paid), 0);
+      return;
+    }
+    e.participants.forEach((p) => {
+      paid += Number(p.paid);
+      const remaining = Number(p.rate) - Number(p.paid);
+      if (remaining > 0) {
+        owed += remaining;
+        if (
+          p.due_date &&
+          new Date(p.due_date + "T12:00:00").getTime() < today.getTime()
+        ) {
+          overdue += remaining;
+        }
+      }
+    });
+  });
+  return { owed, paid, overdue };
+}
