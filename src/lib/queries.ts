@@ -7,6 +7,7 @@ import type {
   Activity,
   Message,
   Note,
+  MoodImage,
 } from "./types";
 
 export type ParticipantWithPerson = Participant & { person: Person };
@@ -17,7 +18,26 @@ export type EventFull = EventWithParticipants & {
   tasks: Task[];
   activity: Activity[];
   messages: Message[];
+  mood_images: MoodImage[];
 };
+
+function placeholderPerson(id: string): Person {
+  return {
+    id,
+    name: "Unknown person",
+    role: "vendor",
+    email: null,
+    phone: null,
+    instagram: null,
+    location: null,
+    bio: null,
+    specialty: null,
+    initials: "?",
+    tint: "var(--hair-2)",
+    ink: "var(--ink-3)",
+    joined_at: null,
+  };
+}
 
 export async function listEvents(): Promise<EventWithParticipants[]> {
   const supabase = createClient();
@@ -31,8 +51,8 @@ export async function listEvents(): Promise<EventWithParticipants[]> {
   if (ids.length === 0) return events.map((e) => ({ ...e, participants: [] }));
 
   const [{ data: parts }, { data: people }] = await Promise.all([
-    supabase.from("participants").select("*").in("event_id", ids),
-    supabase.from("people").select("*"),
+    supabase.from("participants").select("*").in("event_id", ids).range(0, 9999),
+    supabase.from("people").select("*").range(0, 9999),
   ]);
 
   const peopleById = new Map<string, Person>();
@@ -42,12 +62,10 @@ export async function listEvents(): Promise<EventWithParticipants[]> {
     const ps = (parts ?? []).filter((pp) => pp.event_id === e.id);
     return {
       ...e,
-      participants: ps
-        .map((pp) => ({
-          ...pp,
-          person: peopleById.get(pp.person_id)!,
-        }))
-        .filter((pp) => pp.person),
+      participants: ps.map((pp) => ({
+        ...pp,
+        person: peopleById.get(pp.person_id) ?? placeholderPerson(pp.person_id),
+      })),
     };
   });
 }
@@ -67,9 +85,10 @@ export async function getEvent(id: string): Promise<EventFull | null> {
     { data: tasks },
     { data: activity },
     { data: messages },
+    { data: moodImages },
   ] = await Promise.all([
-    supabase.from("participants").select("*").eq("event_id", id),
-    supabase.from("people").select("*"),
+    supabase.from("participants").select("*").eq("event_id", id).range(0, 9999),
+    supabase.from("people").select("*").range(0, 9999),
     supabase
       .from("tasks")
       .select("*")
@@ -87,6 +106,11 @@ export async function getEvent(id: string): Promise<EventFull | null> {
       .eq("event_id", id)
       .order("created_at", { ascending: true })
       .limit(200),
+    supabase
+      .from("mood_images")
+      .select("*")
+      .eq("event_id", id)
+      .order("created_at", { ascending: false }),
   ]);
 
   const peopleById = new Map<string, Person>();
@@ -94,12 +118,14 @@ export async function getEvent(id: string): Promise<EventFull | null> {
 
   return {
     ...event,
-    participants: (parts ?? [])
-      .map((p) => ({ ...p, person: peopleById.get(p.person_id)! }))
-      .filter((p) => p.person),
+    participants: (parts ?? []).map((p) => ({
+      ...p,
+      person: peopleById.get(p.person_id) ?? placeholderPerson(p.person_id),
+    })),
     tasks: tasks ?? [],
     activity: activity ?? [],
     messages: messages ?? [],
+    mood_images: moodImages ?? [],
   };
 }
 
@@ -144,8 +170,12 @@ export async function getPerson(
   const [{ data: events }, { data: allParts }, { data: people }, { data: notes }] =
     await Promise.all([
       supabase.from("events").select("*").in("id", eventIds),
-      supabase.from("participants").select("*").in("event_id", eventIds),
-      supabase.from("people").select("*"),
+      supabase
+        .from("participants")
+        .select("*")
+        .in("event_id", eventIds)
+        .range(0, 9999),
+      supabase.from("people").select("*").range(0, 9999),
       supabase
         .from("notes")
         .select("*")
@@ -160,9 +190,10 @@ export async function getPerson(
     const ps = (allParts ?? []).filter((pp) => pp.event_id === e.id);
     return {
       ...e,
-      participants: ps
-        .map((pp) => ({ ...pp, person: peopleById.get(pp.person_id)! }))
-        .filter((pp) => pp.person),
+      participants: ps.map((pp) => ({
+        ...pp,
+        person: peopleById.get(pp.person_id) ?? placeholderPerson(pp.person_id),
+      })),
     };
   });
 

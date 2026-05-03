@@ -91,6 +91,14 @@ export type Note = {
   created_at: string;
 };
 
+export type MoodImage = {
+  id: string;
+  event_id: string;
+  url: string;
+  caption: string | null;
+  created_at: string;
+};
+
 export const ROLE_META: Record<RoleKind, { label: string; plural: string }> = {
   photographer: { label: "Photographer", plural: "Photographers" },
   model: { label: "Model", plural: "Models" },

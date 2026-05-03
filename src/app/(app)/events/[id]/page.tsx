@@ -15,6 +15,7 @@ import { TaskRow } from "./task-row";
 import { ChatPanel } from "./chat-panel";
 import { AddParticipantSheet } from "./add-participant-sheet";
 import { EventTabs } from "./event-tabs";
+import { MoodUploader } from "./mood-uploader";
 import { relTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -515,35 +516,7 @@ export default async function EventDetail({
               No palette yet.
             </div>
           )}
-          <div
-            style={{
-              fontFamily: "var(--serif)",
-              fontWeight: 500,
-              fontSize: 15,
-              marginBottom: 12,
-            }}
-          >
-            Inspiration
-          </div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 10,
-            }}
-          >
-            {[0, 1, 2, 3, 4, 5].map((i) => (
-              <div
-                key={i}
-                className={`cover-${e.cover || "modern"}`}
-                style={{
-                  aspectRatio: i === 0 || i === 3 ? "3/4" : "1",
-                  borderRadius: "var(--r-3)",
-                  opacity: 0.6 + (i % 3) * 0.13,
-                }}
-              />
-            ))}
-          </div>
+          <MoodUploader eventId={e.id} images={e.mood_images} />
         </div>
       )}
 

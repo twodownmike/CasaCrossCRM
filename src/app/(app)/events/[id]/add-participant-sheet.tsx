@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Sheet } from "@/components/sheet";
 import { Avatar } from "@/components/avatar";
 import { Icon } from "@/components/icons";
@@ -15,6 +16,7 @@ export function AddParticipantSheet({
   eventId: string;
   available: Person[];
 }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [chosen, setChosen] = useState<Person | null>(null);
   const [role, setRole] = useState<RoleKind>("vendor");
@@ -51,6 +53,7 @@ export function AddParticipantSheet({
     start(async () => {
       await addParticipant(f);
       close();
+      router.refresh();
     });
   }
 
