@@ -70,6 +70,12 @@ export function DesktopSidebar({
       icon: "mail",
       count: inboxCount || undefined,
     },
+    {
+      href: "/forms",
+      match: /^\/forms/,
+      label: "Forms",
+      icon: "doc",
+    },
   ];
 
   const userName = user?.name || user?.email?.split("@")[0] || "Anna";

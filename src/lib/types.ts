@@ -103,6 +103,60 @@ export type MoodImage = {
   created_at: string;
 };
 
+export type FormFieldType =
+  | "text"
+  | "email"
+  | "phone"
+  | "url"
+  | "number"
+  | "date"
+  | "textarea"
+  | "select"
+  | "checkbox";
+
+export type FormRow = {
+  id: string;
+  slug: string;
+  title: string;
+  description: string | null;
+  is_published: boolean;
+  thank_you_message: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type FormField = {
+  id: string;
+  form_id: string;
+  position: number;
+  field_key: string;
+  label: string;
+  type: FormFieldType;
+  options: string[] | null;
+  required: boolean;
+  placeholder: string | null;
+  helper: string | null;
+};
+
+export type FormResponse = {
+  id: string;
+  form_id: string;
+  data: Record<string, unknown>;
+  created_at: string;
+};
+
+export const FIELD_TYPE_LABELS: Record<FormFieldType, string> = {
+  text: "Short text",
+  email: "Email",
+  phone: "Phone",
+  url: "Website / URL",
+  number: "Number",
+  date: "Date",
+  textarea: "Long text",
+  select: "Dropdown",
+  checkbox: "Checkbox",
+};
+
 export type SubmissionStatus = "pending" | "approved" | "archived";
 
 export type Submission = {

@@ -23,6 +23,12 @@ const ITEMS: Array<{
     sub: "Vendor, photographer, model…",
     href: "/people/new",
   },
+  {
+    icon: "doc",
+    label: "New form",
+    sub: "Build a custom intake form",
+    href: "/forms/new",
+  },
 ];
 
 export function Fab() {
