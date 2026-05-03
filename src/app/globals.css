@@ -1021,6 +1021,10 @@ select.input {
 .skel.avatar { width: 40px; height: 40px; border-radius: 50%; }
 
 
+/* Default-hide desktop chrome — re-shown inside the >=1024px @media below */
+.ds-sidebar,
+.ds-topbar { display: none; }
+
 /* ═══════════════════════════════════════════════════
    Desktop layout — activates at min-width: 1024px
    Re-uses .phone-frame as the outer shell container
@@ -1248,3 +1252,4 @@ select.input {
   .page-head-text { min-width: 0; }
   .page-head-actions { margin-top: 0; flex-shrink: 0; }
 }
+
