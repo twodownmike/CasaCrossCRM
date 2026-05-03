@@ -978,3 +978,45 @@ select.input {
 .auth-card .btn {
   gap: 10px;
 }
+
+/* ═══════════ Top progress bar ═══════════ */
+.top-progress {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  z-index: 200;
+  pointer-events: none;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 180ms;
+}
+.top-progress.on { opacity: 1; }
+.top-progress .bar {
+  height: 100%;
+  width: 30%;
+  background: linear-gradient(90deg, transparent, var(--terracotta) 50%, transparent);
+  animation: tp-slide 1100ms ease-in-out infinite;
+}
+@keyframes tp-slide {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(420%); }
+}
+
+/* ═══════════ Skeleton ═══════════ */
+.skel {
+  background: linear-gradient(90deg, var(--hair-2) 0%, var(--hair) 50%, var(--hair-2) 100%);
+  background-size: 200% 100%;
+  border-radius: var(--r-2);
+  animation: skel-shimmer 1400ms ease-in-out infinite;
+}
+@keyframes skel-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.skel.line { height: 12px; border-radius: 6px; }
+.skel.line.lg { height: 18px; }
+.skel.line.xl { height: 28px; }
+.skel.block { height: 110px; border-radius: var(--r-3); }
+.skel.hero { height: 280px; border-radius: 0; }
+.skel.avatar { width: 40px; height: 40px; border-radius: 50%; }
+
