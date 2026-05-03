@@ -211,14 +211,18 @@ export async function deleteEvent(form: FormData) {
 }
 
 // ─── Participants ───
-export async function addParticipant(form: FormData) {
+export async function addParticipant(
+  form: FormData,
+): Promise<{ ok: true } | { ok: false; error: string }> {
   const supabase = createClient();
   const eventId = s(form, "event_id");
   const personId = s(form, "person_id");
   const role = s(form, "role") as RoleKind;
-  if (!eventId || !personId || !role) return;
+  if (!eventId || !personId || !role) {
+    return { ok: false, error: "Missing event, person, or role." };
+  }
   const rate = num(form, "rate");
-  await supabase.from("participants").upsert(
+  const { error } = await supabase.from("participants").upsert(
     {
       event_id: eventId,
       person_id: personId,
@@ -232,7 +236,12 @@ export async function addParticipant(form: FormData) {
     },
     { onConflict: "event_id,person_id" },
   );
+  if (error) {
+    console.error("addParticipant failed", { eventId, personId, role, error });
+    return { ok: false, error: error.message };
+  }
   revalidatePath(`/events/${eventId}`);
+  return { ok: true };
 }
 
 export async function updateParticipant(form: FormData) {

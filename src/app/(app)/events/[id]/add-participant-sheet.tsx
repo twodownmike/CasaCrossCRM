@@ -23,6 +23,7 @@ export function AddParticipantSheet({
   const [roleNote, setRoleNote] = useState("");
   const [rate, setRate] = useState("");
   const [due, setDue] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
   function pick(p: Person) {
@@ -38,11 +39,13 @@ export function AddParticipantSheet({
     setRoleNote("");
     setRate("");
     setDue("");
+    setError(null);
   }
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!chosen) return;
+    setError(null);
     const f = new FormData();
     f.set("event_id", eventId);
     f.set("person_id", chosen.id);
@@ -51,7 +54,11 @@ export function AddParticipantSheet({
     f.set("rate", rate);
     if (due) f.set("due_date", due);
     start(async () => {
-      await addParticipant(f);
+      const result = await addParticipant(f);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
       close();
       router.refresh();
     });
@@ -238,6 +245,7 @@ export function AddParticipantSheet({
                 ← Pick someone else
               </button>
             </div>
+            {error && <div className="notice warn">{error}</div>}
             <div className="sheet-footer">
               <button
                 className="btn primary block"
