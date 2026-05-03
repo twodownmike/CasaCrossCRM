@@ -73,11 +73,27 @@ export function PersonForm({ person }: { person?: Person }) {
         </div>
       </div>
       <div>
+        <label className="form-label">Specialty</label>
+        <input
+          name="specialty"
+          className="input"
+          defaultValue={person?.specialty || ""}
+          placeholder="Garden-style florals · heirloom blooms"
+        />
+        <p
+          className="muted"
+          style={{ fontSize: 11, marginTop: 6, lineHeight: 1.4 }}
+        >
+          One line summary, shown right on the People list.
+        </p>
+      </div>
+      <div>
         <label className="form-label">Bio</label>
         <textarea
           name="bio"
           className="input textarea"
           defaultValue={person?.bio || ""}
+          placeholder="Longer notes — past clients, working style, anything good to remember."
         />
       </div>
 

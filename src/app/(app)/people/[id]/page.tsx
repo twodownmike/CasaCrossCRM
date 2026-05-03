@@ -76,6 +76,19 @@ export default async function PersonDetail({
         <div style={{ marginBottom: 10 }}>
           <RolePill role={p.role} />
         </div>
+        {p.specialty && (
+          <div
+            style={{
+              fontSize: 13.5,
+              color: "var(--ink-2)",
+              fontWeight: 500,
+              marginBottom: p.bio ? 8 : 0,
+              maxWidth: 320,
+            }}
+          >
+            {p.specialty}
+          </div>
+        )}
         {p.bio && (
           <div
             className="muted"

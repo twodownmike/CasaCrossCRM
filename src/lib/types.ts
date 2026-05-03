@@ -20,6 +20,7 @@ export type Person = {
   instagram: string | null;
   location: string | null;
   bio: string | null;
+  specialty: string | null;
   initials: string | null;
   tint: string | null;
   ink: string | null;
