@@ -179,6 +179,10 @@ export default async function ContractDetail({
             bodyMd={c.body_md}
             pdfUrl={c.pdf_url}
             status={c.status}
+            paymentRequired={!!c.payment_required}
+            paymentAmount={
+              c.payment_amount != null ? Number(c.payment_amount) : null
+            }
           />
         ) : (
           <div

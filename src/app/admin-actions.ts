@@ -30,6 +30,7 @@ export async function updateStudioSettings(form: FormData) {
       apply_intro: nullable(form, "apply_intro"),
       apply_thank_you: nullable(form, "apply_thank_you"),
       email_signature: nullable(form, "email_signature"),
+      venmo_url: nullable(form, "venmo_url"),
     })
     .eq("id", 1);
   revalidatePath("/admin/studio");

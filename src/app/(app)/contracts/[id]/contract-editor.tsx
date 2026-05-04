@@ -20,17 +20,25 @@ export function ContractEditor({
   bodyMd,
   pdfUrl,
   status,
+  paymentRequired,
+  paymentAmount,
 }: {
   id: string;
   title: string;
   bodyMd: string;
   pdfUrl: string | null;
   status: "draft" | "sent" | "signed" | "void";
+  paymentRequired: boolean;
+  paymentAmount: number | null;
 }) {
   const router = useRouter();
   const [t, setT] = useState(title);
   const [b, setB] = useState(bodyMd);
   const [pdf, setPdf] = useState(pdfUrl || "");
+  const [payReq, setPayReq] = useState(paymentRequired);
+  const [payAmt, setPayAmt] = useState(
+    paymentAmount != null ? String(paymentAmount) : "",
+  );
   const [preview, setPreview] = useState(false);
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<
@@ -40,7 +48,12 @@ export function ContractEditor({
   >(null);
 
   const dirty =
-    t !== title || b !== bodyMd || (pdf || "") !== (pdfUrl || "");
+    t !== title ||
+    b !== bodyMd ||
+    (pdf || "") !== (pdfUrl || "") ||
+    payReq !== paymentRequired ||
+    (payReq &&
+      payAmt !== (paymentAmount != null ? String(paymentAmount) : ""));
 
   function save() {
     setMsg(null);
@@ -49,6 +62,10 @@ export function ContractEditor({
     f.set("title", t);
     f.set("body_md", b);
     f.set("pdf_url", pdf);
+    if (payReq) {
+      f.set("payment_required", "on");
+      if (payAmt) f.set("payment_amount", payAmt);
+    }
     start(async () => {
       const r = await updateContract(f);
       if (!r.ok) {
@@ -212,6 +229,74 @@ export function ContractEditor({
               participant-specific.
             </p>
           </div>
+
+          <label
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 12,
+              padding: 12,
+              border: "1px solid var(--hair)",
+              borderRadius: "var(--r-2)",
+              background: "var(--paper)",
+              cursor: "pointer",
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={payReq}
+              onChange={(e) => setPayReq(e.target.checked)}
+              style={{ marginTop: 2 }}
+            />
+            <span style={{ flex: 1 }}>
+              <span style={{ fontSize: 14, fontWeight: 500 }}>
+                Show a payment page after signing
+              </span>
+              <span
+                style={{
+                  display: "block",
+                  fontSize: 12,
+                  color: "var(--ink-3)",
+                  marginTop: 4,
+                  lineHeight: 1.4,
+                }}
+              >
+                After they sign, the page shows a Pay with Venmo button.
+                Skip this for comp bookings or anyone already paid.
+              </span>
+              {payReq && (
+                <span
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    marginTop: 10,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 500,
+                      color: "var(--ink-3)",
+                    }}
+                  >
+                    $
+                  </span>
+                  <input
+                    type="number"
+                    step="1"
+                    min="0"
+                    className="input"
+                    style={{ flex: 1 }}
+                    value={payAmt}
+                    onChange={(e) => setPayAmt(e.target.value)}
+                    placeholder="0"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </span>
+              )}
+            </span>
+          </label>
 
           {msg && (
             <div className={`notice ${msg.kind === "err" ? "warn" : ""}`}>

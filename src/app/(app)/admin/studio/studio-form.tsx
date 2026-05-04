@@ -13,6 +13,7 @@ type Initial = {
   apply_intro: string;
   apply_thank_you: string;
   email_signature: string;
+  venmo_url: string;
 };
 
 export function StudioForm({ initial }: { initial: Initial }) {
@@ -133,6 +134,45 @@ export function StudioForm({ initial }: { initial: Initial }) {
             onChange={(e) => set("apply_thank_you", e.target.value)}
             placeholder="Thanks for reaching out. We'll be in touch when there's a shoot that fits you best."
           />
+        </div>
+      </div>
+
+      <div
+        style={{
+          marginTop: 4,
+          paddingTop: 18,
+          borderTop: "1px solid var(--hair)",
+        }}
+      >
+        <div
+          className="eyebrow"
+          style={{
+            fontSize: 11,
+            letterSpacing: "0.14em",
+            textTransform: "uppercase",
+            color: "var(--ink-4)",
+            fontWeight: 500,
+            marginBottom: 14,
+          }}
+        >
+          Payments
+        </div>
+        <div>
+          <label className="form-label">Venmo URL</label>
+          <input
+            type="url"
+            className="input"
+            value={v.venmo_url}
+            onChange={(e) => set("venmo_url", e.target.value)}
+            placeholder="https://www.venmo.com/u/CasaCross"
+          />
+          <p
+            className="muted"
+            style={{ fontSize: 11, marginTop: 6, lineHeight: 1.4 }}
+          >
+            Used on the post-signing payment page when a contract has
+            payment required turned on.
+          </p>
         </div>
       </div>
 

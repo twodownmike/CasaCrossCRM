@@ -51,6 +51,7 @@ export default async function StudioSettingsPage() {
             apply_intro: s?.apply_intro || "",
             apply_thank_you: s?.apply_thank_you || "",
             email_signature: s?.email_signature || "",
+            venmo_url: s?.venmo_url || "",
           }}
         />
       </div>

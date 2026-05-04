@@ -152,6 +152,14 @@ export async function sendContract(
 
   const token = generateShareToken();
 
+  const paymentRequired = form.get("payment_required") === "on";
+  const paymentAmountRaw = s(form, "payment_amount");
+  const paymentAmount = paymentRequired
+    ? paymentAmountRaw !== ""
+      ? Number(paymentAmountRaw)
+      : Number(part.rate)
+    : null;
+
   const { data: contract, error } = await supabase
     .from("contracts")
     .insert({
@@ -164,6 +172,8 @@ export async function sendContract(
       status: isDraft ? "draft" : "sent",
       share_token: token,
       sent_at: isDraft ? null : new Date().toISOString(),
+      payment_required: paymentRequired,
+      payment_amount: paymentAmount,
       created_by: user.id,
     })
     .select("id, share_token")
@@ -226,13 +236,22 @@ export async function updateContract(
       error: `Can't edit a ${row.status} contract — recall or void first.`,
     };
   }
+  const paymentRequired = form.get("payment_required") === "on";
+  const paymentAmountRaw = s(form, "payment_amount");
+  const updates: Record<string, unknown> = {
+    title: s(form, "title"),
+    body_md: s(form, "body_md"),
+    pdf_url: nullable(form, "pdf_url"),
+    payment_required: paymentRequired,
+    payment_amount: paymentRequired
+      ? paymentAmountRaw !== ""
+        ? Number(paymentAmountRaw)
+        : null
+      : null,
+  };
   const { error } = await supabase
     .from("contracts")
-    .update({
-      title: s(form, "title"),
-      body_md: s(form, "body_md"),
-      pdf_url: nullable(form, "pdf_url"),
-    })
+    .update(updates)
     .eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/contracts/${id}`);

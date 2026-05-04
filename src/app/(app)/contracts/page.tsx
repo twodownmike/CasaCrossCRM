@@ -48,7 +48,7 @@ export default async function ContractsPage() {
       .order("date", { ascending: false }),
     supabase
       .from("participants")
-      .select("id, event_id, person_id, role")
+      .select("id, event_id, person_id, role, rate")
       .range(0, 9999),
     supabase
       .from("people")
@@ -96,6 +96,7 @@ export default async function ContractsPage() {
           id: p.id,
           name: peopleById.get(p.person_id)?.name || "Unknown",
           role: p.role,
+          rate: Number(p.rate ?? 0),
         }))
         .sort((a, b) => a.name.localeCompare(b.name));
       return { ...e, participants: eventParts };

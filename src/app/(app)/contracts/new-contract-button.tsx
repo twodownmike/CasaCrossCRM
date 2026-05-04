@@ -12,7 +12,12 @@ type PickerEvent = {
   id: string;
   name: string;
   date: string;
-  participants: Array<{ id: string; name: string; role: RoleKind }>;
+  participants: Array<{
+    id: string;
+    name: string;
+    role: RoleKind;
+    rate: number;
+  }>;
 };
 
 export function NewContractButton({
@@ -31,6 +36,8 @@ export function NewContractButton({
   const [templateId, setTemplateId] = useState<string>("");
   const [title, setTitle] = useState("Booking Agreement");
   const [saveAsDraft, setSaveAsDraft] = useState(false);
+  const [paymentRequired, setPaymentRequired] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState("");
   const [pending, start] = useTransition();
   const [result, setResult] = useState<
     | { kind: "ok"; url: string; id: string; isDraft: boolean }
@@ -50,8 +57,16 @@ export function NewContractButton({
     setTemplateId("");
     setTitle("Booking Agreement");
     setSaveAsDraft(false);
+    setPaymentRequired(false);
+    setPaymentAmount("");
     setResult(null);
   }
+
+  const activeParticipant = useMemo(
+    () =>
+      activeEvent?.participants.find((p) => p.id === participantId) || null,
+    [activeEvent, participantId],
+  );
 
   function send(e: React.FormEvent) {
     e.preventDefault();
@@ -65,6 +80,10 @@ export function NewContractButton({
     if (templateId) f.set("template_id", templateId);
     f.set("title", title);
     if (saveAsDraft) f.set("save_as_draft", "on");
+    if (paymentRequired) {
+      f.set("payment_required", "on");
+      if (paymentAmount) f.set("payment_amount", paymentAmount);
+    }
     start(async () => {
       const r = await sendContract(f);
       if (!r.ok) {
@@ -242,6 +261,84 @@ export function NewContractButton({
                 onChange={(e) => setTitle(e.target.value)}
               />
             </div>
+
+            <label
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 12,
+                padding: 12,
+                border: "1px solid var(--hair)",
+                borderRadius: "var(--r-2)",
+                background: "var(--paper)",
+                cursor: "pointer",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={paymentRequired}
+                onChange={(e) => {
+                  setPaymentRequired(e.target.checked);
+                  if (e.target.checked && activeParticipant) {
+                    setPaymentAmount(String(activeParticipant.rate || ""));
+                  }
+                }}
+                style={{ marginTop: 2 }}
+              />
+              <span style={{ flex: 1 }}>
+                <span style={{ fontSize: 14, fontWeight: 500 }}>
+                  Show a payment page after signing
+                </span>
+                <span
+                  style={{
+                    display: "block",
+                    fontSize: 12,
+                    color: "var(--ink-3)",
+                    marginTop: 4,
+                    lineHeight: 1.4,
+                  }}
+                >
+                  After they sign, the page shows a Pay with Venmo button.
+                  Leave off if they&apos;re comp, already paid, or paying
+                  some other way.
+                </span>
+                {paymentRequired && (
+                  <span
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      marginTop: 10,
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 500,
+                        color: "var(--ink-3)",
+                      }}
+                    >
+                      $
+                    </span>
+                    <input
+                      type="number"
+                      step="1"
+                      min="0"
+                      className="input"
+                      style={{ flex: 1 }}
+                      value={paymentAmount}
+                      onChange={(e) => setPaymentAmount(e.target.value)}
+                      placeholder={
+                        activeParticipant
+                          ? `${activeParticipant.rate}`
+                          : "0"
+                      }
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </span>
+                )}
+              </span>
+            </label>
 
             <label
               style={{

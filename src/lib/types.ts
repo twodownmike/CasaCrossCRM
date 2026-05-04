@@ -131,6 +131,8 @@ export type Contract = {
   signed_name: string | null;
   signer_ip: string | null;
   signer_ua: string | null;
+  payment_required: boolean;
+  payment_amount: number | null;
   created_at: string;
 };
 
@@ -148,6 +150,10 @@ export type ContractTokenView = {
   event_date: string;
   event_location: string | null;
   recipient_name: string;
+  payment_required: boolean;
+  payment_amount: number | null;
+  studio_venmo_url: string | null;
+  studio_name: string | null;
 };
 
 export type FormFieldType =
