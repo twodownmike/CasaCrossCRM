@@ -83,6 +83,12 @@ export function DesktopSidebar({
       icon: "check",
     },
     {
+      href: "/reports",
+      match: /^\/reports/,
+      label: "Reports",
+      icon: "chart",
+    },
+    {
       href: "/admin",
       match: /^\/admin/,
       label: "Admin",
