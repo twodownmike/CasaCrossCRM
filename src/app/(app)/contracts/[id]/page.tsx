@@ -221,6 +221,15 @@ export default async function ContractDetail({
                 </a>
               </div>
             )}
+            <div
+              style={{
+                marginTop: 24,
+                paddingTop: 18,
+                borderTop: "1px solid var(--hair-2)",
+              }}
+            >
+              <DangerZone id={c.id} status={c.status} />
+            </div>
           </div>
         )}
       </div>
@@ -229,3 +238,4 @@ export default async function ContractDetail({
 }
 
 import { CopyButton } from "./copy-button";
+import { DangerZone } from "./danger-zone";
