@@ -1612,3 +1612,10 @@ select.input {
   flex-shrink: 0;
   transition: all 120ms;
 }
+
+/* Admin hub tile grid widens on desktop */
+@media (min-width: 1024px) {
+  .admin-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}

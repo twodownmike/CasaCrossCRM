@@ -82,6 +82,12 @@ export function DesktopSidebar({
       label: "Contracts",
       icon: "check",
     },
+    {
+      href: "/admin",
+      match: /^\/admin/,
+      label: "Admin",
+      icon: "spark",
+    },
   ];
 
   const userName = user?.name || user?.email?.split("@")[0] || "Anna";
