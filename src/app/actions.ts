@@ -466,6 +466,8 @@ export async function submitApplication(
   form: FormData,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const supabase = createClient();
+  if (s(form, "website") !== "") return { ok: true }; // honeypot triggered
+
   const role = s(form, "role") as RoleKind;
   const legalName = s(form, "legal_name");
   const preferredName = s(form, "preferred_name");

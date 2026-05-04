@@ -26,6 +26,8 @@ export function ApplyForm() {
 
   return (
     <form className="form-grid" onSubmit={submit}>
+      {/* Honeypot — invisible to humans, bots fill it in */}
+      <input name="website" style={{ display: "none" }} tabIndex={-1} autoComplete="off" aria-hidden="true" />
       <div>
         <label className="form-label">I&apos;m a…</label>
         <select name="role" required defaultValue="" className="input">
