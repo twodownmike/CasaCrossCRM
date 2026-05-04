@@ -95,6 +95,14 @@ export type Note = {
   created_at: string;
 };
 
+export type EventNote = {
+  id: string;
+  event_id: string;
+  body: string;
+  created_at: string;
+  created_by: string | null;
+};
+
 export type MoodImage = {
   id: string;
   event_id: string;

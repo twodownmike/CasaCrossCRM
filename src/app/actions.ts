@@ -648,6 +648,31 @@ export async function archiveSubmission(form: FormData) {
   redirect("/inbox");
 }
 
+// ─── Event notes ───
+export async function addEventNote(form: FormData) {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+  const eventId = s(form, "event_id");
+  const body = s(form, "body");
+  if (!eventId || !body) return;
+  await supabase
+    .from("event_notes")
+    .insert({ event_id: eventId, body, created_by: user.id });
+  revalidatePath(`/events/${eventId}`);
+}
+
+export async function deleteEventNote(form: FormData) {
+  const supabase = createClient();
+  const id = s(form, "id");
+  const eventId = s(form, "event_id");
+  if (!id) return;
+  await supabase.from("event_notes").delete().eq("id", id);
+  if (eventId) revalidatePath(`/events/${eventId}`);
+}
+
 // ─── Mood images ───
 export async function addMoodImage(form: FormData) {
   const supabase = createClient();

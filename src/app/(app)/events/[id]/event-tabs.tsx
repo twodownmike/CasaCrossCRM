@@ -19,6 +19,7 @@ export function EventTabs({
     ["tasks", `Tasks (${openTaskCount})`],
     ["board", "Mood"],
     ["chat", "Chat"],
+    ["notes", "Notes"],
   ];
   return (
     <div className="tabs">

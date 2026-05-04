@@ -18,6 +18,7 @@ import { EventTabs } from "./event-tabs";
 import { MoodUploader } from "./mood-uploader";
 import { RosterClient } from "./roster-client";
 import { ExpensesPanel } from "./expenses-panel";
+import { AddEventNoteForm } from "./add-event-note-form";
 import { createClient as createSupabase } from "@/lib/supabase/server";
 
 async function loadTemplates(): Promise<Array<{ id: string; name: string }>> {
@@ -477,6 +478,48 @@ export default async function EventDetail({
       )}
 
       {tab === "chat" && <ChatPanel eventId={e.id} messages={e.messages} />}
+
+      {tab === "notes" && (
+        <div className="fade-in" style={{ padding: "var(--s-5)" }}>
+          {e.event_notes.length === 0 && (
+            <div className="muted" style={{ fontSize: 13, marginBottom: 12 }}>
+              No notes yet.
+            </div>
+          )}
+          {e.event_notes.map((n) => (
+            <div
+              key={n.id}
+              className="card elev"
+              style={{ padding: 16, marginBottom: 10 }}
+            >
+              <div
+                style={{
+                  fontSize: 11,
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  color: "var(--ink-4)",
+                  fontWeight: 500,
+                  marginBottom: 6,
+                }}
+              >
+                {relTime(n.created_at)}
+              </div>
+              <div
+                style={{
+                  fontFamily: "var(--serif)",
+                  fontSize: 15,
+                  lineHeight: 1.55,
+                  color: "var(--ink-2)",
+                  whiteSpace: "pre-wrap",
+                }}
+              >
+                {n.body}
+              </div>
+            </div>
+          ))}
+          <AddEventNoteForm eventId={e.id} />
+        </div>
+      )}
     </div>
   );
 }
