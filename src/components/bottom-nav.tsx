@@ -23,6 +23,7 @@ const TABS: Array<{
     badgeKey: "inbox",
   },
   { href: "/messages", match: /^\/messages/, label: "Chat", icon: "chat" },
+  { href: "/reports", match: /^\/reports/, label: "Reports", icon: "chart" },
 ];
 
 export function BottomNav({ inboxCount = 0 }: { inboxCount?: number }) {
