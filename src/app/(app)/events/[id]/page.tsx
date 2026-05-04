@@ -17,6 +17,7 @@ import { AddParticipantSheet } from "./add-participant-sheet";
 import { EventTabs } from "./event-tabs";
 import { MoodUploader } from "./mood-uploader";
 import { RosterClient } from "./roster-client";
+import { ExpensesPanel } from "./expenses-panel";
 import { createClient as createSupabase } from "@/lib/supabase/server";
 
 async function loadTemplates(): Promise<Array<{ id: string; name: string }>> {
@@ -396,6 +397,17 @@ export default async function EventDetail({
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {tab === "expenses" && (
+        <div className="fade-in">
+          <ExpensesPanel
+            eventId={e.id}
+            expenses={e.expenses}
+            collected={totals.paid}
+            budget={totals.rate}
+          />
         </div>
       )}
 

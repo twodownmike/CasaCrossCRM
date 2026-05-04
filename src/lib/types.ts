@@ -103,6 +103,31 @@ export type MoodImage = {
   created_at: string;
 };
 
+export type Expense = {
+  id: string;
+  event_id: string;
+  description: string;
+  category: string | null;
+  amount: number;
+  vendor_id: string | null;
+  vendor_name: string | null;
+  spent_at: string | null;
+  notes: string | null;
+  receipt_url: string | null;
+  created_at: string;
+};
+
+export const EXPENSE_CATEGORIES = [
+  "Venue",
+  "Props",
+  "Supplies",
+  "Food & drink",
+  "Travel",
+  "Equipment rental",
+  "Marketing",
+  "Other",
+] as const;
+
 export type ContractDocStatus = "draft" | "sent" | "signed" | "void";
 
 export type ContractTemplate = {

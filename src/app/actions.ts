@@ -406,6 +406,61 @@ export async function toggleTask(form: FormData) {
   revalidatePath("/home");
 }
 
+// ─── Expenses ───
+export async function createExpense(form: FormData) {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+  const eventId = s(form, "event_id");
+  const description = s(form, "description");
+  const amountRaw = s(form, "amount");
+  if (!eventId || !description || amountRaw === "") return;
+  await supabase.from("expenses").insert({
+    event_id: eventId,
+    description,
+    category: nullable(form, "category"),
+    amount: Number(amountRaw),
+    vendor_name: nullable(form, "vendor_name"),
+    spent_at: nullable(form, "spent_at"),
+    notes: nullable(form, "notes"),
+    receipt_url: nullable(form, "receipt_url"),
+    created_by: user.id,
+  });
+  revalidatePath(`/events/${eventId}`);
+}
+
+export async function updateExpense(form: FormData) {
+  const supabase = createClient();
+  const id = s(form, "id");
+  const eventId = s(form, "event_id");
+  const amountRaw = s(form, "amount");
+  if (!id) return;
+  await supabase
+    .from("expenses")
+    .update({
+      description: s(form, "description"),
+      category: nullable(form, "category"),
+      amount: amountRaw === "" ? 0 : Number(amountRaw),
+      vendor_name: nullable(form, "vendor_name"),
+      spent_at: nullable(form, "spent_at"),
+      notes: nullable(form, "notes"),
+      receipt_url: nullable(form, "receipt_url"),
+    })
+    .eq("id", id);
+  if (eventId) revalidatePath(`/events/${eventId}`);
+}
+
+export async function deleteExpense(form: FormData) {
+  const supabase = createClient();
+  const id = s(form, "id");
+  const eventId = s(form, "event_id");
+  if (!id) return;
+  await supabase.from("expenses").delete().eq("id", id);
+  if (eventId) revalidatePath(`/events/${eventId}`);
+}
+
 // ─── Submissions (public intake form) ───
 export async function submitApplication(
   form: FormData,

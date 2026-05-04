@@ -8,6 +8,7 @@ import type {
   Message,
   Note,
   MoodImage,
+  Expense,
 } from "./types";
 
 export type ParticipantWithPerson = Participant & { person: Person };
@@ -19,6 +20,7 @@ export type EventFull = EventWithParticipants & {
   activity: Activity[];
   messages: Message[];
   mood_images: MoodImage[];
+  expenses: Expense[];
 };
 
 function placeholderPerson(id: string): Person {
@@ -88,6 +90,7 @@ export async function getEvent(id: string): Promise<EventFull | null> {
     { data: activity },
     { data: messages },
     { data: moodImages },
+    { data: expenses },
   ] = await Promise.all([
     supabase.from("participants").select("*").eq("event_id", id).range(0, 9999),
     supabase.from("people").select("*").range(0, 9999),
@@ -113,6 +116,11 @@ export async function getEvent(id: string): Promise<EventFull | null> {
       .select("*")
       .eq("event_id", id)
       .order("created_at", { ascending: false }),
+    supabase
+      .from("expenses")
+      .select("*")
+      .eq("event_id", id)
+      .order("spent_at", { ascending: false, nullsFirst: false }),
   ]);
 
   const peopleById = new Map<string, Person>();
@@ -128,6 +136,7 @@ export async function getEvent(id: string): Promise<EventFull | null> {
     activity: activity ?? [],
     messages: messages ?? [],
     mood_images: moodImages ?? [],
+    expenses: (expenses ?? []) as Expense[],
   };
 }
 
