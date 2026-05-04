@@ -200,7 +200,7 @@ export function StudioForm({ initial }: { initial: Initial }) {
           className="input textarea"
           value={v.email_signature}
           onChange={(e) => set("email_signature", e.target.value)}
-          placeholder="Anna Cross · Casa Cross Events · @casacrossevents"
+          placeholder="Casa Cross Events · @casacrossevents · hello@casacross.org"
         />
         <p
           className="muted"

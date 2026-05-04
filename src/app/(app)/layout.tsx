@@ -85,7 +85,7 @@ export default async function AppLayout({
           name:
             (user.user_metadata?.name as string) ||
             user.email?.split("@")[0] ||
-            "Anna",
+            "Casa Cross",
           email: user.email ?? null,
         }}
       />

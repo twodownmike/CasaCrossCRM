@@ -92,6 +92,7 @@ export default async function ParticipantPage({
       <ContractsSection
         participantId={params.pid}
         recipientName={person.name}
+        participantRate={Number(part.rate ?? 0)}
       />
     </div>
   );
@@ -100,9 +101,11 @@ export default async function ParticipantPage({
 async function ContractsSection({
   participantId,
   recipientName,
+  participantRate,
 }: {
   participantId: string;
   recipientName: string;
+  participantRate: number;
 }) {
   const supabase = createClient();
   const [{ data: contracts }, { data: templates }] = await Promise.all([
@@ -209,6 +212,7 @@ async function ContractsSection({
         <ContractsBlock
           participantId={participantId}
           recipientName={recipientName}
+          participantRate={participantRate}
           templates={(templates ?? []) as Array<{ id: string; name: string }>}
         />
       </div>

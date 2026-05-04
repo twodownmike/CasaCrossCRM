@@ -125,6 +125,17 @@ export function ContractEditor({
       )
     )
       return;
+    const typed = window.prompt(
+      'To confirm, type the word DELETE (in caps):',
+      "",
+    );
+    if (typed?.trim() !== "DELETE") {
+      setMsg({
+        kind: "err",
+        text: "Delete cancelled — confirmation didn't match.",
+      });
+      return;
+    }
     const f = new FormData();
     f.set("id", id);
     start(async () => {

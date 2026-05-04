@@ -90,7 +90,8 @@ export function DesktopSidebar({
     },
   ];
 
-  const userName = user?.name || user?.email?.split("@")[0] || "Anna";
+  const userName =
+    user?.name || user?.email?.split("@")[0] || "Casa Cross";
   const initials = deriveInitials(userName);
 
   return (

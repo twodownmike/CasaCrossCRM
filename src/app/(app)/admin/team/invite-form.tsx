@@ -54,7 +54,7 @@ export function InviteForm() {
             className="input"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Anna"
+            placeholder="First name"
           />
         </div>
       </div>
