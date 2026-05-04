@@ -30,9 +30,10 @@ export function NewContractButton({
   const [participantId, setParticipantId] = useState<string>("");
   const [templateId, setTemplateId] = useState<string>("");
   const [title, setTitle] = useState("Booking Agreement");
+  const [saveAsDraft, setSaveAsDraft] = useState(false);
   const [pending, start] = useTransition();
   const [result, setResult] = useState<
-    | { kind: "ok"; url: string }
+    | { kind: "ok"; url: string; id: string; isDraft: boolean }
     | { kind: "err"; msg: string }
     | null
   >(null);
@@ -48,6 +49,7 @@ export function NewContractButton({
     setParticipantId("");
     setTemplateId("");
     setTitle("Booking Agreement");
+    setSaveAsDraft(false);
     setResult(null);
   }
 
@@ -62,13 +64,19 @@ export function NewContractButton({
     f.set("participant_id", participantId);
     if (templateId) f.set("template_id", templateId);
     f.set("title", title);
+    if (saveAsDraft) f.set("save_as_draft", "on");
     start(async () => {
       const r = await sendContract(f);
       if (!r.ok) {
         setResult({ kind: "err", msg: r.error });
         return;
       }
-      setResult({ kind: "ok", url: r.url });
+      setResult({
+        kind: "ok",
+        url: r.url,
+        id: r.id,
+        isDraft: r.isDraft,
+      });
       router.refresh();
     });
   }
@@ -86,13 +94,17 @@ export function NewContractButton({
         disabled={events.length === 0}
         title={events.length === 0 ? "Add a participant to an event first" : undefined}
       >
-        <Icon.plus /> New contract
+        <Icon.plus /> Send contract
       </button>
 
       <Sheet open={open} onClose={close} title="New contract">
         {result?.kind === "ok" ? (
           <div className="form-grid" style={{ paddingTop: 8 }}>
-            <div className="notice">Signing link generated.</div>
+            <div className="notice">
+              {result.isDraft
+                ? "Draft saved — open it to review and send."
+                : "Signing link generated."}
+            </div>
             <code
               style={{
                 background: "var(--hair-2)",
@@ -106,7 +118,13 @@ export function NewContractButton({
             >
               {result.url}
             </code>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <a
+                className="btn primary"
+                href={`/contracts/${result.id}`}
+              >
+                {result.isDraft ? "Open draft" : "Open contract"}
+              </a>
               <button
                 type="button"
                 className="btn"
@@ -120,16 +138,16 @@ export function NewContractButton({
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Open
+                Preview signing
               </a>
             </div>
             <p
               className="muted"
               style={{ fontSize: 12, lineHeight: 1.5 }}
             >
-              Send this link to the participant directly via text, email, or
-              DM. The participant&apos;s contract status is now{" "}
-              <strong>Sent</strong> in their booking.
+              {result.isDraft
+                ? "The signing link is reserved but the participant can't sign until you flip the draft to Sent."
+                : "Send this link directly via text, email, or DM. The participant's contract status is now Sent."}
             </p>
             <div className="sheet-footer">
               <button
@@ -203,7 +221,15 @@ export function NewContractButton({
                 style={{ fontSize: 11, marginTop: 6, lineHeight: 1.4 }}
               >
                 Merge fields are filled from the participant + event before the
-                link is generated.
+                link is generated.{" "}
+                <a
+                  href="/contracts/templates/new"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ textDecoration: "underline" }}
+                >
+                  Build a new template ↗
+                </a>
               </p>
             </div>
 
@@ -217,6 +243,45 @@ export function NewContractButton({
               />
             </div>
 
+            <label
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 12,
+                padding: 12,
+                border: "1px solid var(--hair)",
+                borderRadius: "var(--r-2)",
+                background: "var(--paper)",
+                cursor: "pointer",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={saveAsDraft}
+                onChange={(e) => setSaveAsDraft(e.target.checked)}
+                style={{ marginTop: 2 }}
+              />
+              <span style={{ flex: 1 }}>
+                <span style={{ fontSize: 14, fontWeight: 500 }}>
+                  Save as draft first
+                </span>
+                <span
+                  style={{
+                    display: "block",
+                    fontSize: 12,
+                    color: "var(--ink-3)",
+                    marginTop: 4,
+                    lineHeight: 1.4,
+                  }}
+                >
+                  Review and edit the rendered body before sending. The signing
+                  link is generated either way, but with this on the
+                  participant&apos;s status stays at <strong>Unsent</strong>{" "}
+                  until you click Send from the editor.
+                </span>
+              </span>
+            </label>
+
             {result?.kind === "err" && (
               <div className="notice warn">{result.msg}</div>
             )}
@@ -227,7 +292,11 @@ export function NewContractButton({
                 type="submit"
                 disabled={pending}
               >
-                {pending ? "Generating…" : "Generate signing link"}
+                {pending
+                  ? "Generating…"
+                  : saveAsDraft
+                    ? "Save draft"
+                    : "Generate signing link"}
               </button>
             </div>
           </form>

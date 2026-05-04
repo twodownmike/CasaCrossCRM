@@ -6,10 +6,21 @@ import { Icon } from "@/components/icons";
 
 const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
 
-export function PdfUploader({ initialUrl }: { initialUrl?: string | null }) {
-  const [url, setUrl] = useState(initialUrl || "");
+export function PdfUploader({
+  initialUrl,
+  onChange,
+}: {
+  initialUrl?: string | null;
+  onChange?: (url: string) => void;
+}) {
+  const [url, setUrlState] = useState(initialUrl || "");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function setUrl(next: string) {
+    setUrlState(next);
+    onChange?.(next);
+  }
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];

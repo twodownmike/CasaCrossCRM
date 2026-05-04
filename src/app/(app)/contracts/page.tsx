@@ -130,7 +130,7 @@ export default async function ContractsPage() {
           {(contracts ?? []).map((c) => (
             <Link
               key={c.id}
-              href={`/sign/${c.share_token}`}
+              href={`/contracts/${c.id}`}
               className="card-row"
               style={{
                 alignItems: "flex-start",

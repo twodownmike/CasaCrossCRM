@@ -80,7 +80,10 @@ export async function deleteTemplate(form: FormData) {
 // ─── Contracts ───
 export async function sendContract(
   form: FormData,
-): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+): Promise<
+  | { ok: true; url: string; id: string; isDraft: boolean }
+  | { ok: false; error: string }
+> {
   const supabase = createClient();
   const {
     data: { user },
@@ -91,6 +94,9 @@ export async function sendContract(
   const templateId = nullable(form, "template_id");
   const title = s(form, "title") || "Booking Agreement";
   const customBody = nullable(form, "body_md");
+  // 'save_as_draft' = "on" → status starts as 'draft' so the user can
+  // review/edit before flipping it to 'sent'.
+  const isDraft = form.get("save_as_draft") === "on";
   if (!participantId) {
     return { ok: false, error: "Missing participant." };
   }
@@ -155,9 +161,9 @@ export async function sendContract(
       title,
       body_md: renderedBody,
       pdf_url: pdfUrl,
-      status: "sent",
+      status: isDraft ? "draft" : "sent",
       share_token: token,
-      sent_at: new Date().toISOString(),
+      sent_at: isDraft ? null : new Date().toISOString(),
       created_by: user.id,
     })
     .select("id, share_token")
@@ -167,25 +173,21 @@ export async function sendContract(
     return { ok: false, error: error.message };
   }
 
-  // Flip participant.contract to 'sent' to reflect status across the app.
-  await supabase
-    .from("participants")
-    .update({ contract: "sent" })
-    .eq("id", participantId);
+  if (!isDraft) {
+    // Flip participant.contract to 'sent' to reflect status across the app.
+    await supabase
+      .from("participants")
+      .update({ contract: "sent" })
+      .eq("id", participantId);
+  }
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "";
   const link = `${siteUrl}/sign/${contract!.share_token}`;
 
-  // Email the recipient if we have an address and Resend is set up.
-  if (person.email) {
+  // Email the team a copy when actually sending (skip on drafts).
+  if (!isDraft && person.email) {
     await sendNotificationEmail({
       subject: `Please review and sign — ${event.name}`,
-      // The participant gets the email, not the team — so we override
-      // the recipient list via NOTIFICATION_EMAILS env, which only the
-      // team has. To send to the participant we'd need a separate path.
-      // For MVP we email both: the team gets a copy, and the participant
-      // receives a forwarded copy if their email is in NOTIFICATION_EMAILS.
-      // Simpler: for now log the link so the team can copy it manually.
       html: `
         <div style="font-family:-apple-system,Inter,Helvetica,Arial,sans-serif;color:#1a1814;max-width:560px;margin:0 auto;padding:24px;">
           <div style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#9a948a;font-weight:500;">Casa Cross</div>
@@ -202,7 +204,86 @@ export async function sendContract(
   revalidatePath(`/events/${part.event_id}`);
   revalidatePath(`/events/${part.event_id}/participants/${participantId}`);
   revalidatePath("/contracts");
-  return { ok: true, url: link };
+  return { ok: true, url: link, id: contract!.id, isDraft };
+}
+
+// ─── Edit / lifecycle ───
+export async function updateContract(
+  form: FormData,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = createClient();
+  const id = s(form, "id");
+  if (!id) return { ok: false, error: "Missing id." };
+  const { data: row } = await supabase
+    .from("contracts")
+    .select("status")
+    .eq("id", id)
+    .maybeSingle();
+  if (!row) return { ok: false, error: "Contract not found." };
+  if (row.status === "signed" || row.status === "void") {
+    return {
+      ok: false,
+      error: `Can't edit a ${row.status} contract — recall or void first.`,
+    };
+  }
+  const { error } = await supabase
+    .from("contracts")
+    .update({
+      title: s(form, "title"),
+      body_md: s(form, "body_md"),
+      pdf_url: nullable(form, "pdf_url"),
+    })
+    .eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/contracts/${id}`);
+  revalidatePath("/contracts");
+  return { ok: true };
+}
+
+export async function sendDraftContract(form: FormData) {
+  const supabase = createClient();
+  const id = s(form, "id");
+  if (!id) return;
+  const { data: row } = await supabase
+    .from("contracts")
+    .select("id, status, participant_id, event_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (!row || row.status !== "draft") return;
+  await supabase
+    .from("contracts")
+    .update({ status: "sent", sent_at: new Date().toISOString() })
+    .eq("id", id);
+  await supabase
+    .from("participants")
+    .update({ contract: "sent" })
+    .eq("id", row.participant_id);
+  revalidatePath(`/contracts/${id}`);
+  revalidatePath("/contracts");
+  revalidatePath(`/events/${row.event_id}`);
+}
+
+export async function recallContract(form: FormData) {
+  const supabase = createClient();
+  const id = s(form, "id");
+  if (!id) return;
+  const { data: row } = await supabase
+    .from("contracts")
+    .select("id, status, participant_id, event_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (!row || row.status !== "sent") return;
+  await supabase
+    .from("contracts")
+    .update({ status: "draft" })
+    .eq("id", id);
+  await supabase
+    .from("participants")
+    .update({ contract: "unsent" })
+    .eq("id", row.participant_id);
+  revalidatePath(`/contracts/${id}`);
+  revalidatePath("/contracts");
+  revalidatePath(`/events/${row.event_id}`);
 }
 
 export async function bulkSendContracts(
@@ -234,19 +315,69 @@ export async function voidContract(form: FormData) {
   const supabase = createClient();
   const id = s(form, "id");
   if (!id) return;
+  const { data: row } = await supabase
+    .from("contracts")
+    .select("id, participant_id, event_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (!row) return;
   await supabase
     .from("contracts")
     .update({ status: "void" })
     .eq("id", id);
+  await supabase
+    .from("participants")
+    .update({ contract: "unsent" })
+    .eq("id", row.participant_id);
+  revalidatePath(`/contracts/${id}`);
   revalidatePath("/contracts");
+  revalidatePath(`/events/${row.event_id}`);
 }
 
 export async function deleteContract(form: FormData) {
   const supabase = createClient();
   const id = s(form, "id");
   if (!id) return;
+  const { data: row } = await supabase
+    .from("contracts")
+    .select("event_id, participant_id")
+    .eq("id", id)
+    .maybeSingle();
   await supabase.from("contracts").delete().eq("id", id);
+  if (row) {
+    revalidatePath(`/events/${row.event_id}`);
+  }
   revalidatePath("/contracts");
+  redirect("/contracts");
+}
+
+export async function saveContractAsTemplate(
+  form: FormData,
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+  const name = s(form, "name");
+  const bodyMd = s(form, "body_md");
+  const pdfUrl = nullable(form, "pdf_url");
+  if (!name) return { ok: false, error: "Template needs a name." };
+  if (!bodyMd && !pdfUrl)
+    return { ok: false, error: "Empty body — nothing to save." };
+  const { data, error } = await supabase
+    .from("contract_templates")
+    .insert({
+      name,
+      body_md: bodyMd,
+      pdf_url: pdfUrl,
+      created_by: user.id,
+    })
+    .select("id")
+    .single();
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/contracts/templates");
+  return { ok: true, id: data!.id };
 }
 
 // ─── Public sign action (called from /sign/[token]) ───
