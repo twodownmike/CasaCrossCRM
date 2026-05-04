@@ -3,6 +3,7 @@ import { createTemplate } from "@/app/contracts-actions";
 import { DEFAULT_TEMPLATE_BODY, MERGE_FIELDS } from "@/lib/contracts";
 import { Icon } from "@/components/icons";
 import { PdfUploader } from "@/components/pdf-uploader";
+import { RichTextEditor } from "@/components/rich-text-editor";
 
 export default function NewTemplatePage() {
   return (
@@ -28,8 +29,8 @@ export default function NewTemplatePage() {
           Create a <em>template</em>
         </h1>
         <div className="sub">
-          Edit the body in markdown. Insert merge fields with{" "}
-          <code>{"{{double_braces}}"}</code>.
+          Use the editor below. Insert merge fields like{" "}
+          <code>{"{{participant_name}}"}</code> to personalise each contract.
         </div>
       </div>
 
@@ -59,44 +60,20 @@ export default function NewTemplatePage() {
           </div>
 
           <div>
-            <label className="form-label">Or — Body (Markdown)</label>
-            <textarea
+            <label className="form-label">Or — Body</label>
+            <RichTextEditor
               name="body_md"
-              className="input textarea"
-              rows={20}
-              defaultValue={DEFAULT_TEMPLATE_BODY}
-              style={{ minHeight: 320, fontFamily: "ui-monospace, Menlo, monospace", fontSize: 13 }}
+              initialValue={DEFAULT_TEMPLATE_BODY}
+              mergeFields={MERGE_FIELDS}
             />
             <p
               className="muted"
-              style={{ fontSize: 11, marginTop: 6, lineHeight: 1.4 }}
+              style={{ fontSize: 11, marginTop: 8, lineHeight: 1.4 }}
             >
-              If a PDF is attached above, the markdown body is shown as a
-              preface only — the PDF is what people sign.
+              If a PDF is attached above, the body is shown as a preface only
+              — the PDF is what people sign.
             </p>
           </div>
-
-          <details
-            className="card elev"
-            style={{ padding: 14, fontSize: 13 }}
-          >
-            <summary
-              style={{
-                cursor: "pointer",
-                fontWeight: 500,
-                color: "var(--ink-2)",
-              }}
-            >
-              Available merge fields
-            </summary>
-            <ul style={{ margin: "12px 0 0", paddingLeft: 18 }}>
-              {MERGE_FIELDS.map(([k, label]) => (
-                <li key={k} style={{ marginBottom: 4 }}>
-                  <code>{k}</code> — <span className="muted">{label}</span>
-                </li>
-              ))}
-            </ul>
-          </details>
 
           <button className="btn primary block" type="submit">
             Save template
