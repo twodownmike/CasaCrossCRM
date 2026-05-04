@@ -243,7 +243,7 @@ export const FIELD_TYPE_LABELS: Record<FormFieldType, string> = {
   checkbox: "Checkbox",
 };
 
-export type SubmissionStatus = "pending" | "approved" | "archived";
+export type SubmissionStatus = "pending" | "reviewing" | "invited" | "approved" | "archived";
 
 export type Submission = {
   id: string;

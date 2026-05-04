@@ -2,9 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Icon } from "@/components/icons";
-import { RolePill, StatusPill } from "@/components/pill";
+import { RolePill } from "@/components/pill";
 import { relTime } from "@/lib/format";
 import { approveSubmission, archiveSubmission } from "@/app/actions";
+import { StageSelector } from "../stage-selector";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,7 @@ export default async function SubmissionDetail({
     .maybeSingle();
   if (!sub) notFound();
 
-  const isPending = sub.status === "pending";
+  const isActive = sub.status !== "approved" && sub.status !== "archived";
 
   return (
     <div className="fade-in">
@@ -51,16 +52,8 @@ export default async function SubmissionDetail({
           gap: 8,
         }}
       >
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
           <RolePill role={sub.role} />
-          {sub.status !== "pending" && (
-            <StatusPill
-              status={sub.status === "approved" ? "confirmed" : "wrapped"}
-              label={
-                sub.status === "approved" ? "Approved" : "Archived"
-              }
-            />
-          )}
         </div>
         <h1
           style={{
@@ -189,33 +182,36 @@ export default async function SubmissionDetail({
           gap: 10,
         }}
       >
-        {isPending ? (
-          <>
-            <form action={approveSubmission}>
-              <input type="hidden" name="id" value={sub.id} />
-              <button className="btn primary block" type="submit">
-                <Icon.plus /> Approve & add to People
-              </button>
-            </form>
-            <form action={archiveSubmission}>
-              <input type="hidden" name="id" value={sub.id} />
-              <button
-                className="btn block"
-                type="submit"
-                style={{ color: "var(--ink-3)" }}
-              >
-                Archive
-              </button>
-            </form>
-          </>
-        ) : sub.converted_person_id ? (
+        <StageSelector id={sub.id} currentStage={sub.status} />
+
+        {isActive && (
+          <form action={approveSubmission} style={{ marginTop: 4 }}>
+            <input type="hidden" name="id" value={sub.id} />
+            <button className="btn primary block" type="submit">
+              <Icon.plus /> Approve &amp; add to People
+            </button>
+          </form>
+        )}
+        {isActive && (
+          <form action={archiveSubmission}>
+            <input type="hidden" name="id" value={sub.id} />
+            <button
+              className="btn block"
+              type="submit"
+              style={{ color: "var(--ink-3)" }}
+            >
+              Decline &amp; archive
+            </button>
+          </form>
+        )}
+        {sub.converted_person_id && (
           <Link
             className="btn primary block"
             href={`/people/${sub.converted_person_id}`}
           >
             View their profile
           </Link>
-        ) : null}
+        )}
       </div>
     </div>
   );

@@ -462,6 +462,19 @@ export async function deleteExpense(form: FormData) {
 }
 
 // ─── Submissions (public intake form) ───
+export async function moveSubmission(form: FormData) {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+  const id = s(form, "id");
+  const stage = s(form, "stage");
+  if (!id || !stage) return;
+  await supabase.from("submissions").update({ status: stage }).eq("id", id);
+  revalidatePath("/inbox");
+}
+
 export async function submitApplication(
   form: FormData,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
@@ -581,7 +594,7 @@ export async function approveSubmission(form: FormData) {
     .select("*")
     .eq("id", id)
     .maybeSingle();
-  if (!sub || sub.status !== "pending") return;
+  if (!sub || sub.status === "approved" || sub.status === "archived") return;
 
   const { tint, ink } = ROLE_TINTS_FOR_SUBMISSION[sub.role as RoleKind] || {
     tint: "var(--hair-2)",
