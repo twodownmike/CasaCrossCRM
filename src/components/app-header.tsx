@@ -14,6 +14,9 @@ export function AppHeader() {
         <Link className="icon-btn" href="/search" aria-label="Search">
           <Icon.search />
         </Link>
+        <Link className="icon-btn" href="/admin" aria-label="Admin">
+          <Icon.gear />
+        </Link>
         <Link className="icon-btn" href="/account" aria-label="Account">
           <Icon.exit />
         </Link>

@@ -304,6 +304,10 @@ export default async function EventDetail({
         <VendorPacket event={e} />
       )}
 
+      {tab === "portal" && (
+        <PortalTab event={e} />
+      )}
+
       {tab === "money" && (
         <div className="fade-in" style={{ padding: "var(--s-5)" }}>
           <div
@@ -404,11 +408,7 @@ export default async function EventDetail({
               </div>
             )}
           </div>
-        </div>
-      )}
 
-      {tab === "expenses" && (
-        <div className="fade-in">
           <ExpensesPanel
             eventId={e.id}
             expenses={e.expenses}
@@ -556,20 +556,13 @@ type PacketPortalMessage = {
 async function VendorPacket({ event }: { event: NonNullable<Awaited<ReturnType<typeof getEvent>>> }) {
   const supabase = createSupabase();
   const participantIds = event.participants.map((p) => p.id);
-  const [{ data: contracts }, { data: portalMessages }] = await Promise.all([
-    participantIds.length
-      ? supabase
-          .from("contracts")
-          .select("participant_id, title, status, share_token, sent_at, signed_at, created_at")
-          .in("participant_id", participantIds)
-          .order("created_at", { ascending: false })
-      : Promise.resolve({ data: [] }),
-    supabase
-      .from("portal_messages")
-      .select("id, event_id, person_id, sender_kind, sender_name, body, created_at")
-      .eq("event_id", event.id)
-      .order("created_at", { ascending: true }),
-  ]);
+  const { data: contracts } = participantIds.length
+    ? await supabase
+        .from("contracts")
+        .select("participant_id, title, status, share_token, sent_at, signed_at, created_at")
+        .in("participant_id", participantIds)
+        .order("created_at", { ascending: false })
+    : { data: [] };
 
   const latestByParticipant = new Map<string, PacketContract>();
   ((contracts ?? []) as PacketContract[]).forEach((contract) => {
@@ -591,16 +584,6 @@ async function VendorPacket({ event }: { event: NonNullable<Awaited<ReturnType<t
     ...event.participants.filter((p) => vendorRoles.includes(p.role)),
     ...event.participants.filter((p) => !vendorRoles.includes(p.role)),
   ];
-  const portalMessagesByPerson = new Map<string, PacketPortalMessage[]>();
-  ((portalMessages ?? []) as PacketPortalMessage[]).forEach((message) => {
-    const list = portalMessagesByPerson.get(message.person_id) ?? [];
-    list.push(message);
-    portalMessagesByPerson.set(message.person_id, list);
-  });
-  const messageThreads = packetParticipants.filter((participant) =>
-    portalMessagesByPerson.has(participant.person_id),
-  );
-
   return (
     <div className="fade-in packet-page" style={{ padding: "var(--s-5)" }}>
       <div
@@ -767,101 +750,6 @@ async function VendorPacket({ event }: { event: NonNullable<Awaited<ReturnType<t
         </div>
       </PacketSection>
 
-      <PacketSection title="Portal Messages">
-        <div className="card elev packet-card">
-          {messageThreads.length === 0 ? (
-            <div style={{ padding: 18, color: "var(--ink-3)", fontSize: 13 }}>
-              No portal messages yet.
-            </div>
-          ) : (
-            messageThreads.map((participant) => {
-              const messages = portalMessagesByPerson.get(participant.person_id) ?? [];
-              const last = messages[messages.length - 1];
-              return (
-                <div
-                  key={participant.id}
-                  style={{ padding: 14, borderBottom: "1px solid var(--hair)" }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: 10,
-                      alignItems: "center",
-                      marginBottom: 10,
-                    }}
-                  >
-                    <Avatar person={participant.person} size="sm" />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 14, fontWeight: 600 }}>
-                        {participant.person.name}
-                      </div>
-                      <div className="muted" style={{ fontSize: 11.5 }}>
-                        {messages.length} message{messages.length === 1 ? "" : "s"}
-                        {last ? ` · latest ${relTime(last.created_at)}` : ""}
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {messages.slice(-4).map((message) => {
-                      const team = message.sender_kind === "team";
-                      return (
-                        <div
-                          key={message.id}
-                          style={{
-                            alignSelf: team ? "flex-end" : "flex-start",
-                            maxWidth: "86%",
-                          }}
-                        >
-                          <div
-                            style={{
-                              fontSize: 10.5,
-                              color: "var(--ink-4)",
-                              marginBottom: 3,
-                              textAlign: team ? "right" : "left",
-                            }}
-                          >
-                            {team ? "Casa Cross" : participant.person.name} · {relTime(message.created_at)}
-                          </div>
-                          <div
-                            style={{
-                              padding: "8px 11px",
-                              borderRadius: team
-                                ? "14px 14px 4px 14px"
-                                : "14px 14px 14px 4px",
-                              background: team ? "var(--ink)" : "var(--hair-2)",
-                              color: team ? "white" : "var(--ink)",
-                              fontSize: 13,
-                              lineHeight: 1.45,
-                              whiteSpace: "pre-wrap",
-                            }}
-                          >
-                            {message.body}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <form action={sendTeamPortalMessage} className="form-grid" style={{ marginTop: 12 }}>
-                    <input type="hidden" name="event_id" value={event.id} />
-                    <input type="hidden" name="person_id" value={participant.person_id} />
-                    <textarea
-                      name="body"
-                      required
-                      className="input textarea"
-                      placeholder={`Reply to ${participant.person.name}...`}
-                      style={{ minHeight: 74 }}
-                    />
-                    <button className="btn primary block" type="submit">
-                      <Icon.send /> Send reply
-                    </button>
-                  </form>
-                </div>
-              );
-            })
-          )}
-        </div>
-      </PacketSection>
-
       {event.event_notes.length > 0 && (
         <PacketSection title="Internal Notes">
           <div className="card elev packet-card">
@@ -877,6 +765,135 @@ async function VendorPacket({ event }: { event: NonNullable<Awaited<ReturnType<t
             ))}
           </div>
         </PacketSection>
+      )}
+    </div>
+  );
+}
+
+async function PortalTab({ event }: { event: NonNullable<Awaited<ReturnType<typeof getEvent>>> }) {
+  const supabase = createSupabase();
+  const { data: portalMessages } = await supabase
+    .from("portal_messages")
+    .select("id, event_id, person_id, sender_kind, sender_name, body, created_at")
+    .eq("event_id", event.id)
+    .order("created_at", { ascending: true });
+
+  const vendorRoles: RoleKind[] = ["venue", "vendor", "hmua", "stylist", "photographer"];
+  const allParticipants = [
+    ...event.participants.filter((p) => vendorRoles.includes(p.role)),
+    ...event.participants.filter((p) => !vendorRoles.includes(p.role)),
+  ];
+
+  const portalMessagesByPerson = new Map<string, PacketPortalMessage[]>();
+  ((portalMessages ?? []) as PacketPortalMessage[]).forEach((message) => {
+    const list = portalMessagesByPerson.get(message.person_id) ?? [];
+    list.push(message);
+    portalMessagesByPerson.set(message.person_id, list);
+  });
+  const messageThreads = allParticipants.filter((p) =>
+    portalMessagesByPerson.has(p.person_id),
+  );
+
+  return (
+    <div className="fade-in" style={{ padding: "var(--s-5)" }}>
+      {messageThreads.length === 0 ? (
+        <div
+          style={{
+            padding: 40,
+            textAlign: "center",
+            color: "var(--ink-3)",
+            fontSize: 13,
+          }}
+        >
+          No portal messages yet.
+        </div>
+      ) : (
+        <div className="card elev" style={{ overflow: "hidden" }}>
+          {messageThreads.map((participant) => {
+            const messages = portalMessagesByPerson.get(participant.person_id) ?? [];
+            const last = messages[messages.length - 1];
+            return (
+              <div
+                key={participant.id}
+                style={{ padding: 14, borderBottom: "1px solid var(--hair)" }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 10,
+                    alignItems: "center",
+                    marginBottom: 10,
+                  }}
+                >
+                  <Avatar person={participant.person} size="sm" />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600 }}>
+                      {participant.person.name}
+                    </div>
+                    <div className="muted" style={{ fontSize: 11.5 }}>
+                      {messages.length} message{messages.length === 1 ? "" : "s"}
+                      {last ? ` · latest ${relTime(last.created_at)}` : ""}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {messages.slice(-4).map((message) => {
+                    const team = message.sender_kind === "team";
+                    return (
+                      <div
+                        key={message.id}
+                        style={{
+                          alignSelf: team ? "flex-end" : "flex-start",
+                          maxWidth: "86%",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 10.5,
+                            color: "var(--ink-4)",
+                            marginBottom: 3,
+                            textAlign: team ? "right" : "left",
+                          }}
+                        >
+                          {team ? "Casa Cross" : participant.person.name} · {relTime(message.created_at)}
+                        </div>
+                        <div
+                          style={{
+                            padding: "8px 11px",
+                            borderRadius: team
+                              ? "14px 14px 4px 14px"
+                              : "14px 14px 14px 4px",
+                            background: team ? "var(--ink)" : "var(--hair-2)",
+                            color: team ? "white" : "var(--ink)",
+                            fontSize: 13,
+                            lineHeight: 1.45,
+                            whiteSpace: "pre-wrap",
+                          }}
+                        >
+                          {message.body}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <form action={sendTeamPortalMessage} className="form-grid" style={{ marginTop: 12 }}>
+                  <input type="hidden" name="event_id" value={event.id} />
+                  <input type="hidden" name="person_id" value={participant.person_id} />
+                  <textarea
+                    name="body"
+                    required
+                    className="input textarea"
+                    placeholder={`Reply to ${participant.person.name}...`}
+                    style={{ minHeight: 74 }}
+                  />
+                  <button className="btn primary block" type="submit">
+                    <Icon.send /> Send reply
+                  </button>
+                </form>
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );
