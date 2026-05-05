@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { submitFormResponse } from "@/app/forms-actions";
+import { normalizeFormFieldOptions } from "@/lib/form-fields";
 import type { FormField } from "@/lib/types";
 
 export function PublicFormRenderer({
@@ -89,7 +90,7 @@ function FieldInput({ field }: { field: FormField }) {
           <option value="" disabled>
             Pick one
           </option>
-          {(field.options || []).map((o) => (
+          {normalizeFormFieldOptions(field.options).map((o) => (
             <option key={o} value={o}>
               {o}
             </option>

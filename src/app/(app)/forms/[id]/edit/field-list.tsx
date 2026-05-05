@@ -4,7 +4,9 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Sheet } from "@/components/sheet";
 import { Icon } from "@/components/icons";
+import { normalizeFormFieldOptions } from "@/lib/form-fields";
 import {
+  addFormField,
   updateFormField,
   deleteFormField,
   moveFormField,
@@ -117,10 +119,8 @@ function FieldRow({
             {field.helper}
           </div>
         )}
-        {field.type === "select" && field.options && (
-          <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 4 }}>
-            {field.options.length} option{field.options.length === 1 ? "" : "s"}
-          </div>
+        {field.type === "select" && (
+          <OptionCount options={field.options} />
         )}
       </div>
       <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
@@ -195,7 +195,9 @@ export function FieldForm({
   const [required, setRequired] = useState<boolean>(field?.required || false);
   const [placeholder, setPlaceholder] = useState(field?.placeholder || "");
   const [helper, setHelper] = useState(field?.helper || "");
-  const [options, setOptions] = useState((field?.options || []).join("\n"));
+  const [options, setOptions] = useState(
+    normalizeFormFieldOptions(field?.options).join("\n"),
+  );
   const [pending, start] = useTransition();
 
   function save(e: React.FormEvent) {
@@ -306,4 +308,11 @@ export function FieldForm({
   );
 }
 
-import { addFormField } from "@/app/forms-actions";
+function OptionCount({ options }: { options: unknown }) {
+  const count = normalizeFormFieldOptions(options).length;
+  return (
+    <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 4 }}>
+      {count} option{count === 1 ? "" : "s"}
+    </div>
+  );
+}
