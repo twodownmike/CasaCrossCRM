@@ -17,11 +17,11 @@ export default function PortalInvite({ recipientName, portalUrl }: Props) {
         message the team directly.
       </Text>
       <Text style={s.body_text}>
-        Sign in with this email address to get started. You'll receive a magic
-        link — no password needed.
+        Use this invite to create your portal profile. After you confirm your
+        details, you'll receive a magic link — no password needed.
       </Text>
       <Link href={portalUrl} style={s.button}>
-        Open your portal
+        Create your portal
       </Link>
       <Text style={{ ...s.muted, marginTop: 16 }}>{portalUrl}</Text>
     </EmailLayout>
@@ -35,7 +35,7 @@ export async function portalInviteEmail(props: Props): Promise<{ html: string; t
     "",
     "You've been invited to the Casa Cross client portal — view event details, sign contracts, and message the team.",
     "",
-    `Sign in here (no password needed): ${props.portalUrl}`,
+    `Create your portal here (no password needed): ${props.portalUrl}`,
     "",
     "— Casa Cross Events",
   ].join("\n");

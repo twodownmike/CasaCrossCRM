@@ -36,7 +36,8 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith("/apply") ||
     pathname.startsWith("/e/") ||
     pathname.startsWith("/f/") ||
-    pathname.startsWith("/sign/");
+    pathname.startsWith("/sign/") ||
+    pathname.startsWith("/portal/signup");
 
   if (!user && !isPublicPath) {
     const url = request.nextUrl.clone();
@@ -50,6 +51,25 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = next?.startsWith("/") ? next : "/home";
     return NextResponse.redirect(url);
+  }
+
+  if (
+    user &&
+    pathname.startsWith("/portal") &&
+    !pathname.startsWith("/portal/setup") &&
+    !pathname.startsWith("/portal/signup")
+  ) {
+    const { data: portalUser } = await supabase
+      .from("portal_users")
+      .select("setup_completed_at")
+      .eq("active", true)
+      .limit(1)
+      .maybeSingle();
+    if (portalUser && !portalUser.setup_completed_at) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/portal/setup";
+      return NextResponse.redirect(url);
+    }
   }
 
   return response;

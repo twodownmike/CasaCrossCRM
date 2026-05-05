@@ -482,7 +482,7 @@ async function PortalAccessPanel({
   const supabase = createClient();
   const { data: accessRows } = await supabase
     .from("portal_users")
-    .select("id, email, display_name, active, created_at")
+    .select("id, email, display_name, active, setup_completed_at, created_at")
     .eq("person_id", personId)
     .eq("active", true)
     .order("created_at", { ascending: false });
@@ -510,6 +510,8 @@ async function PortalAccessPanel({
                 </div>
                 <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 3 }}>
                   {row.display_name || personName}
+                  {" · "}
+                  {row.setup_completed_at ? "setup complete" : "invite sent"}
                 </div>
               </div>
               <form action={revokePortalAccess}>
@@ -547,11 +549,11 @@ async function PortalAccessPanel({
           />
         </div>
         <button className="btn block" type="submit">
-          <Icon.plus /> Grant portal access
+          <Icon.plus /> Send portal invite
         </button>
         <div className="muted" style={{ fontSize: 11, lineHeight: 1.45 }}>
-          Portal users sign in at /portal with this email. Database policies
-          restrict them to their own profile, assignments, and contracts.
+          The invite opens a guided signup. After setup, database policies
+          restrict portal users to their own profile, assignments, and contracts.
         </div>
       </form>
     </div>
