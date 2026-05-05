@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { deriveInitials } from "@/lib/format";
 import { sendNotificationEmail, escapeHtml } from "@/lib/notify";
@@ -730,3 +731,11 @@ export async function removeMoodImage(form: FormData) {
   if (eventId) revalidatePath(`/events/${eventId}`);
 }
 
+
+export async function markPortalMessagesRead() {
+  cookies().set("portal_read_at", new Date().toISOString(), {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+    sameSite: "lax",
+  });
+}

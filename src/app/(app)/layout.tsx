@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { AppHeader } from "@/components/app-header";
 import { BottomNav } from "@/components/bottom-nav";
@@ -30,6 +31,7 @@ export default async function AppLayout({
   const fourteenDaysAgo = new Date(
     Date.now() - 14 * 24 * 3600 * 1000,
   ).toISOString();
+  const portalReadAt = cookies().get("portal_read_at")?.value ?? fourteenDaysAgo;
 
   const [
     { count: upcomingCountReal },
@@ -46,7 +48,8 @@ export default async function AppLayout({
     supabase
       .from("portal_messages")
       .select("*", { count: "exact", head: true })
-      .gt("created_at", fourteenDaysAgo),
+      .eq("sender_kind", "portal")
+      .gt("created_at", portalReadAt),
     supabase
       .from("submissions")
       .select("*", { count: "exact", head: true })

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { relTime } from "@/lib/format";
+import { MarkRead } from "./mark-read";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +42,7 @@ export default async function MessagesPage() {
 
   return (
     <div className="fade-in">
+      <MarkRead />
       <div className="page-head">
         <div className="eyebrow">Portal</div>
         <h1>
