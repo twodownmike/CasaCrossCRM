@@ -22,6 +22,13 @@ export default async function AppLayout({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  const { data: teamMember } = await supabase
+    .from("team_members")
+    .select("user_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!teamMember) redirect("/portal");
+
   // Sidebar data — fetched once per nav, kept lean.
   const today = new Date().toISOString().slice(0, 10);
   const fourteenDaysAgo = new Date(

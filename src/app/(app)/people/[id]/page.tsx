@@ -7,6 +7,8 @@ import { StatusPill, RolePill } from "@/components/pill";
 import { Icon } from "@/components/icons";
 import { PersonTabs } from "./person-tabs";
 import { AddNoteForm } from "./add-note-form";
+import { createClient } from "@/lib/supabase/server";
+import { grantPortalAccess, revokePortalAccess } from "@/app/portal-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -168,6 +170,11 @@ export default async function PersonDetail({
               </div>
             )}
           </div>
+          <PortalAccessPanel
+            personId={p.id}
+            personName={p.name}
+            defaultEmail={p.email}
+          />
         </div>
       )}
 
@@ -393,6 +400,94 @@ export default async function PersonDetail({
           <AddNoteForm personId={p.id} />
         </div>
       )}
+    </div>
+  );
+}
+
+async function PortalAccessPanel({
+  personId,
+  personName,
+  defaultEmail,
+}: {
+  personId: string;
+  personName: string;
+  defaultEmail: string | null;
+}) {
+  const supabase = createClient();
+  const { data: accessRows } = await supabase
+    .from("portal_users")
+    .select("id, email, display_name, active, created_at")
+    .eq("person_id", personId)
+    .eq("active", true)
+    .order("created_at", { ascending: false });
+
+  return (
+    <div style={{ marginTop: 18 }}>
+      <div className="section-label" style={{ marginTop: 0 }}>
+        <h2>Portal access</h2>
+        <span className="muted" style={{ fontSize: 12 }}>
+          {(accessRows ?? []).length}
+        </span>
+      </div>
+      <div className="card elev">
+        {(accessRows ?? []).length === 0 ? (
+          <div style={{ padding: 16, color: "var(--ink-3)", fontSize: 13 }}>
+            No active portal access.
+          </div>
+        ) : (
+          (accessRows ?? []).map((row) => (
+            <div key={row.id} className="card-row" style={{ cursor: "default" }}>
+              <Icon.mail style={{ color: "var(--ink-4)" }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 500 }}>
+                  {row.email}
+                </div>
+                <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 3 }}>
+                  {row.display_name || personName}
+                </div>
+              </div>
+              <form action={revokePortalAccess}>
+                <input type="hidden" name="id" value={row.id} />
+                <input type="hidden" name="person_id" value={personId} />
+                <button
+                  className="btn sm"
+                  type="submit"
+                  style={{ color: "var(--terracotta)" }}
+                >
+                  Revoke
+                </button>
+              </form>
+            </div>
+          ))
+        )}
+      </div>
+
+      <form
+        action={grantPortalAccess}
+        className="form-grid"
+        style={{ marginTop: 14 }}
+      >
+        <input type="hidden" name="person_id" value={personId} />
+        <input type="hidden" name="display_name" value={personName} />
+        <div>
+          <label className="form-label">Invite email</label>
+          <input
+            name="email"
+            type="email"
+            required
+            className="input"
+            defaultValue={defaultEmail || ""}
+            placeholder="vendor@example.com"
+          />
+        </div>
+        <button className="btn block" type="submit">
+          <Icon.plus /> Grant portal access
+        </button>
+        <div className="muted" style={{ fontSize: 11, lineHeight: 1.45 }}>
+          Portal users sign in at /portal with this email. Database policies
+          restrict them to their own profile, assignments, and contracts.
+        </div>
+      </form>
     </div>
   );
 }
