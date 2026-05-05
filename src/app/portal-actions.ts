@@ -15,12 +15,8 @@ async function requireTeam() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
-  const { data: teamMember } = await supabase
-    .from("team_members")
-    .select("user_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (!teamMember) redirect("/portal");
+  const { data: isTeamMember } = await supabase.rpc("is_team_member");
+  if (!isTeamMember) redirect("/portal");
   return { supabase, user };
 }
 
