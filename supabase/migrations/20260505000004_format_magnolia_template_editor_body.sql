@@ -52,11 +52,7 @@ Vendor assumes full financial responsibility for these charges and agrees to pay
 ## 5. Image Delivery
 In exchange for services, Vendor will receive:
 - Professionally edited images featuring their products/services
-- Rights to use images for:
-- Social media
-- Website promotion
-- Marketing materials
-- Portfolio purposes
+- Rights to use images for social media, website promotion, marketing materials, and portfolio purposes
 
 Vendor agrees to credit photographers and/or event host when appropriate.
 
@@ -93,9 +89,11 @@ If Vendor must cancel, they agree to notify the Event Host as soon as possible. 
 By signing below, Vendor acknowledges understanding and acceptance of all terms listed above.
 
 Vendor Signature: ___________________________
+
 Date: ___________________________
 
 Event Host Signature: ___________________________
+
 Date: ___________________________
 
 ---
@@ -103,24 +101,10 @@ Date: ___________________________
 Casa Cross / Magnolia Styled Shoot
 $template$;
 begin
-  if exists (
-    select 1
-    from public.contract_templates
-    where name = 'Magnolia Vendor Agreement'
-  ) then
-    update public.contract_templates
-    set
-      description = 'TFP vendor collaboration agreement for the Magnolia Styled Shoot.',
-      body_md = template_body,
-      pdf_url = null
-    where name = 'Magnolia Vendor Agreement';
-  else
-    insert into public.contract_templates (name, description, body_md, pdf_url)
-    values (
-      'Magnolia Vendor Agreement',
-      'TFP vendor collaboration agreement for the Magnolia Styled Shoot.',
-      template_body,
-      null
-    );
-  end if;
+  update public.contract_templates
+  set
+    description = 'TFP vendor collaboration agreement for the Magnolia Styled Shoot.',
+    body_md = template_body,
+    pdf_url = null
+  where name = 'Magnolia Vendor Agreement';
 end $$;
