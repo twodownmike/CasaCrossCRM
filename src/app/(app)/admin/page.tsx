@@ -27,6 +27,7 @@ export default async function AdminHub() {
     title: string;
     sub: string;
     count?: string;
+    mobileOnly?: boolean;
   }> = [
     {
       href: "/admin/studio",
@@ -55,6 +56,13 @@ export default async function AdminHub() {
       title: "Custom forms",
       sub: "Build any intake form, share the link.",
       count: `${forms ?? 0} live`,
+    },
+    {
+      href: "/reports",
+      icon: "chart",
+      title: "Reports",
+      sub: "Revenue, expenses, and booking performance.",
+      mobileOnly: true,
     },
   ];
 
@@ -88,7 +96,7 @@ export default async function AdminHub() {
             <Link
               key={t.href}
               href={t.href}
-              className="card elev"
+              className={`card elev ${t.mobileOnly ? "mobile-only" : ""}`}
               style={{
                 display: "flex",
                 gap: 14,

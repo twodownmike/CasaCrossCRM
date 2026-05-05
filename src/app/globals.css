@@ -1055,6 +1055,7 @@ select.input {
   .phone-frame > .app-header,
   .phone-frame > .bottom-nav,
   .phone-frame > .fab { display: none; }
+  .mobile-only { display: none !important; }
   .phone-frame > .scroll {
     grid-area: main;
     padding: 28px 32px 60px;
