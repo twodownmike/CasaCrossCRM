@@ -62,7 +62,7 @@ export function ApplyForm() {
         </div>
         <div>
           <label className="form-label">Location</label>
-          <input name="location" className="input" placeholder="Austin, TX" />
+          <input name="location" className="input" placeholder="Sandy, UT" />
         </div>
       </div>
       <div>
