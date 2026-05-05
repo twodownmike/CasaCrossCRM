@@ -90,6 +90,27 @@ export function ApplyForm() {
           placeholder="Past clients, what kind of shoots you'd love to be part of, availability…"
         />
       </div>
+      <label
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 12,
+          padding: 12,
+          border: "1px solid var(--hair)",
+          borderRadius: "var(--r-2)",
+          background: "var(--paper)",
+          cursor: "pointer",
+        }}
+      >
+        <input
+          type="checkbox"
+          name="future_projects_opt_in"
+          style={{ marginTop: 2 }}
+        />
+        <span style={{ fontSize: 14, fontWeight: 500, lineHeight: 1.4 }}>
+          I want to be considered for future projects
+        </span>
+      </label>
       {err && <div className="notice warn">{err}</div>}
       <button className="btn primary" type="submit" disabled={pending}>
         {pending ? "Sending…" : "Submit application"}

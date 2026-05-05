@@ -502,6 +502,7 @@ export async function submitApplication(
     specialty: nullable(form, "specialty"),
     portfolio_url: nullable(form, "portfolio_url"),
     message: nullable(form, "message"),
+    future_projects_opt_in: form.get("future_projects_opt_in") === "on",
   };
   const { error } = await supabase.from("submissions").insert(payload);
   if (error) {
@@ -523,6 +524,10 @@ export async function submitApplication(
     ["Location", payload.location],
     ["Specialty", payload.specialty],
     ["Portfolio", payload.portfolio_url],
+    [
+      "Future projects",
+      payload.future_projects_opt_in ? "Yes" : "No",
+    ],
   ];
   const detailRows = rows
     .filter(([, v]) => v && v.trim() !== "")

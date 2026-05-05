@@ -119,6 +119,14 @@ export default async function SubmissionDetail({
               </div>
             </div>
           )}
+          {sub.future_projects_opt_in && (
+            <div className="card-row" style={{ cursor: "default" }}>
+              <Icon.check style={{ color: "var(--sage)" }} />
+              <div style={{ flex: 1, fontSize: 14 }}>
+                Wants to be considered for future projects
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

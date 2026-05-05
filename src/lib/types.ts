@@ -258,6 +258,7 @@ export type Submission = {
   specialty: string | null;
   portfolio_url: string | null;
   message: string | null;
+  future_projects_opt_in: boolean;
   status: SubmissionStatus;
   reviewed_by: string | null;
   reviewed_at: string | null;
