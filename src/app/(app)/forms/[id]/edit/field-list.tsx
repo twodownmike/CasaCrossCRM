@@ -9,6 +9,7 @@ import {
   addFormField,
   updateFormField,
   deleteFormField,
+  duplicateFormField,
   moveFormField,
 } from "@/app/forms-actions";
 import { FIELD_TYPE_LABELS, type FormField, type FormFieldType } from "@/lib/types";
@@ -68,6 +69,16 @@ function FieldRow({
     f.set("form_id", formId);
     start(async () => {
       await deleteFormField(f);
+      router.refresh();
+    });
+  }
+
+  function duplicate() {
+    const f = new FormData();
+    f.set("id", field.id);
+    f.set("form_id", formId);
+    start(async () => {
+      await duplicateFormField(f);
       router.refresh();
     });
   }
@@ -155,6 +166,14 @@ function FieldRow({
         </button>
         <button
           className="icon-btn"
+          aria-label="Duplicate"
+          onClick={duplicate}
+          disabled={pending}
+        >
+          <Icon.plus />
+        </button>
+        <button
+          className="icon-btn"
           aria-label="Delete"
           onClick={remove}
           style={{ color: "var(--terracotta)" }}
@@ -178,6 +197,175 @@ function FieldRow({
         />
       </Sheet>
     </div>
+  );
+}
+
+export function FormPreview({
+  title,
+  description,
+  fields,
+}: {
+  title: string;
+  description: string | null;
+  fields: FormField[];
+}) {
+  return (
+    <div
+      className="card elev"
+      style={{
+        padding: 18,
+        background: "var(--paper)",
+      }}
+    >
+      <div
+        style={{
+          fontFamily: "var(--serif)",
+          fontSize: 21,
+          lineHeight: 1.2,
+          color: "var(--ink)",
+          marginBottom: description ? 6 : 16,
+        }}
+      >
+        {title}
+      </div>
+      {description && (
+        <div
+          style={{
+            fontSize: 13,
+            lineHeight: 1.5,
+            color: "var(--ink-3)",
+            marginBottom: 16,
+          }}
+        >
+          {description}
+        </div>
+      )}
+      {fields.length === 0 ? (
+        <div
+          style={{
+            border: "1px dashed var(--hair)",
+            borderRadius: "var(--r-2)",
+            color: "var(--ink-4)",
+            fontSize: 13,
+            padding: 18,
+            textAlign: "center",
+          }}
+        >
+          Add fields to see the public form preview.
+        </div>
+      ) : (
+        <div className="form-grid">
+          {fields.map((field) => (
+            <PreviewField key={field.id} field={field} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PreviewField({ field }: { field: FormField }) {
+  const label = (
+    <label className="form-label">
+      {field.label}
+      {field.required && (
+        <span style={{ color: "var(--terracotta)", marginLeft: 4 }}>*</span>
+      )}
+    </label>
+  );
+
+  if (field.type === "textarea") {
+    return (
+      <div>
+        {label}
+        <textarea
+          className="input textarea"
+          disabled
+          placeholder={field.placeholder || undefined}
+        />
+        {field.helper && <PreviewHelper>{field.helper}</PreviewHelper>}
+      </div>
+    );
+  }
+
+  if (field.type === "select") {
+    const options = normalizeFormFieldOptions(field.options);
+    return (
+      <div>
+        {label}
+        <select className="input" disabled defaultValue="">
+          <option value="" disabled>
+            Pick one
+          </option>
+          {options.map((option) => (
+            <option key={option}>{option}</option>
+          ))}
+        </select>
+        {field.helper && <PreviewHelper>{field.helper}</PreviewHelper>}
+      </div>
+    );
+  }
+
+  if (field.type === "checkbox") {
+    return (
+      <label
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 12,
+          padding: 12,
+          border: "1px solid var(--hair)",
+          borderRadius: "var(--r-2)",
+          background: "var(--paper)",
+        }}
+      >
+        <input type="checkbox" disabled style={{ marginTop: 2 }} />
+        <span style={{ flex: 1 }}>
+          <span style={{ fontSize: 14, fontWeight: 500 }}>
+            {field.label}
+            {field.required && (
+              <span style={{ color: "var(--terracotta)", marginLeft: 4 }}>
+                *
+              </span>
+            )}
+          </span>
+          {field.helper && <PreviewHelper>{field.helper}</PreviewHelper>}
+        </span>
+      </label>
+    );
+  }
+
+  const inputType: Record<string, string> = {
+    text: "text",
+    email: "email",
+    phone: "tel",
+    url: "url",
+    number: "number",
+    date: "date",
+  };
+
+  return (
+    <div>
+      {label}
+      <input
+        className="input"
+        disabled
+        type={inputType[field.type] || "text"}
+        placeholder={field.placeholder || undefined}
+      />
+      {field.helper && <PreviewHelper>{field.helper}</PreviewHelper>}
+    </div>
+  );
+}
+
+function PreviewHelper({ children }: { children: React.ReactNode }) {
+  return (
+    <p
+      className="muted"
+      style={{ fontSize: 11, marginTop: 6, lineHeight: 1.4 }}
+    >
+      {children}
+    </p>
   );
 }
 

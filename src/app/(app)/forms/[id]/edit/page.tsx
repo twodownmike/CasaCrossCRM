@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Icon } from "@/components/icons";
 import { FormMetaEditor } from "./form-meta-editor";
-import { FieldList } from "./field-list";
+import { FieldList, FormPreview } from "./field-list";
 import { AddFieldButton } from "./add-field-button";
 
 export const dynamic = "force-dynamic";
@@ -86,6 +86,18 @@ export default async function FormEditorPage({
 
       <div style={{ padding: "var(--s-5)" }}>
         <AddFieldButton formId={f.id} />
+      </div>
+
+      <div className="section-label">
+        <h2>Preview</h2>
+      </div>
+
+      <div style={{ padding: "0 var(--s-5) var(--s-7)" }}>
+        <FormPreview
+          title={f.title}
+          description={f.description}
+          fields={fields ?? []}
+        />
       </div>
     </div>
   );

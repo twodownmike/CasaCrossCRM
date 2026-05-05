@@ -181,6 +181,35 @@ export async function deleteFormField(form: FormData) {
   if (formId) revalidatePath(`/forms/${formId}/edit`);
 }
 
+export async function duplicateFormField(form: FormData) {
+  const supabase = createClient();
+  const id = s(form, "id");
+  const formId = s(form, "form_id");
+  if (!id || !formId) return;
+
+  const { data: source } = await supabase
+    .from("form_fields")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (!source) return;
+
+  const label = `${source.label} copy`;
+  const fieldKey = await uniqueFieldKey(formId, slugifyKey(label));
+  await supabase.from("form_fields").insert({
+    form_id: formId,
+    position: await nextPosition(formId),
+    field_key: fieldKey,
+    label,
+    type: source.type,
+    options: source.options,
+    required: source.required,
+    placeholder: source.placeholder,
+    helper: source.helper,
+  });
+  revalidatePath(`/forms/${formId}/edit`);
+}
+
 export async function moveFormField(form: FormData) {
   const supabase = createClient();
   const id = s(form, "id");

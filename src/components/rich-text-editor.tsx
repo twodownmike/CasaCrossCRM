@@ -3,7 +3,8 @@
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "tiptap-markdown";
-import { useRef } from "react";
+import { useRef, useState } from "react";
+import { mdToHtml } from "@/lib/contracts";
 
 type MergeField = readonly [string, string];
 
@@ -17,6 +18,13 @@ export function RichTextEditor({
   mergeFields?: readonly MergeField[];
 }) {
   const hiddenRef = useRef<HTMLInputElement>(null);
+  const [mode, setMode] = useState<"edit" | "preview" | "markdown">("edit");
+  const [markdown, setMarkdown] = useState(initialValue);
+
+  function setHiddenValue(next: string) {
+    setMarkdown(next);
+    if (hiddenRef.current) hiddenRef.current.value = next;
+  }
 
   const editor = useEditor({
     extensions: [
@@ -29,15 +37,17 @@ export function RichTextEditor({
     ],
     content: initialValue,
     onUpdate({ editor }) {
-      if (hiddenRef.current) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        hiddenRef.current.value = (editor.storage as any).markdown.getMarkdown();
-      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setHiddenValue((editor.storage as any).markdown.getMarkdown());
     },
   });
 
   function insertMergeField(field: string) {
     editor?.chain().focus().insertContent(field).run();
+  }
+
+  function syncMarkdownToEditor() {
+    editor?.commands.setContent(markdown);
   }
 
   function toolbarBtn(active: boolean): React.CSSProperties {
@@ -78,10 +88,46 @@ export function RichTextEditor({
         defaultValue={initialValue}
       />
 
-      {/* Toolbar */}
       <div
         style={{
           display: "flex",
+          gap: 6,
+          marginBottom: 8,
+          flexWrap: "wrap",
+        }}
+      >
+        {(["edit", "preview", "markdown"] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => {
+              if (mode === "markdown" && m !== "markdown") {
+                syncMarkdownToEditor();
+              }
+              setMode(m);
+            }}
+            style={{
+              padding: "5px 10px",
+              borderRadius: 999,
+              border: `1px solid ${mode === m ? "var(--ink)" : "var(--hair)"}`,
+              background: mode === m ? "var(--ink)" : "var(--paper)",
+              color: mode === m ? "var(--paper)" : "var(--ink-3)",
+              cursor: "pointer",
+              fontSize: 12,
+              fontWeight: 600,
+              fontFamily: "var(--sans)",
+              textTransform: "capitalize",
+            }}
+          >
+            {m}
+          </button>
+        ))}
+      </div>
+
+      {/* Toolbar */}
+      <div
+        style={{
+          display: mode === "edit" ? "flex" : "none",
           gap: 4,
           flexWrap: "wrap",
           marginBottom: 6,
@@ -141,6 +187,7 @@ export function RichTextEditor({
       <div
         className="input rte-body"
         style={{
+          display: mode === "edit" ? "block" : "none",
           borderRadius: "0 0 var(--r-2) var(--r-2)",
           minHeight: 320,
           padding: 0,
@@ -150,6 +197,36 @@ export function RichTextEditor({
       >
         <EditorContent editor={editor} className="rte-content" />
       </div>
+
+      {mode === "preview" && (
+        <div
+          className="input sign-body"
+          style={{
+            borderRadius: "var(--r-2)",
+            minHeight: 320,
+            padding: 18,
+            background: "var(--paper)",
+          }}
+          dangerouslySetInnerHTML={{ __html: mdToHtml(markdown) }}
+        />
+      )}
+
+      {mode === "markdown" && (
+        <textarea
+          className="input textarea"
+          value={markdown}
+          onChange={(e) => setHiddenValue(e.target.value)}
+          onBlur={syncMarkdownToEditor}
+          spellCheck={false}
+          style={{
+            minHeight: 360,
+            fontFamily: "ui-monospace, Menlo, monospace",
+            fontSize: 12,
+            lineHeight: 1.55,
+            resize: "vertical",
+          }}
+        />
+      )}
 
       {/* Merge fields */}
       {mergeFields && mergeFields.length > 0 && (
