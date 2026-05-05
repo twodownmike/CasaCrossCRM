@@ -10,6 +10,8 @@ import {
   DEFAULT_TEMPLATE_BODY,
 } from "@/lib/contracts";
 import { sendNotificationEmail, sendEmail, escapeHtml } from "@/lib/notify";
+import { contractReadyEmail } from "@/emails/contract-ready";
+import { contractSignedEmail } from "@/emails/contract-signed";
 import { ROLE_META } from "@/lib/types";
 import type { RoleKind } from "@/lib/types";
 
@@ -201,21 +203,11 @@ export async function sendContract(
       await sendEmail({
         to: person.email,
         subject: `Your agreement for ${event.name} is ready to sign`,
-        html: `
-          <div style="font-family:-apple-system,Inter,Helvetica,Arial,sans-serif;color:#1a1814;max-width:560px;margin:0 auto;padding:24px;">
-            <div style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#9a948a;font-weight:500;">Casa Cross Events</div>
-            <h1 style="font-family:Georgia,serif;font-weight:400;font-size:26px;margin:6px 0 12px;letter-spacing:-0.01em;">Hi ${escapeHtml(recipientName)},</h1>
-            <p style="font-size:14px;color:#3d3a35;line-height:1.6;margin:0 0 20px;">
-              Your booking agreement for <strong>${escapeHtml(event.name)}</strong> is ready. Please review and sign at your earliest convenience.
-            </p>
-            <p style="margin:0 0 24px;">
-              <a href="${link}" style="display:inline-block;background:#1a1814;color:#fff;text-decoration:none;padding:13px 26px;border-radius:999px;font-size:14px;font-weight:500;">Review &amp; Sign</a>
-            </p>
-            <p style="font-size:12px;color:#9a948a;word-break:break-all;margin:0 0 8px;">Or copy this link: ${link}</p>
-            <p style="font-size:11px;color:#b0aa9e;margin-top:32px;">Casa Cross Events · You're receiving this because a contract was prepared for you.</p>
-          </div>
-        `,
-        text: `Hi ${recipientName},\n\nYour booking agreement for ${event.name} is ready to sign:\n${link}\n\n— Casa Cross Events`,
+        ...(await contractReadyEmail({
+          recipientName,
+          eventName: event.name,
+          signingUrl: link,
+        })),
       });
     }
     // Notify the team that the contract was sent.
@@ -231,6 +223,7 @@ export async function sendContract(
       `,
       text: `Contract sent to ${person.name} — ${event.name}\nSigning link: ${link}`,
     });
+
   }
 
   revalidatePath(`/events/${part.event_id}`);
@@ -460,5 +453,30 @@ export async function signContract(
   if (!result?.ok) {
     return { ok: false, error: result?.error || "Could not sign contract." };
   }
+
+  // Notify the team that the contract was signed.
+  const { data: contract } = await supabase
+    .from("contracts")
+    .select("id, title, event_id")
+    .eq("share_token", token)
+    .maybeSingle();
+  if (contract) {
+    const { data: event } = await supabase
+      .from("events")
+      .select("name")
+      .eq("id", contract.event_id)
+      .maybeSingle();
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "";
+    await sendNotificationEmail({
+      subject: `${signedName} signed ${contract.title} — ${event?.name ?? "your event"}`,
+      ...(await contractSignedEmail({
+        signerName: signedName,
+        contractTitle: contract.title,
+        eventName: event?.name ?? "your event",
+        contractUrl: `${siteUrl}/contracts/${contract.id}`,
+      })),
+    });
+  }
+
   return { ok: true };
 }

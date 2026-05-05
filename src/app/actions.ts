@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { deriveInitials } from "@/lib/format";
-import { sendNotificationEmail, escapeHtml } from "@/lib/notify";
+import { sendNotificationEmail } from "@/lib/notify";
+import { applicationEmail } from "@/emails/application";
 import { ROLE_META } from "@/lib/types";
 import type {
   ContractStatus,
@@ -526,63 +527,29 @@ export async function submitApplication(
   const inboxUrl = siteUrl ? `${siteUrl}/inbox` : "/inbox";
   const roleLabel = ROLE_META[payload.role]?.label || payload.role;
   const subject = `New ${roleLabel.toLowerCase()} application — ${payload.name}`;
-  const rows: Array<[string, string | null]> = [
-    ["Role", roleLabel],
-    ["Name", payload.name],
-    ["Legal name", payload.legal_name],
-    ["Email", payload.email],
-    ["Phone", payload.phone],
-    ["Instagram", payload.instagram],
-    ["Location", payload.location],
-    ["Specialty", payload.specialty],
-    ["Portfolio", payload.portfolio_url],
-    [
-      "Future projects",
-      payload.future_projects_opt_in ? "Yes" : "No",
-    ],
-  ];
-  const detailRows = rows
-    .filter(([, v]) => v && v.trim() !== "")
-    .map(
-      ([k, v]) =>
-        `<tr><td style="padding:6px 14px 6px 0;color:#6b665e;font-size:13px;">${k}</td><td style="padding:6px 0;font-size:13px;color:#1a1814;">${escapeHtml(
-          v!,
-        )}</td></tr>`,
-    )
-    .join("");
-  const messageBlock = payload.message
-    ? `<div style="margin-top:18px;padding:14px 16px;background:#f4efe5;border-radius:10px;font-family:Georgia,serif;font-size:14px;line-height:1.55;color:#3d3a35;white-space:pre-wrap;">${escapeHtml(
-        payload.message,
-      )}</div>`
-    : "";
-  const html = `
-    <div style="font-family:-apple-system,Inter,Helvetica,Arial,sans-serif;color:#1a1814;max-width:560px;margin:0 auto;padding:24px;">
-      <div style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#9a948a;font-weight:500;">Casa Cross</div>
-      <h1 style="font-family:Georgia,serif;font-weight:400;font-size:26px;margin:6px 0 18px;letter-spacing:-0.01em;">
-        New application
-      </h1>
-      <p style="font-size:14px;color:#3d3a35;line-height:1.55;margin:0 0 18px;">
-        Someone just submitted the public intake form. Details below — open the inbox to approve or archive.
-      </p>
-      <table style="border-collapse:collapse;">${detailRows}</table>
-      ${messageBlock}
-      <div style="margin-top:24px;">
-        <a href="${inboxUrl}" style="display:inline-block;background:#1a1814;color:#fff;text-decoration:none;padding:11px 22px;border-radius:999px;font-size:14px;font-weight:500;">Open inbox</a>
-      </div>
-      <p style="font-size:11px;color:#9a948a;margin-top:32px;">Sent from your Casa Cross CRM.</p>
-    </div>
-  `;
-  const text = [
-    subject,
-    "",
-    ...rows
-      .filter(([, v]) => v && v.trim() !== "")
-      .map(([k, v]) => `${k}: ${v}`),
-    payload.message ? `\nNote: ${payload.message}` : "",
-    `\nReview: ${inboxUrl}`,
-  ].join("\n");
+  const fields = [
+    { label: "Role", value: roleLabel },
+    { label: "Name", value: payload.name },
+    payload.legal_name ? { label: "Legal name", value: payload.legal_name } : null,
+    payload.email ? { label: "Email", value: payload.email } : null,
+    payload.phone ? { label: "Phone", value: payload.phone } : null,
+    payload.instagram ? { label: "Instagram", value: payload.instagram } : null,
+    payload.location ? { label: "Location", value: payload.location } : null,
+    payload.specialty ? { label: "Specialty", value: payload.specialty } : null,
+    payload.portfolio_url ? { label: "Portfolio", value: payload.portfolio_url } : null,
+    { label: "Future projects", value: payload.future_projects_opt_in ? "Yes" : "No" },
+  ].filter((f): f is { label: string; value: string } => f !== null);
 
-  await sendNotificationEmail({ subject, html, text });
+  await sendNotificationEmail({
+    subject,
+    ...(await applicationEmail({
+      applicantName: payload.name,
+      roleLabel,
+      fields,
+      message: payload.message,
+      inboxUrl,
+    })),
+  });
 
   return { ok: true };
 }
