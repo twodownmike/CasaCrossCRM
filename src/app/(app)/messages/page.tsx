@@ -6,42 +6,47 @@ export const dynamic = "force-dynamic";
 
 export default async function MessagesPage() {
   const supabase = createClient();
-  const { data: events } = await supabase
-    .from("events")
-    .select("id, name, cover, cover_image_url")
-    .order("date", { ascending: true });
 
-  const { data: lastMsgs } = await supabase
-    .from("messages")
-    .select("id, event_id, sender_name, text, created_at")
-    .order("created_at", { ascending: false })
-    .limit(50);
+  const [{ data: events }, { data: portalMsgs }] = await Promise.all([
+    supabase.from("events").select("id, name, cover, cover_image_url"),
+    supabase
+      .from("portal_messages")
+      .select("id, event_id, person_id, sender_kind, sender_name, body, created_at")
+      .order("created_at", { ascending: false })
+      .limit(200),
+  ]);
 
-  const lastByEvent = new Map<
-    string,
-    { sender_name: string | null; text: string; created_at: string }
-  >();
-  (lastMsgs ?? []).forEach((m) => {
-    if (!lastByEvent.has(m.event_id))
+  type LastMsg = { sender_name: string | null; sender_kind: string; body: string; created_at: string; count: number };
+  const lastByEvent = new Map<string, LastMsg>();
+  (portalMsgs ?? []).forEach((m) => {
+    const existing = lastByEvent.get(m.event_id);
+    if (!existing) {
       lastByEvent.set(m.event_id, {
         sender_name: m.sender_name,
-        text: m.text,
+        sender_kind: m.sender_kind,
+        body: m.body,
         created_at: m.created_at,
+        count: 1,
       });
+    } else {
+      existing.count += 1;
+    }
   });
 
-  const threads = (events ?? [])
-    .map((e) => ({ event: e, last: lastByEvent.get(e.id) }))
-    .filter((t) => t.last);
+  const eventById = new Map((events ?? []).map((e) => [e.id, e]));
+  const threads = Array.from(lastByEvent.entries())
+    .map(([eventId, last]) => ({ event: eventById.get(eventId), last }))
+    .filter((t): t is { event: NonNullable<typeof t.event>; last: LastMsg } => !!t.event)
+    .sort((a, b) => b.last.created_at.localeCompare(a.last.created_at));
 
   return (
     <div className="fade-in">
       <div className="page-head">
-        <div className="eyebrow">Conversations</div>
+        <div className="eyebrow">Portal</div>
         <h1>
           All <em>messages</em>
         </h1>
-        <div className="sub">Per-event group chats with your team</div>
+        <div className="sub">Conversations with your vendors and clients</div>
       </div>
 
       <div
@@ -55,7 +60,7 @@ export default async function MessagesPage() {
         {threads.map(({ event, last }) => (
           <Link
             key={event.id}
-            href={`/events/${event.id}?tab=chat`}
+            href={`/events/${event.id}?tab=portal`}
             className="card elev"
             style={{
               display: "flex",
@@ -93,7 +98,7 @@ export default async function MessagesPage() {
                   {event.name}
                 </div>
                 <div style={{ fontSize: 11, color: "var(--ink-4)" }}>
-                  {relTime(last!.created_at)}
+                  {relTime(last.created_at)}
                 </div>
               </div>
               <div
@@ -105,14 +110,15 @@ export default async function MessagesPage() {
                   whiteSpace: "nowrap",
                 }}
               >
-                {last!.sender_name && (
-                  <strong
-                    style={{ color: "var(--ink-2)", fontWeight: 500 }}
-                  >
-                    {last!.sender_name}:{" "}
+                {last.sender_name && (
+                  <strong style={{ color: "var(--ink-2)", fontWeight: 500 }}>
+                    {last.sender_kind === "team" ? "You" : last.sender_name}:{" "}
                   </strong>
                 )}
-                {last!.text}
+                {last.body}
+              </div>
+              <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 3 }}>
+                {last.count} message{last.count === 1 ? "" : "s"}
               </div>
             </div>
           </Link>
@@ -121,7 +127,7 @@ export default async function MessagesPage() {
         {threads.length === 0 && (
           <div className="empty">
             <h3>No conversations yet</h3>
-            <div>Open an event chat to start talking with your team.</div>
+            <div>Portal messages from vendors and clients will appear here.</div>
           </div>
         )}
       </div>

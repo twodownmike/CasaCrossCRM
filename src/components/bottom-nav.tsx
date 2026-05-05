@@ -22,7 +22,7 @@ const TABS: Array<{
     icon: "mail",
     badgeKey: "inbox",
   },
-  { href: "/messages", match: /^\/messages/, label: "Chat", icon: "chat" },
+  { href: "/messages", match: /^\/messages/, label: "Messages", icon: "chat" },
   { href: "/reports", match: /^\/reports/, label: "Reports", icon: "chart" },
 ];
 

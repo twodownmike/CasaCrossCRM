@@ -5,7 +5,6 @@ import type {
   Person,
   Task,
   Activity,
-  Message,
   Note,
   MoodImage,
   Expense,
@@ -19,7 +18,6 @@ export type EventWithParticipants = EventRow & {
 export type EventFull = EventWithParticipants & {
   tasks: Task[];
   activity: Activity[];
-  messages: Message[];
   mood_images: MoodImage[];
   expenses: Expense[];
   event_notes: EventNote[];
@@ -90,7 +88,6 @@ export async function getEvent(id: string): Promise<EventFull | null> {
     { data: people },
     { data: tasks },
     { data: activity },
-    { data: messages },
     { data: moodImages },
     { data: expenses },
     { data: eventNotes },
@@ -108,12 +105,6 @@ export async function getEvent(id: string): Promise<EventFull | null> {
       .eq("event_id", id)
       .order("occurred_at", { ascending: false })
       .limit(8),
-    supabase
-      .from("messages")
-      .select("*")
-      .eq("event_id", id)
-      .order("created_at", { ascending: true })
-      .limit(200),
     supabase
       .from("mood_images")
       .select("*")
@@ -142,7 +133,6 @@ export async function getEvent(id: string): Promise<EventFull | null> {
     })),
     tasks: tasks ?? [],
     activity: activity ?? [],
-    messages: messages ?? [],
     mood_images: moodImages ?? [],
     expenses: (expenses ?? []) as Expense[],
     event_notes: (eventNotes ?? []) as EventNote[],

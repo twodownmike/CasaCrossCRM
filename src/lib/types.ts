@@ -79,15 +79,6 @@ export type Activity = {
   occurred_at: string;
 };
 
-export type Message = {
-  id: string;
-  event_id: string;
-  sender_id: string | null;
-  sender_name: string | null;
-  text: string;
-  created_at: string;
-};
-
 export type Note = {
   id: string;
   person_id: string;

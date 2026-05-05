@@ -730,26 +730,3 @@ export async function removeMoodImage(form: FormData) {
   if (eventId) revalidatePath(`/events/${eventId}`);
 }
 
-// ─── Messages ───
-export async function sendMessage(form: FormData) {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-  const eventId = s(form, "event_id");
-  const text = s(form, "text");
-  if (!eventId || !text) return;
-  const senderName =
-    (user.user_metadata?.name as string) ||
-    user.email?.split("@")[0] ||
-    "You";
-  await supabase.from("messages").insert({
-    event_id: eventId,
-    sender_id: user.id,
-    sender_name: senderName,
-    text,
-  });
-  revalidatePath(`/events/${eventId}`);
-  revalidatePath("/messages");
-}

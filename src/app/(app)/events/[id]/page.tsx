@@ -12,7 +12,6 @@ import { StatusPill } from "@/components/pill";
 import { Avatar } from "@/components/avatar";
 import { Icon } from "@/components/icons";
 import { TaskRow } from "./task-row";
-import { ChatPanel } from "./chat-panel";
 import { AddParticipantSheet } from "./add-participant-sheet";
 import { EventTabs } from "./event-tabs";
 import { MoodUploader } from "./mood-uploader";
@@ -482,8 +481,6 @@ export default async function EventDetail({
           <MoodUploader eventId={e.id} images={e.mood_images} />
         </div>
       )}
-
-      {tab === "chat" && <ChatPanel eventId={e.id} messages={e.messages} />}
 
       {tab === "notes" && (
         <div className="fade-in" style={{ padding: "var(--s-5)" }}>

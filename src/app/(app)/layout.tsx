@@ -44,7 +44,7 @@ export default async function AppLayout({
       .neq("status", "wrapped"),
     supabase.from("people").select("*", { count: "exact", head: true }),
     supabase
-      .from("messages")
+      .from("portal_messages")
       .select("*", { count: "exact", head: true })
       .gt("created_at", fourteenDaysAgo),
     supabase
