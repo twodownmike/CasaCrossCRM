@@ -53,7 +53,7 @@ export function renderMerge(template: string, ctx: MergeContext): string {
 /**
  * Tiny markdown subset → safe HTML.
  * Supports: # / ## / ### headings, **bold**, *italic*, blank-line paragraphs,
- * - bullet lists, --- horizontal rules, line breaks via two spaces.
+ * - bullet lists, --- horizontal rules, line breaks via two spaces or a trailing backslash.
  */
 export function mdToHtml(md: string): string {
   const escape = (s: string) =>
@@ -74,10 +74,12 @@ export function mdToHtml(md: string): string {
   }
 
   function inline(s: string): string {
-    return escape(s)
+    const hardBreak = s.endsWith("\\");
+    const text = hardBreak ? s.slice(0, -1).trimEnd() : s;
+    return escape(text)
       .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
       .replace(/\*(.+?)\*/g, "<em>$1</em>")
-      .replace(/  $/g, "<br/>");
+      .replace(/  $/g, "<br/>") + (hardBreak ? "<br/>" : "");
   }
 
   for (const raw of lines) {
