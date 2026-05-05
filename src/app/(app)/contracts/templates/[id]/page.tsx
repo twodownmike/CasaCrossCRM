@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { updateTemplate, deleteTemplate } from "@/app/contracts-actions";
+import { updateTemplate } from "@/app/contracts-actions";
 import { MERGE_FIELDS } from "@/lib/contracts";
 import { Icon } from "@/components/icons";
 import { PdfUploader } from "@/components/pdf-uploader";
 import { RichTextEditor } from "@/components/rich-text-editor";
+import { DeleteTemplateForm } from "./delete-template-form";
 
 export const dynamic = "force-dynamic";
 
@@ -83,25 +84,7 @@ export default async function TemplateEdit({
           </button>
         </form>
 
-        <form
-          action={deleteTemplate}
-          style={{ marginTop: 14 }}
-          onSubmit={(e) => {
-            if (
-              !confirm("Delete this template? Existing contracts that used it stay intact.")
-            )
-              e.preventDefault();
-          }}
-        >
-          <input type="hidden" name="id" value={t.id} />
-          <button
-            className="btn block"
-            type="submit"
-            style={{ color: "var(--terracotta)" }}
-          >
-            Delete template
-          </button>
-        </form>
+        <DeleteTemplateForm id={t.id} />
       </div>
     </div>
   );
