@@ -119,21 +119,24 @@ export async function sendTeamPortalMessage(form: FormData) {
   });
 
   // Email the portal user so they know there's a reply waiting.
-  const [{ data: portalUser }, { data: event }] = await Promise.all([
+  const [{ data: portalUser }, { data: person }, { data: event }] = await Promise.all([
     supabase
       .from("portal_users")
       .select("email, display_name")
       .eq("person_id", personId)
       .eq("active", true)
       .maybeSingle(),
+    supabase.from("people").select("name, email").eq("id", personId).maybeSingle(),
     supabase.from("events").select("name").eq("id", eventId).maybeSingle(),
   ]);
+  const recipientEmail = portalUser?.email ?? person?.email;
+  console.log("[portal-reply] person_id:", personId, "portalUser:", portalUser?.email ?? "not found", "people.email:", person?.email ?? "not found", "sending to:", recipientEmail ?? "nobody");
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "";
   const portalUrl = `${siteUrl}/portal/events/${eventId}`;
-  if (portalUser?.email) {
-    const recipientName = portalUser.display_name ?? portalUser.email;
+  if (recipientEmail) {
+    const recipientName = portalUser?.display_name ?? person?.name ?? recipientEmail;
     await sendEmail({
-      to: portalUser.email,
+      to: recipientEmail,
       subject: `New message from Casa Cross — ${event?.name ?? "your event"}`,
       html: `
         <div style="font-family:-apple-system,Inter,Helvetica,Arial,sans-serif;color:#1a1814;max-width:560px;margin:0 auto;padding:24px;">
