@@ -19,6 +19,7 @@ import { MoodUploader } from "./mood-uploader";
 import { RosterClient } from "./roster-client";
 import { ExpensesPanel } from "./expenses-panel";
 import { AddEventNoteForm } from "./add-event-note-form";
+import { PacketPrintButton } from "./packet-print-button";
 import { createClient as createSupabase } from "@/lib/supabase/server";
 
 async function loadTemplates(): Promise<Array<{ id: string; name: string }>> {
@@ -298,6 +299,10 @@ export default async function EventDetail({
         </div>
       )}
 
+      {tab === "packet" && (
+        <VendorPacket event={e} />
+      )}
+
       {tab === "money" && (
         <div className="fade-in" style={{ padding: "var(--s-5)" }}>
           <div
@@ -526,6 +531,280 @@ export default async function EventDetail({
 
 import { createTask } from "@/app/actions";
 import { Icon as I } from "@/components/icons";
+
+type PacketContract = {
+  participant_id: string;
+  title: string;
+  status: string;
+  share_token: string;
+  sent_at: string | null;
+  signed_at: string | null;
+  created_at: string;
+};
+
+async function VendorPacket({ event }: { event: NonNullable<Awaited<ReturnType<typeof getEvent>>> }) {
+  const supabase = createSupabase();
+  const participantIds = event.participants.map((p) => p.id);
+  const { data: contracts } = participantIds.length
+    ? await supabase
+        .from("contracts")
+        .select("participant_id, title, status, share_token, sent_at, signed_at, created_at")
+        .in("participant_id", participantIds)
+        .order("created_at", { ascending: false })
+    : { data: [] };
+
+  const latestByParticipant = new Map<string, PacketContract>();
+  ((contracts ?? []) as PacketContract[]).forEach((contract) => {
+    if (!latestByParticipant.has(contract.participant_id)) {
+      latestByParticipant.set(contract.participant_id, contract);
+    }
+  });
+
+  const signedCount = event.participants.filter(
+    (p) => latestByParticipant.get(p.id)?.status === "signed" || p.contract === "signed",
+  ).length;
+  const sentCount = event.participants.filter((p) => {
+    const status = latestByParticipant.get(p.id)?.status || p.contract;
+    return status === "sent" || status === "signed";
+  }).length;
+  const openTasks = event.tasks.filter((task) => !task.done).slice(0, 6);
+  const vendorRoles: RoleKind[] = ["venue", "vendor", "hmua", "stylist", "photographer"];
+  const packetParticipants = [
+    ...event.participants.filter((p) => vendorRoles.includes(p.role)),
+    ...event.participants.filter((p) => !vendorRoles.includes(p.role)),
+  ];
+
+  return (
+    <div className="fade-in packet-page" style={{ padding: "var(--s-5)" }}>
+      <div
+        className="card elev packet-sheet"
+        style={{
+          padding: 20,
+          marginBottom: 16,
+          background: "var(--paper)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 14,
+            alignItems: "flex-start",
+            flexWrap: "wrap",
+            marginBottom: 18,
+          }}
+        >
+          <div>
+            <div className="eyebrow">Vendor packet</div>
+            <h2
+              style={{
+                fontFamily: "var(--serif-display)",
+                fontWeight: 400,
+                fontSize: 30,
+                lineHeight: 1.05,
+                margin: "4px 0 8px",
+              }}
+            >
+              {event.name}
+            </h2>
+            <div className="muted" style={{ fontSize: 13, lineHeight: 1.5 }}>
+              {fmtDateFull(event.date)}
+              {event.time_label ? ` · ${event.time_label}` : ""}
+              {event.location ? ` · ${event.location}` : ""}
+            </div>
+          </div>
+          <div className="packet-print">
+            <PacketPrintButton />
+          </div>
+        </div>
+
+        <div className="stat-grid" style={{ margin: 0 }}>
+          <PacketStat label="People" value={String(event.participants.length)} />
+          <PacketStat label="Contracts sent" value={`${sentCount}/${event.participants.length}`} />
+          <PacketStat label="Signed" value={`${signedCount}/${event.participants.length}`} />
+        </div>
+      </div>
+
+      <PacketSection title="Schedule & Location">
+        <div className="card elev packet-card">
+          <PacketLine icon={<Icon.calendar style={{ width: 16, height: 16 }} />} label="Date" value={fmtDateFull(event.date)} />
+          <PacketLine icon={<Icon.clock />} label="Time" value={event.time_label || "TBD"} />
+          <PacketLine icon={<Icon.pin />} label="Location" value={event.location || "TBD"} />
+          {event.description && (
+            <div style={{ padding: 14, borderTop: "1px solid var(--hair)" }}>
+              <div className="form-label" style={{ marginBottom: 6 }}>Event brief</div>
+              <div style={{ fontSize: 13, lineHeight: 1.55, color: "var(--ink-2)", whiteSpace: "pre-wrap" }}>
+                {event.description}
+              </div>
+            </div>
+          )}
+        </div>
+      </PacketSection>
+
+      <PacketSection title="Vendor Roster">
+        <div className="card elev packet-card">
+          {packetParticipants.length === 0 ? (
+            <div style={{ padding: 18, color: "var(--ink-3)", fontSize: 13 }}>
+              No participants added yet.
+            </div>
+          ) : (
+            packetParticipants.map((participant) => {
+              const contract = latestByParticipant.get(participant.id);
+              const contractStatus = contract?.status || participant.contract;
+              return (
+                <div
+                  key={participant.id}
+                  className="card-row"
+                  style={{ cursor: "default", alignItems: "flex-start" }}
+                >
+                  <Avatar person={participant.person} size="sm" />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 8,
+                        alignItems: "center",
+                        flexWrap: "wrap",
+                        marginBottom: 3,
+                      }}
+                    >
+                      <span style={{ fontSize: 14, fontWeight: 600 }}>
+                        {participant.person.name}
+                      </span>
+                      <span className={`pill role-${participant.role}`}>
+                        {ROLE_META[participant.role]?.label || participant.role}
+                      </span>
+                      <StatusPill status={contractStatus} />
+                    </div>
+                    {participant.person.specialty && (
+                      <div style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 5 }}>
+                        {participant.person.specialty}
+                      </div>
+                    )}
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 10,
+                        flexWrap: "wrap",
+                        fontSize: 11.5,
+                        color: "var(--ink-4)",
+                      }}
+                    >
+                      {participant.person.email && <span>{participant.person.email}</span>}
+                      {participant.person.phone && <span>{participant.person.phone}</span>}
+                      {participant.person.instagram && <span>{participant.person.instagram}</span>}
+                    </div>
+                    {participant.role_note && (
+                      <div style={{ marginTop: 6, fontSize: 12, color: "var(--ink-3)" }}>
+                        {participant.role_note}
+                      </div>
+                    )}
+                  </div>
+                  {contract && (
+                    <Link
+                      className="icon-btn packet-screen-only"
+                      href={`/sign/${contract.share_token}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="Open contract"
+                    >
+                      <Icon.share />
+                    </Link>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </PacketSection>
+
+      <PacketSection title="Open Prep Items">
+        <div className="card elev packet-card">
+          {openTasks.length === 0 ? (
+            <div style={{ padding: 18, color: "var(--ink-3)", fontSize: 13 }}>
+              No open tasks.
+            </div>
+          ) : (
+            openTasks.map((task) => (
+              <div key={task.id} className="card-row" style={{ cursor: "default" }}>
+                <Icon.check style={{ color: "var(--ink-4)" }} />
+                <div style={{ flex: 1, fontSize: 13 }}>{task.title}</div>
+                {task.due && (
+                  <span className="muted" style={{ fontSize: 11 }}>
+                    Due {fmtDate(task.due, { short: true })}
+                  </span>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </PacketSection>
+
+      {event.event_notes.length > 0 && (
+        <PacketSection title="Internal Notes">
+          <div className="card elev packet-card">
+            {event.event_notes.slice(0, 3).map((note) => (
+              <div key={note.id} style={{ padding: 14, borderBottom: "1px solid var(--hair)" }}>
+                <div className="muted" style={{ fontSize: 11, marginBottom: 5 }}>
+                  {relTime(note.created_at)}
+                </div>
+                <div style={{ fontSize: 13, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
+                  {note.body}
+                </div>
+              </div>
+            ))}
+          </div>
+        </PacketSection>
+      )}
+    </div>
+  );
+}
+
+function PacketSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section style={{ marginBottom: 18 }}>
+      <div className="section-label" style={{ marginTop: 0 }}>
+        <h2>{title}</h2>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function PacketStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="stat">
+      <div className="label">{label}</div>
+      <div className="val tabnums">{value}</div>
+    </div>
+  );
+}
+
+function PacketLine({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="card-row" style={{ cursor: "default" }}>
+      <span style={{ color: "var(--ink-4)" }}>{icon}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="form-label" style={{ marginBottom: 2 }}>{label}</div>
+        <div style={{ fontSize: 14, color: "var(--ink-2)" }}>{value}</div>
+      </div>
+    </div>
+  );
+}
 
 function NewTaskForm({ eventId }: { eventId: string }) {
   return (

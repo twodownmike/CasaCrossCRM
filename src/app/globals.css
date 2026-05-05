@@ -1644,3 +1644,26 @@ select.input {
 .rte-content .ProseMirror code { font-family: ui-monospace, Menlo, monospace; font-size: 12px; background: var(--hair-2); border-radius: 4px; padding: 1px 5px; }
 .rte-content .ProseMirror.ProseMirror-focused { outline: none; }
 .rte-body:focus-within { border-color: var(--ink-3) !important; }
+
+@media print {
+  body { background: white !important; }
+  .hero,
+  .tabs,
+  .app-nav,
+  .packet-print,
+  .packet-screen-only {
+    display: none !important;
+  }
+  .packet-page {
+    padding: 0 !important;
+  }
+  .packet-sheet,
+  .packet-card {
+    box-shadow: none !important;
+    border-color: #ddd6ca !important;
+    break-inside: avoid;
+  }
+  .packet-page .card-row {
+    break-inside: avoid;
+  }
+}

@@ -14,6 +14,7 @@ export function EventTabs({
   const tabs: Array<[string, string]> = [
     ["overview", "Overview"],
     ["roster", "Roster"],
+    ["packet", "Packet"],
     ["money", "Money"],
     ["expenses", "Expenses"],
     ["tasks", `Tasks (${openTaskCount})`],
