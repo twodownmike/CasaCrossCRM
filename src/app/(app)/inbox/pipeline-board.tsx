@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { moveSubmission } from "@/app/actions";
+import { Icon } from "@/components/icons";
 import { RolePill } from "@/components/pill";
 import { relTime } from "@/lib/format";
 import type { Submission, SubmissionStatus } from "@/lib/types";
@@ -10,17 +11,37 @@ import type { Submission, SubmissionStatus } from "@/lib/types";
 type StageConfig = {
   key: SubmissionStatus;
   label: string;
+  helper: string;
   color: string;
   tint: string;
 };
 
 const STAGES: StageConfig[] = [
-  { key: "pending",   label: "New",       color: "var(--terracotta)", tint: "var(--terracotta-tint)" },
-  { key: "reviewing", label: "Reviewing", color: "var(--gold)",       tint: "var(--gold-tint)"       },
-  { key: "invited",   label: "Invited",   color: "var(--slate)",      tint: "var(--slate-tint)"      },
-  { key: "approved",  label: "Confirmed", color: "var(--sage)",       tint: "var(--sage-tint)"       },
-  { key: "archived",  label: "Declined",  color: "var(--ink-4)",      tint: "var(--hair-2)"          },
+  { key: "pending",   label: "New",       helper: "Review fit",       color: "var(--terracotta)", tint: "var(--terracotta-tint)" },
+  { key: "reviewing", label: "Reviewing", helper: "Decide next move", color: "var(--gold)",       tint: "var(--gold-tint)"       },
+  { key: "invited",   label: "Invited",   helper: "Follow up",        color: "var(--slate)",      tint: "var(--slate-tint)"      },
+  { key: "approved",  label: "Confirmed", helper: "In roster",        color: "var(--sage)",       tint: "var(--sage-tint)"       },
+  { key: "archived",  label: "Declined",  helper: "Closed out",       color: "var(--ink-4)",      tint: "var(--hair-2)"          },
 ];
+
+function ageInDays(createdAt: string) {
+  return Math.max(
+    0,
+    Math.floor((Date.now() - new Date(createdAt).getTime()) / 86_400_000),
+  );
+}
+
+function nextStep(sub: Submission) {
+  const age = ageInDays(sub.created_at);
+  if (!sub.email && !sub.phone) return "Find contact info before outreach";
+  if (sub.status === "pending") return "Open profile and review fit";
+  if (sub.status === "reviewing") return "Invite or decline";
+  if (sub.status === "invited") {
+    return age >= 3 ? "Follow up on invitation" : "Waiting on reply";
+  }
+  if (sub.status === "approved") return "Profile created";
+  return "Closed";
+}
 
 export function PipelineBoard({ initialSubs }: { initialSubs: Submission[] }) {
   const [subs, setSubs] = useState(initialSubs);
@@ -54,9 +75,16 @@ export function PipelineBoard({ initialSubs }: { initialSubs: Submission[] }) {
         }}
       >
         {STAGES.map((stage) => {
-          const cards = subs.filter((s) => s.status === stage.key);
+          const cards = subs
+            .filter((s) => s.status === stage.key)
+            .sort((a, b) => {
+              const aMissing = !a.email && !a.phone ? 1 : 0;
+              const bMissing = !b.email && !b.phone ? 1 : 0;
+              if (aMissing !== bMissing) return bMissing - aMissing;
+              return b.created_at.localeCompare(a.created_at);
+            });
           return (
-            <div key={stage.key} style={{ width: 256, flexShrink: 0 }}>
+            <div key={stage.key} style={{ width: 276, flexShrink: 0 }}>
               {/* Column header */}
               <div
                 style={{
@@ -84,6 +112,14 @@ export function PipelineBoard({ initialSubs }: { initialSubs: Submission[] }) {
                   }}
                 >
                   {stage.label}
+                </span>
+                <span
+                  style={{
+                    fontSize: 11,
+                    color: "var(--ink-4)",
+                  }}
+                >
+                  {stage.helper}
                 </span>
                 <span
                   style={{
@@ -142,6 +178,10 @@ function PipelineCard({
   onMove: (id: string, stage: SubmissionStatus) => void;
 }) {
   const displayName = sub.preferred_name || sub.name;
+  const age = ageInDays(sub.created_at);
+  const needsContact = !sub.email && !sub.phone;
+  const followUp =
+    sub.status !== "approved" && sub.status !== "archived" && age >= 7;
 
   return (
     <div
@@ -179,6 +219,37 @@ function PipelineCard({
           </span>
           <RolePill role={sub.role} />
         </div>
+        <div
+          style={{
+            display: "flex",
+            gap: 6,
+            flexWrap: "wrap",
+            marginBottom: 7,
+          }}
+        >
+          {followUp && (
+            <span
+              className="pill warn"
+              style={{ fontSize: 10.5, padding: "3px 7px" }}
+            >
+              <span className="dot" />
+              {age}d active
+            </span>
+          )}
+          {needsContact && (
+            <span
+              className="pill"
+              style={{
+                fontSize: 10.5,
+                padding: "3px 7px",
+                background: "var(--hair-2)",
+                color: "var(--ink-3)",
+              }}
+            >
+              Missing contact
+            </span>
+          )}
+        </div>
         {sub.specialty && (
           <div
             style={{
@@ -198,7 +269,54 @@ function PipelineCard({
           {relTime(sub.created_at)}
           {sub.location ? ` · ${sub.location}` : ""}
         </div>
+        <div
+          style={{
+            marginTop: 8,
+            paddingTop: 8,
+            borderTop: "1px solid var(--hair)",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            color: "var(--ink-3)",
+            fontSize: 12,
+          }}
+        >
+          <Icon.spark style={{ width: 14, height: 14, flexShrink: 0 }} />
+          <span>{nextStep(sub)}</span>
+        </div>
       </Link>
+
+      {(sub.email || sub.phone || sub.portfolio_url) && (
+        <div
+          style={{
+            borderTop: "1px solid var(--hair)",
+            padding: "8px 10px",
+            display: "flex",
+            gap: 6,
+          }}
+        >
+          {sub.email && (
+            <a className="btn sm" href={`mailto:${sub.email}`}>
+              <Icon.mail /> Email
+            </a>
+          )}
+          {sub.phone && (
+            <a className="btn sm" href={`tel:${sub.phone}`}>
+              <Icon.phone /> Call
+            </a>
+          )}
+          {sub.portfolio_url && (
+            <a
+              className="btn sm"
+              href={sub.portfolio_url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Icon.doc /> Work
+            </a>
+          )}
+        </div>
+      )}
 
       {/* Stage pills */}
       <div

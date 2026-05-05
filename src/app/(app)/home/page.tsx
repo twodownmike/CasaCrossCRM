@@ -12,6 +12,7 @@ import { EventCard } from "@/components/event-card";
 import { Avatar } from "@/components/avatar";
 import { RolePill } from "@/components/pill";
 import { Icon } from "@/components/icons";
+import type { Submission } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -31,71 +32,145 @@ export default async function Home() {
   const next = upcoming[0];
   const fin = aggregateFinances(events);
 
-  type Action =
-    | { kind: "contract"; eventId: string; eventName: string; personName: string }
-    | {
-        kind: "payment";
-        eventId: string;
-        eventName: string;
-        personName: string;
-        dueDate: string;
-      };
+  type Action = {
+    kind: "lead" | "contract" | "payment" | "task" | "event";
+    href: string;
+    title: string;
+    detail: string;
+    tone: "warm" | "gold" | "sage" | "slate";
+    icon: "mail" | "doc" | "dollar" | "check" | "calendar";
+    priority: number;
+    due?: string;
+  };
   const actions: Action[] = [];
+
+  const { data: submissionRows } = await supabase
+    .from("submissions")
+    .select("*")
+    .neq("status", "approved")
+    .neq("status", "archived")
+    .order("created_at", { ascending: false })
+    .limit(8);
+  const submissions = (submissionRows ?? []) as Submission[];
+  submissions.forEach((s) => {
+    const age = Math.max(
+      0,
+      Math.floor((Date.now() - new Date(s.created_at).getTime()) / 86_400_000),
+    );
+    const name = s.preferred_name || s.name;
+    const priority =
+      s.status === "pending" ? 95 : s.status === "reviewing" ? 82 : 64;
+    actions.push({
+      kind: "lead",
+      href: `/inbox/${s.id}`,
+      title:
+        s.status === "pending"
+          ? `Review ${name}`
+          : s.status === "reviewing"
+            ? `Decide on ${name}`
+            : `Follow up with ${name}`,
+      detail: `${s.role} application · ${age === 0 ? "new today" : `${age}d old`}`,
+      tone: s.status === "pending" ? "warm" : "gold",
+      icon: "mail",
+      priority: priority + Math.min(age, 10),
+    });
+  });
+
   events.forEach((e) => {
     if (e.status === "wrapped") return;
+    const daysToEvent = daysUntil(e.date);
+    if (daysToEvent >= 0 && daysToEvent <= 7) {
+      actions.push({
+        kind: "event",
+        href: `/events/${e.id}`,
+        title:
+          daysToEvent === 0
+            ? `${e.name} is today`
+            : `Prep ${e.name}`,
+        detail:
+          daysToEvent === 0
+            ? "Check roster, tasks, and messages"
+            : `${daysUntilLabel(e.date)} · ${e.participants.length} booked`,
+        tone: "slate",
+        icon: "calendar",
+        priority: 76 - daysToEvent,
+        due: e.date,
+      });
+    }
     e.participants.forEach((p) => {
       if (p.contract === "unsent") {
-        // unsent + needs a contract; "na" signals no contract needed
         actions.push({
           kind: "contract",
-          eventId: e.id,
-          eventName: e.name,
-          personName: p.person.name,
+          href: `/events/${e.id}/participants/${p.id}`,
+          title: `Send contract to ${p.person.name}`,
+          detail: e.name,
+          tone: "warm",
+          icon: "doc",
+          priority: 74,
         });
       } else if (
         p.status === "due" &&
         p.due_date &&
         daysUntil(p.due_date) < 7
       ) {
+        const daysToDue = daysUntil(p.due_date);
         actions.push({
           kind: "payment",
-          eventId: e.id,
-          eventName: e.name,
-          personName: p.person.name,
-          dueDate: p.due_date,
+          href: `/events/${e.id}/participants/${p.id}`,
+          title:
+            daysToDue < 0
+              ? `Payment overdue from ${p.person.name}`
+              : `Payment due from ${p.person.name}`,
+          detail: `${e.name} · due ${fmtDate(p.due_date, { short: true })}`,
+          tone: daysToDue < 0 ? "warm" : "sage",
+          icon: "dollar",
+          priority: daysToDue < 0 ? 92 : 70 - daysToDue,
+          due: p.due_date,
         });
       }
     });
   });
 
-  type TodoItem = { eventId: string; eventName: string; title: string; due: string };
-  const todos: TodoItem[] = [];
-  // Tasks come from events query? They don't — we need a separate fetch.
   const { data: openTasks } = await supabase
     .from("tasks")
     .select("*")
     .eq("done", false);
   (openTasks ?? []).forEach((t) => {
-    if (!t.due) return;
-    const d = daysUntil(t.due);
-    if (d <= 14 && d >= 0) {
-      const e = events.find((ev) => ev.id === t.event_id);
-      if (e) {
-        todos.push({
-          eventId: e.id,
-          eventName: e.name,
-          title: t.title,
-          due: t.due,
-        });
-      }
+    const e = events.find((ev) => ev.id === t.event_id);
+    const d = t.due ? daysUntil(t.due) : null;
+    if (e && (d === null || d <= 14)) {
+      actions.push({
+        kind: "task",
+        href: `/events/${e.id}`,
+        title: t.title,
+        detail: `${e.name}${t.due ? ` · ${daysUntilLabel(t.due) || fmtDate(t.due, { short: true })}` : ""}`,
+        tone: d !== null && d < 0 ? "warm" : "sage",
+        icon: "check",
+        priority: d === null ? 48 : d < 0 ? 90 : 68 - d,
+        due: t.due ?? undefined,
+      });
     }
   });
-  todos.sort((a, b) => a.due.localeCompare(b.due));
+  actions.sort((a, b) => b.priority - a.priority);
 
-  const { count: inboxCount } = await supabase
-    .from("submissions")
-    .select("*", { count: "exact", head: true })
-    .eq("status", "pending");
+  const leadCount = submissions.length;
+  const tasksDueCount = actions.filter((a) => a.kind === "task").length;
+  const iconFor = {
+    mail: Icon.mail,
+    doc: Icon.doc,
+    dollar: Icon.dollar,
+    check: Icon.check,
+    calendar: Icon.calendar,
+  };
+  const toneStyle = {
+    warm: {
+      background: "var(--terracotta-tint)",
+      color: "var(--terracotta)",
+    },
+    gold: { background: "var(--gold-tint)", color: "var(--gold)" },
+    sage: { background: "var(--sage-tint)", color: "var(--sage)" },
+    slate: { background: "var(--slate-tint)", color: "var(--slate)" },
+  };
 
   return (
     <div className="fade-in">
@@ -109,49 +184,6 @@ export default async function Home() {
         </div>
       </div>
 
-      {inboxCount && inboxCount > 0 ? (
-        <div style={{ padding: "0 var(--s-5) var(--s-4)" }}>
-          <Link
-            href="/inbox"
-            className="card elev"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 14,
-              padding: 14,
-              border: "1px solid var(--hair)",
-              background: "var(--paper)",
-            }}
-          >
-            <span
-              style={{
-                width: 38,
-                height: 38,
-                borderRadius: 10,
-                background: "var(--terracotta-tint)",
-                color: "var(--terracotta)",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Icon.mail />
-            </span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 500 }}>
-                {inboxCount} new application{inboxCount === 1 ? "" : "s"}
-              </div>
-              <div
-                style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 2 }}
-              >
-                Tap to review and approve.
-              </div>
-            </div>
-            <Icon.chev style={{ color: "var(--ink-4)" }} />
-          </Link>
-        </div>
-      ) : null}
-
       <div className="stat-grid">
         <div className="stat">
           <div className="label">Outstanding</div>
@@ -162,6 +194,16 @@ export default async function Home() {
           <div className="label">Collected</div>
           <div className="val tabnums">{fmtMoney(fin.paid)}</div>
           <div className="delta up">across {events.length} events</div>
+        </div>
+        <div className="stat">
+          <div className="label">Active leads</div>
+          <div className="val tabnums">{leadCount}</div>
+          <div className="delta down">in booking pipeline</div>
+        </div>
+        <div className="stat">
+          <div className="label">Open tasks</div>
+          <div className="val tabnums">{tasksDueCount}</div>
+          <div className="delta">due or unscheduled</div>
         </div>
       </div>
 
@@ -182,7 +224,7 @@ export default async function Home() {
       {actions.length > 0 && (
         <>
           <div className="section-label">
-            <h2>Needs your attention</h2>
+            <h2>Action queue</h2>
             <span className="pill warn">
               <span className="dot" />
               {actions.length}
@@ -190,104 +232,54 @@ export default async function Home() {
           </div>
           <div style={{ padding: "0 var(--s-5)" }}>
             <div className="card elev">
-              {actions.slice(0, 5).map((a, i) => (
-                <Link
-                  key={i}
-                  className="card-row"
-                  href={`/events/${a.eventId}`}
-                >
-                  <span
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: "50%",
-                      background: "var(--terracotta-tint)",
-                      color: "var(--terracotta)",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                    }}
-                  >
-                    {a.kind === "contract" ? <Icon.doc /> : <Icon.dollar />}
-                  </span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
+              {actions.slice(0, 7).map((a, i) => {
+                const ActionIcon = iconFor[a.icon];
+                return (
+                  <Link key={`${a.kind}-${i}`} className="card-row" href={a.href}>
+                    <span
                       style={{
-                        fontSize: 14,
-                        fontWeight: 500,
-                        color: "var(--ink)",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
+                        width: 34,
+                        height: 34,
+                        borderRadius: "50%",
+                        ...toneStyle[a.tone],
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
                       }}
                     >
-                      {a.kind === "contract"
-                        ? `Send contract to ${a.personName}`
-                        : `Payment due from ${a.personName}`}
+                      <ActionIcon />
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontSize: 14,
+                          fontWeight: 500,
+                          color: "var(--ink)",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {a.title}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 12,
+                          color: "var(--ink-3)",
+                          marginTop: 2,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {a.detail}
+                      </div>
                     </div>
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: "var(--ink-3)",
-                        marginTop: 2,
-                      }}
-                    >
-                      {a.eventName}
-                      {a.kind === "payment" &&
-                        ` · due ${fmtDate(a.dueDate, { short: true })}`}
-                    </div>
-                  </div>
-                  <Icon.chev style={{ color: "var(--ink-4)" }} />
-                </Link>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
-
-      {todos.length > 0 && (
-        <>
-          <div className="section-label">
-            <h2>This week</h2>
-            <span className="muted" style={{ fontSize: 12 }}>
-              {todos.length} tasks
-            </span>
-          </div>
-          <div style={{ padding: "0 var(--s-5)" }}>
-            <div className="card elev">
-              {todos.slice(0, 4).map((t, i) => (
-                <Link
-                  key={i}
-                  className="card-row"
-                  href={`/events/${t.eventId}`}
-                >
-                  <span
-                    style={{
-                      width: 22,
-                      height: 22,
-                      borderRadius: "50%",
-                      border: "1.5px solid var(--ink-4)",
-                      flexShrink: 0,
-                    }}
-                  />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 14, color: "var(--ink)" }}>
-                      {t.title}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: "var(--ink-3)",
-                        marginTop: 2,
-                      }}
-                    >
-                      {t.eventName} ·{" "}
-                      {daysUntilLabel(t.due) || fmtDate(t.due, { short: true })}
-                    </div>
-                  </div>
-                </Link>
-              ))}
+                    <Icon.chev style={{ color: "var(--ink-4)" }} />
+                  </Link>
+                );
+              })}
             </div>
           </div>
         </>
