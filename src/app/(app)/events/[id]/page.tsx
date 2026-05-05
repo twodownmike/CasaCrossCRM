@@ -19,8 +19,8 @@ import { RosterClient } from "./roster-client";
 import { ExpensesPanel } from "./expenses-panel";
 import { AddEventNoteForm } from "./add-event-note-form";
 import { PacketPrintButton } from "./packet-print-button";
-import { sendTeamPortalMessage } from "@/app/portal-actions";
 import { createClient as createSupabase } from "@/lib/supabase/server";
+import { PortalThreadList } from "./portal-thread-list";
 
 async function loadTemplates(): Promise<Array<{ id: string; name: string }>> {
   const supabase = createSupabase();
@@ -769,129 +769,59 @@ async function VendorPacket({ event }: { event: NonNullable<Awaited<ReturnType<t
 
 async function PortalTab({ event }: { event: NonNullable<Awaited<ReturnType<typeof getEvent>>> }) {
   const supabase = createSupabase();
-  const { data: portalMessages } = await supabase
-    .from("portal_messages")
-    .select("id, event_id, person_id, sender_kind, sender_name, body, created_at")
-    .eq("event_id", event.id)
-    .order("created_at", { ascending: true });
+  const personIds = event.participants.map((p) => p.person_id);
+
+  const [{ data: portalMessages }, { data: portalUsers }] = await Promise.all([
+    supabase
+      .from("portal_messages")
+      .select("id, event_id, person_id, sender_kind, sender_name, body, created_at")
+      .eq("event_id", event.id)
+      .order("created_at", { ascending: true }),
+    personIds.length
+      ? supabase
+          .from("portal_users")
+          .select("person_id")
+          .in("person_id", personIds)
+          .eq("active", true)
+      : Promise.resolve({ data: [] as { person_id: string }[] }),
+  ]);
+
+  const portalPersonIds = new Set((portalUsers ?? []).map((u) => u.person_id));
 
   const vendorRoles: RoleKind[] = ["venue", "vendor", "hmua", "stylist", "photographer"];
-  const allParticipants = [
+  const portalParticipants = [
     ...event.participants.filter((p) => vendorRoles.includes(p.role)),
     ...event.participants.filter((p) => !vendorRoles.includes(p.role)),
-  ];
+  ].filter((p) => portalPersonIds.has(p.person_id));
 
-  const portalMessagesByPerson = new Map<string, PacketPortalMessage[]>();
-  ((portalMessages ?? []) as PacketPortalMessage[]).forEach((message) => {
-    const list = portalMessagesByPerson.get(message.person_id) ?? [];
-    list.push(message);
-    portalMessagesByPerson.set(message.person_id, list);
+  const messagesByPerson = new Map<string, PacketPortalMessage[]>();
+  ((portalMessages ?? []) as PacketPortalMessage[]).forEach((m) => {
+    const list = messagesByPerson.get(m.person_id) ?? [];
+    list.push(m);
+    messagesByPerson.set(m.person_id, list);
   });
-  const messageThreads = allParticipants.filter((p) =>
-    portalMessagesByPerson.has(p.person_id),
-  );
+
+  const threads = portalParticipants.map((p) => ({
+    personId: p.person_id,
+    eventId: event.id,
+    person: {
+      name: p.person.name,
+      initials: p.person.initials,
+      tint: p.person.tint,
+      ink: p.person.ink,
+    },
+    messages: (messagesByPerson.get(p.person_id) ?? []).map((m) => ({
+      id: m.id,
+      sender_kind: m.sender_kind,
+      sender_name: m.sender_name,
+      body: m.body,
+      created_at: m.created_at,
+    })),
+  }));
 
   return (
     <div className="fade-in" style={{ padding: "var(--s-5)" }}>
-      {messageThreads.length === 0 ? (
-        <div
-          style={{
-            padding: 40,
-            textAlign: "center",
-            color: "var(--ink-3)",
-            fontSize: 13,
-          }}
-        >
-          No portal messages yet.
-        </div>
-      ) : (
-        <div className="card elev" style={{ overflow: "hidden" }}>
-          {messageThreads.map((participant) => {
-            const messages = portalMessagesByPerson.get(participant.person_id) ?? [];
-            const last = messages[messages.length - 1];
-            return (
-              <div
-                key={participant.id}
-                style={{ padding: 14, borderBottom: "1px solid var(--hair)" }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 10,
-                    alignItems: "center",
-                    marginBottom: 10,
-                  }}
-                >
-                  <Avatar person={participant.person} size="sm" />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600 }}>
-                      {participant.person.name}
-                    </div>
-                    <div className="muted" style={{ fontSize: 11.5 }}>
-                      {messages.length} message{messages.length === 1 ? "" : "s"}
-                      {last ? ` · latest ${relTime(last.created_at)}` : ""}
-                    </div>
-                  </div>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {messages.slice(-4).map((message) => {
-                    const team = message.sender_kind === "team";
-                    return (
-                      <div
-                        key={message.id}
-                        style={{
-                          alignSelf: team ? "flex-end" : "flex-start",
-                          maxWidth: "86%",
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: 10.5,
-                            color: "var(--ink-4)",
-                            marginBottom: 3,
-                            textAlign: team ? "right" : "left",
-                          }}
-                        >
-                          {team ? "Casa Cross" : participant.person.name} · {relTime(message.created_at)}
-                        </div>
-                        <div
-                          style={{
-                            padding: "8px 11px",
-                            borderRadius: team
-                              ? "14px 14px 4px 14px"
-                              : "14px 14px 14px 4px",
-                            background: team ? "var(--ink)" : "var(--hair-2)",
-                            color: team ? "white" : "var(--ink)",
-                            fontSize: 13,
-                            lineHeight: 1.45,
-                            whiteSpace: "pre-wrap",
-                          }}
-                        >
-                          {message.body}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                <form action={sendTeamPortalMessage} className="form-grid" style={{ marginTop: 12 }}>
-                  <input type="hidden" name="event_id" value={event.id} />
-                  <input type="hidden" name="person_id" value={participant.person_id} />
-                  <textarea
-                    name="body"
-                    required
-                    className="input textarea"
-                    placeholder={`Reply to ${participant.person.name}...`}
-                    style={{ minHeight: 74 }}
-                  />
-                  <button className="btn primary block" type="submit">
-                    <Icon.send /> Send reply
-                  </button>
-                </form>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      <PortalThreadList threads={threads} />
     </div>
   );
 }
