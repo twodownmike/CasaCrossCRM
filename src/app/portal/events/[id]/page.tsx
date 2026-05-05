@@ -3,7 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Icon } from "@/components/icons";
 import { StatusPill } from "@/components/pill";
-import { fmtDateFull, relTime } from "@/lib/format";
+import { fmtDateFull, fmtMoney, relTime } from "@/lib/format";
+import { sendPortalMessage } from "@/app/portal-actions";
 import type { Contract, EventRow, Participant } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -38,6 +39,23 @@ export default async function PortalEventPage({
     .select("*")
     .eq("participant_id", participant.id)
     .order("created_at", { ascending: false });
+  const { data: messages } = await supabase
+    .from("portal_messages")
+    .select("*")
+    .eq("event_id", params.id)
+    .order("created_at", { ascending: true });
+
+  const contractRows = (contracts ?? []) as Contract[];
+  const participantRow = participant as Participant;
+  const remaining = Math.max(
+    0,
+    Number(participantRow.rate ?? 0) - Number(participantRow.paid ?? 0),
+  );
+  const unsignedContracts = contractRows.filter(
+    (contract) => contract.status !== "signed" && contract.status !== "void",
+  );
+  const latestUnsigned = unsignedContracts[0];
+  const todoCount = (remaining > 0 ? 1 : 0) + (latestUnsigned ? 1 : 0);
 
   return (
     <div>
@@ -72,8 +90,57 @@ export default async function PortalEventPage({
         <PortalLine icon={<Icon.calendar style={{ width: 16, height: 16 }} />} label="Date" value={fmtDateFull((event as EventRow).date)} />
         <PortalLine icon={<Icon.clock />} label="Time" value={(event as EventRow).time_label || "TBD"} />
         <PortalLine icon={<Icon.pin />} label="Location" value={(event as EventRow).location || "TBD"} />
-        <PortalLine icon={<Icon.users />} label="Your status" value={(participant as Participant).status} status={(participant as Participant).status} />
+        <PortalLine icon={<Icon.users />} label="Your status" value={participantRow.status} status={participantRow.status} />
       </div>
+
+      <section style={{ marginTop: 22 }}>
+        <div className="section-label" style={{ marginTop: 0 }}>
+          <h2>To-do</h2>
+          <span className="muted" style={{ fontSize: 12 }}>
+            {todoCount}
+          </span>
+        </div>
+        <div className="card elev">
+          {todoCount === 0 ? (
+            <div style={{ padding: 20, fontSize: 13, color: "var(--sage)" }}>
+              You&apos;re all set for now.
+            </div>
+          ) : (
+            <>
+              {latestUnsigned && (
+                <Link
+                  href={`/sign/${latestUnsigned.share_token}`}
+                  className="card-row"
+                >
+                  <Icon.doc style={{ color: "var(--terracotta)" }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600 }}>
+                      Sign {latestUnsigned.title}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 3 }}>
+                      Required before the event.
+                    </div>
+                  </div>
+                  <Icon.chev style={{ color: "var(--ink-4)" }} />
+                </Link>
+              )}
+              {remaining > 0 && (
+                <div className="card-row" style={{ cursor: "default" }}>
+                  <Icon.dollar style={{ color: "var(--terracotta)" }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600 }}>
+                      Payment remaining: {fmtMoney(remaining)}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 3 }}>
+                      Message Casa Cross here if you need payment instructions.
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </section>
 
       {(event as EventRow).description && (
         <section style={{ marginTop: 22 }}>
@@ -131,6 +198,78 @@ export default async function PortalEventPage({
               </Link>
             ))
           )}
+        </div>
+      </section>
+
+      <section style={{ marginTop: 22 }}>
+        <div className="section-label" style={{ marginTop: 0 }}>
+          <h2>Messages</h2>
+          <span className="muted" style={{ fontSize: 12 }}>
+            {(messages ?? []).length}
+          </span>
+        </div>
+        <div className="card elev" style={{ padding: 14 }}>
+          {(messages ?? []).length === 0 ? (
+            <div style={{ padding: 10, color: "var(--ink-3)", fontSize: 13 }}>
+              No messages yet. Send Casa Cross a note about this event.
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {(messages ?? []).map((message) => {
+                const mine = message.sender_kind === "portal";
+                return (
+                  <div
+                    key={message.id}
+                    style={{
+                      display: "flex",
+                      justifyContent: mine ? "flex-end" : "flex-start",
+                    }}
+                  >
+                    <div style={{ maxWidth: "82%" }}>
+                      <div
+                        style={{
+                          fontSize: 11,
+                          color: "var(--ink-4)",
+                          marginBottom: 3,
+                          textAlign: mine ? "right" : "left",
+                        }}
+                      >
+                        {mine ? "You" : "Casa Cross"} · {relTime(message.created_at)}
+                      </div>
+                      <div
+                        style={{
+                          padding: "10px 13px",
+                          borderRadius: mine
+                            ? "16px 16px 4px 16px"
+                            : "16px 16px 16px 4px",
+                          background: mine ? "var(--ink)" : "var(--hair-2)",
+                          color: mine ? "white" : "var(--ink)",
+                          fontSize: 14,
+                          lineHeight: 1.45,
+                          whiteSpace: "pre-wrap",
+                        }}
+                      >
+                        {message.body}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <form action={sendPortalMessage} className="form-grid" style={{ marginTop: 14 }}>
+            <input type="hidden" name="event_id" value={params.id} />
+            <textarea
+              name="body"
+              required
+              className="input textarea"
+              placeholder="Message Casa Cross about this event..."
+              style={{ minHeight: 86 }}
+            />
+            <button className="btn primary block" type="submit">
+              <Icon.send /> Send message
+            </button>
+          </form>
         </div>
       </section>
     </div>
