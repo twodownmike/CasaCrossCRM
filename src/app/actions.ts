@@ -118,7 +118,14 @@ export async function deletePerson(form: FormData) {
   const supabase = createClient();
   const id = s(form, "id");
   if (!id) return;
-  await supabase.from("people").delete().eq("id", id);
+  const { error: venueErr } = await supabase
+    .from("events")
+    .update({ venue_id: null })
+    .eq("venue_id", id);
+  if (venueErr) throw venueErr;
+
+  const { error } = await supabase.from("people").delete().eq("id", id);
+  if (error) throw error;
   revalidatePath("/people");
   redirect("/people");
 }

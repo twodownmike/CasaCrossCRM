@@ -43,6 +43,41 @@ function placeholderPerson(id: string): Person {
   };
 }
 
+function attachSubmissionOptIns<T extends Person>(
+  people: T[],
+  submissions:
+    | Array<{
+        id: string;
+        converted_person_id: string | null;
+        future_projects_opt_in: boolean;
+      }>
+    | null
+    | undefined,
+): T[] {
+  const byPersonId = new Map<
+    string,
+    { id: string; future_projects_opt_in: boolean }
+  >();
+  (submissions ?? []).forEach((s) => {
+    if (s.converted_person_id) {
+      byPersonId.set(s.converted_person_id, {
+        id: s.id,
+        future_projects_opt_in: s.future_projects_opt_in,
+      });
+    }
+  });
+
+  return people.map((p) => {
+    const submission = byPersonId.get(p.id);
+    if (!submission) return p;
+    return {
+      ...p,
+      source_submission_id: submission.id,
+      future_projects_opt_in: submission.future_projects_opt_in,
+    };
+  });
+}
+
 export async function listEvents(): Promise<EventWithParticipants[]> {
   const supabase = createClient();
   const { data: events } = await supabase
@@ -141,11 +176,14 @@ export async function getEvent(id: string): Promise<EventFull | null> {
 
 export async function listPeople(): Promise<Person[]> {
   const supabase = createClient();
-  const { data } = await supabase
-    .from("people")
-    .select("*")
-    .order("name", { ascending: true });
-  return data ?? [];
+  const [{ data }, { data: submissions }] = await Promise.all([
+    supabase.from("people").select("*").order("name", { ascending: true }),
+    supabase
+      .from("submissions")
+      .select("id, converted_person_id, future_projects_opt_in")
+      .not("converted_person_id", "is", null),
+  ]);
+  return attachSubmissionOptIns(data ?? [], submissions);
 }
 
 export async function getPerson(
@@ -156,12 +194,19 @@ export async function getPerson(
   notes: Note[];
 } | null> {
   const supabase = createClient();
-  const { data: person } = await supabase
-    .from("people")
-    .select("*")
-    .eq("id", id)
-    .maybeSingle();
+  const [{ data: person }, { data: sourceSubmission }] = await Promise.all([
+    supabase.from("people").select("*").eq("id", id).maybeSingle(),
+    supabase
+      .from("submissions")
+      .select("id, converted_person_id, future_projects_opt_in")
+      .eq("converted_person_id", id)
+      .maybeSingle(),
+  ]);
   if (!person) return null;
+  const personWithSubmission = attachSubmissionOptIns(
+    [person],
+    sourceSubmission ? [sourceSubmission] : [],
+  )[0];
 
   const { data: parts } = await supabase
     .from("participants")
@@ -174,7 +219,7 @@ export async function getPerson(
       .select("*")
       .eq("person_id", id)
       .order("created_at", { ascending: false });
-    return { person, events: [], notes: notes ?? [] };
+    return { person: personWithSubmission, events: [], notes: notes ?? [] };
   }
 
   const [{ data: events }, { data: allParts }, { data: people }, { data: notes }] =
@@ -209,7 +254,7 @@ export async function getPerson(
 
   fullEvents.sort((a, b) => a.date.localeCompare(b.date));
 
-  return { person, events: fullEvents, notes: notes ?? [] };
+  return { person: personWithSubmission, events: fullEvents, notes: notes ?? [] };
 }
 
 export function aggregateFinances(events: EventWithParticipants[]) {

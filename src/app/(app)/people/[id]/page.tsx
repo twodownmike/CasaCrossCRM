@@ -169,6 +169,27 @@ export default async function PersonDetail({
                 </div>
               </div>
             )}
+            {p.source_submission_id && (
+              <div className="card-row" style={{ cursor: "default" }}>
+                <Icon.check
+                  style={{
+                    width: 16,
+                    height: 16,
+                    color: p.future_projects_opt_in
+                      ? "var(--sage)"
+                      : "var(--ink-4)",
+                  }}
+                />
+                <div style={{ flex: 1, fontSize: 14 }}>
+                  Future events: {p.future_projects_opt_in ? "Yes" : "No"}
+                  <div
+                    style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 2 }}
+                  >
+                    Created from application form
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           <PortalAccessPanel
             personId={p.id}

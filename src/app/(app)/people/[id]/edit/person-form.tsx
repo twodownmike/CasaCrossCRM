@@ -8,123 +8,125 @@ import { ROLE_META, ROLE_ORDER } from "@/lib/types";
 export function PersonForm({ person }: { person?: Person }) {
   const editing = !!person;
   return (
-    <form action={editing ? updatePerson : createPerson} className="form-grid">
-      {editing && <input type="hidden" name="id" value={person!.id} />}
-      <div>
-        <label className="form-label">Display name</label>
-        <input
-          name="name"
-          required
-          className="input"
-          defaultValue={person?.name || ""}
-        />
-        <p
-          className="muted"
-          style={{ fontSize: 11, marginTop: 6, lineHeight: 1.4 }}
-        >
-          What shows up in lists, rosters, and chats.
-        </p>
-      </div>
-      <div className="form-row">
+    <div className="form-grid">
+      <form action={editing ? updatePerson : createPerson} className="form-grid">
+        {editing && <input type="hidden" name="id" value={person!.id} />}
         <div>
-          <label className="form-label">Legal name</label>
+          <label className="form-label">Display name</label>
           <input
-            name="legal_name"
+            name="name"
+            required
             className="input"
-            defaultValue={person?.legal_name || ""}
-            placeholder="For contracts & payments"
+            defaultValue={person?.name || ""}
           />
+          <p
+            className="muted"
+            style={{ fontSize: 11, marginTop: 6, lineHeight: 1.4 }}
+          >
+            What shows up in lists, rosters, and chats.
+          </p>
+        </div>
+        <div className="form-row">
+          <div>
+            <label className="form-label">Legal name</label>
+            <input
+              name="legal_name"
+              className="input"
+              defaultValue={person?.legal_name || ""}
+              placeholder="For contracts & payments"
+            />
+          </div>
+          <div>
+            <label className="form-label">Preferred name</label>
+            <input
+              name="preferred_name"
+              className="input"
+              defaultValue={person?.preferred_name || ""}
+            />
+          </div>
         </div>
         <div>
-          <label className="form-label">Preferred name</label>
-          <input
-            name="preferred_name"
+          <label className="form-label">Role</label>
+          <select
+            name="role"
+            required
             className="input"
-            defaultValue={person?.preferred_name || ""}
-          />
+            defaultValue={person?.role || "model"}
+          >
+            {ROLE_ORDER.map((r) => (
+              <option key={r} value={r}>
+                {ROLE_META[r].label}
+              </option>
+            ))}
+          </select>
         </div>
-      </div>
-      <div>
-        <label className="form-label">Role</label>
-        <select
-          name="role"
-          required
-          className="input"
-          defaultValue={person?.role || "model"}
-        >
-          {ROLE_ORDER.map((r) => (
-            <option key={r} value={r}>
-              {ROLE_META[r].label}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="form-row">
+        <div className="form-row">
+          <div>
+            <label className="form-label">Email</label>
+            <input
+              name="email"
+              type="email"
+              className="input"
+              defaultValue={person?.email || ""}
+            />
+          </div>
+          <div>
+            <label className="form-label">Phone</label>
+            <input
+              name="phone"
+              className="input"
+              defaultValue={person?.phone || ""}
+            />
+          </div>
+        </div>
+        <div className="form-row">
+          <div>
+            <label className="form-label">Instagram</label>
+            <input
+              name="instagram"
+              className="input"
+              defaultValue={person?.instagram || ""}
+              placeholder="@handle"
+            />
+          </div>
+          <div>
+            <label className="form-label">Location</label>
+            <input
+              name="location"
+              className="input"
+              defaultValue={person?.location || ""}
+            />
+          </div>
+        </div>
         <div>
-          <label className="form-label">Email</label>
+          <label className="form-label">Specialty</label>
           <input
-            name="email"
-            type="email"
+            name="specialty"
             className="input"
-            defaultValue={person?.email || ""}
+            defaultValue={person?.specialty || ""}
+            placeholder="Garden-style florals · heirloom blooms"
           />
+          <p
+            className="muted"
+            style={{ fontSize: 11, marginTop: 6, lineHeight: 1.4 }}
+          >
+            One line summary, shown right on the People list.
+          </p>
         </div>
         <div>
-          <label className="form-label">Phone</label>
-          <input
-            name="phone"
-            className="input"
-            defaultValue={person?.phone || ""}
+          <label className="form-label">Bio</label>
+          <textarea
+            name="bio"
+            className="input textarea"
+            defaultValue={person?.bio || ""}
+            placeholder="Longer notes — past clients, working style, anything good to remember."
           />
         </div>
-      </div>
-      <div className="form-row">
-        <div>
-          <label className="form-label">Instagram</label>
-          <input
-            name="instagram"
-            className="input"
-            defaultValue={person?.instagram || ""}
-            placeholder="@handle"
-          />
-        </div>
-        <div>
-          <label className="form-label">Location</label>
-          <input
-            name="location"
-            className="input"
-            defaultValue={person?.location || ""}
-          />
-        </div>
-      </div>
-      <div>
-        <label className="form-label">Specialty</label>
-        <input
-          name="specialty"
-          className="input"
-          defaultValue={person?.specialty || ""}
-          placeholder="Garden-style florals · heirloom blooms"
-        />
-        <p
-          className="muted"
-          style={{ fontSize: 11, marginTop: 6, lineHeight: 1.4 }}
-        >
-          One line summary, shown right on the People list.
-        </p>
-      </div>
-      <div>
-        <label className="form-label">Bio</label>
-        <textarea
-          name="bio"
-          className="input textarea"
-          defaultValue={person?.bio || ""}
-          placeholder="Longer notes — past clients, working style, anything good to remember."
-        />
-      </div>
 
-      <button className="btn primary block" type="submit">
-        {editing ? "Save changes" : "Add contact"}
-      </button>
+        <button className="btn primary block" type="submit">
+          {editing ? "Save changes" : "Add contact"}
+        </button>
+      </form>
 
       {editing && (
         <form
@@ -156,6 +158,6 @@ export function PersonForm({ person }: { person?: Person }) {
       >
         Cancel
       </Link>
-    </form>
+    </div>
   );
 }

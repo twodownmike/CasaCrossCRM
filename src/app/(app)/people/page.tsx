@@ -119,6 +119,23 @@ function PersonRow({ person }: { person: Person }) {
             {person.name}
           </span>
           <RolePill role={person.role} />
+          {person.source_submission_id && (
+            <span
+              className={person.future_projects_opt_in ? "pill confirmed" : "pill"}
+              style={{
+                fontSize: 10.5,
+                padding: "3px 7px",
+                background: person.future_projects_opt_in
+                  ? undefined
+                  : "var(--hair-2)",
+                color: person.future_projects_opt_in
+                  ? undefined
+                  : "var(--ink-3)",
+              }}
+            >
+              Future events: {person.future_projects_opt_in ? "Yes" : "No"}
+            </span>
+          )}
         </div>
         {subtitle && (
           <div

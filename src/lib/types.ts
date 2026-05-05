@@ -27,6 +27,8 @@ export type Person = {
   tint: string | null;
   ink: string | null;
   joined_at: string | null;
+  source_submission_id?: string | null;
+  future_projects_opt_in?: boolean | null;
 };
 
 export type EventRow = {
