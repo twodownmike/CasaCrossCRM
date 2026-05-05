@@ -41,14 +41,24 @@ export function ApplyForm() {
           ))}
         </select>
       </div>
+      <div className="form-row">
+        <div>
+          <label className="form-label">First name</label>
+          <input name="first_name" required className="input" />
+        </div>
+        <div>
+          <label className="form-label">Last name</label>
+          <input name="last_name" required className="input" />
+        </div>
+      </div>
       <div>
-        <label className="form-label">Name (or business name)</label>
-        <input name="name" required className="input" />
+        <label className="form-label">Business name</label>
+        <input name="business_name" className="input" />
       </div>
       <div className="form-row">
         <div>
           <label className="form-label">Email</label>
-          <input name="email" type="email" className="input" />
+          <input name="email" type="email" required className="input" />
         </div>
         <div>
           <label className="form-label">Phone</label>
@@ -69,6 +79,7 @@ export function ApplyForm() {
         <label className="form-label">Specialty</label>
         <input
           name="specialty"
+          required
           className="input"
           placeholder="Garden-style florals · heirloom blooms"
         />

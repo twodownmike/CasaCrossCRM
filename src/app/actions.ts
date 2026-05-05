@@ -482,24 +482,34 @@ export async function submitApplication(
   if (s(form, "website") !== "") return { ok: true }; // honeypot triggered
 
   const role = s(form, "role") as RoleKind;
-  const legalName = s(form, "legal_name");
-  const preferredName = s(form, "preferred_name");
+  const firstName = s(form, "first_name");
+  const lastName = s(form, "last_name");
+  const businessName = s(form, "business_name");
+  const fullName = [firstName, lastName].filter(Boolean).join(" ");
+  const legacyLegalName = s(form, "legal_name");
+  const legalName = fullName || legacyLegalName;
+  const preferredName = businessName || s(form, "preferred_name");
   // Backward compat: older form used a single 'name' field.
   const fallbackName = s(form, "name");
   const displayName = preferredName || legalName || fallbackName;
-  if (!role || !displayName) {
-    return { ok: false, error: "Legal name and role are required." };
+  const email = nullable(form, "email");
+  const specialty = nullable(form, "specialty");
+  if (!role || !firstName || !lastName || !email || !specialty) {
+    return {
+      ok: false,
+      error: "Role, first name, last name, email, and specialty are required.",
+    };
   }
   const payload = {
     role,
     name: displayName,
     legal_name: legalName || null,
     preferred_name: preferredName || null,
-    email: nullable(form, "email"),
+    email,
     phone: nullable(form, "phone"),
     instagram: nullable(form, "instagram"),
     location: nullable(form, "location"),
-    specialty: nullable(form, "specialty"),
+    specialty,
     portfolio_url: nullable(form, "portfolio_url"),
     message: nullable(form, "message"),
     future_projects_opt_in: form.get("future_projects_opt_in") === "on",
@@ -518,6 +528,7 @@ export async function submitApplication(
   const rows: Array<[string, string | null]> = [
     ["Role", roleLabel],
     ["Name", payload.name],
+    ["Legal name", payload.legal_name],
     ["Email", payload.email],
     ["Phone", payload.phone],
     ["Instagram", payload.instagram],
