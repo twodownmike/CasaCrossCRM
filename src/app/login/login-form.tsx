@@ -8,11 +8,7 @@ function redirectUrl(next?: string) {
   const base =
     process.env.NEXT_PUBLIC_SITE_URL ||
     (typeof window !== "undefined" ? window.location.origin : "");
-  return (
-    base +
-    "/auth/callback" +
-    (next ? `?next=${encodeURIComponent(next)}` : "")
-  );
+  return `${base}/auth/callback?next=${encodeURIComponent(next || "/home")}`;
 }
 
 export function LoginForm({ next }: { next?: string }) {
