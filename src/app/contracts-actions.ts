@@ -9,7 +9,7 @@ import {
   generateShareToken,
   DEFAULT_TEMPLATE_BODY,
 } from "@/lib/contracts";
-import { sendNotificationEmail, escapeHtml } from "@/lib/notify";
+import { sendNotificationEmail, sendEmail, escapeHtml } from "@/lib/notify";
 import { ROLE_META } from "@/lib/types";
 import type { RoleKind } from "@/lib/types";
 
@@ -194,20 +194,42 @@ export async function sendContract(
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "";
   const link = `${siteUrl}/sign/${contract!.share_token}`;
 
-  // Email the team a copy when actually sending (skip on drafts).
-  if (!isDraft && person.email) {
+  if (!isDraft) {
+    const recipientName = person.preferred_name || person.name;
+    // Email the vendor/client directly with their signing link.
+    if (person.email) {
+      await sendEmail({
+        to: person.email,
+        subject: `Your agreement for ${event.name} is ready to sign`,
+        html: `
+          <div style="font-family:-apple-system,Inter,Helvetica,Arial,sans-serif;color:#1a1814;max-width:560px;margin:0 auto;padding:24px;">
+            <div style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#9a948a;font-weight:500;">Casa Cross Events</div>
+            <h1 style="font-family:Georgia,serif;font-weight:400;font-size:26px;margin:6px 0 12px;letter-spacing:-0.01em;">Hi ${escapeHtml(recipientName)},</h1>
+            <p style="font-size:14px;color:#3d3a35;line-height:1.6;margin:0 0 20px;">
+              Your booking agreement for <strong>${escapeHtml(event.name)}</strong> is ready. Please review and sign at your earliest convenience.
+            </p>
+            <p style="margin:0 0 24px;">
+              <a href="${link}" style="display:inline-block;background:#1a1814;color:#fff;text-decoration:none;padding:13px 26px;border-radius:999px;font-size:14px;font-weight:500;">Review &amp; Sign</a>
+            </p>
+            <p style="font-size:12px;color:#9a948a;word-break:break-all;margin:0 0 8px;">Or copy this link: ${link}</p>
+            <p style="font-size:11px;color:#b0aa9e;margin-top:32px;">Casa Cross Events · You're receiving this because a contract was prepared for you.</p>
+          </div>
+        `,
+        text: `Hi ${recipientName},\n\nYour booking agreement for ${event.name} is ready to sign:\n${link}\n\n— Casa Cross Events`,
+      });
+    }
+    // Notify the team that the contract was sent.
     await sendNotificationEmail({
-      subject: `Please review and sign — ${event.name}`,
+      subject: `Contract sent to ${person.name} — ${event.name}`,
       html: `
         <div style="font-family:-apple-system,Inter,Helvetica,Arial,sans-serif;color:#1a1814;max-width:560px;margin:0 auto;padding:24px;">
           <div style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#9a948a;font-weight:500;">Casa Cross</div>
-          <h1 style="font-family:Georgia,serif;font-weight:400;font-size:24px;margin:6px 0 18px;letter-spacing:-0.01em;">Contract sent — ${escapeHtml(event.name)}</h1>
-          <p style="font-size:14px;color:#3d3a35;line-height:1.55;margin:0 0 18px;">A signing link was generated for <strong>${escapeHtml(person.name)}</strong>. Forward the link below to them, or copy it to share via text/DM.</p>
-          <p><a href="${link}" style="display:inline-block;background:#1a1814;color:#fff;text-decoration:none;padding:11px 22px;border-radius:999px;font-size:14px;font-weight:500;">Open signing page</a></p>
-          <p style="font-size:11px;color:#9a948a;word-break:break-all;">${link}</p>
+          <h1 style="font-family:Georgia,serif;font-weight:400;font-size:24px;margin:6px 0 18px;">Contract sent — ${escapeHtml(event.name)}</h1>
+          <p style="font-size:14px;color:#3d3a35;line-height:1.55;margin:0 0 18px;">A signing link was emailed to <strong>${escapeHtml(person.name)}</strong>${person.email ? ` (${escapeHtml(person.email)})` : ""}.</p>
+          <p><a href="${link}" style="display:inline-block;background:#1a1814;color:#fff;text-decoration:none;padding:11px 22px;border-radius:999px;font-size:14px;font-weight:500;">Preview signing page</a></p>
         </div>
       `,
-      text: `Contract sent — ${event.name}\n\nSigning link for ${person.name}:\n${link}`,
+      text: `Contract sent to ${person.name} — ${event.name}\nSigning link: ${link}`,
     });
   }
 
