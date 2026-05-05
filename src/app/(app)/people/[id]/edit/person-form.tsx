@@ -28,6 +28,24 @@ export function PersonForm({ person }: { person?: Person }) {
         </div>
         <div className="form-row">
           <div>
+            <label className="form-label">First name</label>
+            <input
+              name="first_name"
+              className="input"
+              defaultValue={person?.first_name || ""}
+            />
+          </div>
+          <div>
+            <label className="form-label">Last name</label>
+            <input
+              name="last_name"
+              className="input"
+              defaultValue={person?.last_name || ""}
+            />
+          </div>
+        </div>
+        <div className="form-row">
+          <div>
             <label className="form-label">Legal name</label>
             <input
               name="legal_name"

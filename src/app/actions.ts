@@ -59,6 +59,8 @@ export async function createPerson(form: FormData) {
     .from("people")
     .insert({
       name,
+      first_name: nullable(form, "first_name"),
+      last_name: nullable(form, "last_name"),
       legal_name: nullable(form, "legal_name"),
       preferred_name: nullable(form, "preferred_name"),
       role,
@@ -94,6 +96,8 @@ export async function updatePerson(form: FormData) {
     .from("people")
     .update({
       name: s(form, "name"),
+      first_name: nullable(form, "first_name"),
+      last_name: nullable(form, "last_name"),
       legal_name: nullable(form, "legal_name"),
       preferred_name: nullable(form, "preferred_name"),
       role,
@@ -512,6 +516,8 @@ export async function submitApplication(
   const payload = {
     role,
     name: displayName,
+    first_name: firstName,
+    last_name: lastName,
     legal_name: legalName || null,
     preferred_name: preferredName || null,
     email,
@@ -596,6 +602,8 @@ export async function approveSubmission(form: FormData) {
     .from("people")
     .insert({
       name: sub.name,
+      first_name: sub.first_name,
+      last_name: sub.last_name,
       legal_name: sub.legal_name,
       preferred_name: sub.preferred_name,
       role: sub.role,

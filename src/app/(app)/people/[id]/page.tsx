@@ -125,6 +125,51 @@ export default async function PersonDetail({
       {tab === "about" && (
         <div className="fade-in" style={{ padding: "var(--s-5)" }}>
           <div className="card elev">
+            {p.source_submission_id && (p.first_name || p.last_name) && (
+              <div className="card-row" style={{ cursor: "default" }}>
+                <Icon.people
+                  style={{
+                    width: 16,
+                    height: 16,
+                    color: "var(--ink-4)",
+                  }}
+                />
+                <div style={{ flex: 1, fontSize: 14 }}>
+                  {[p.first_name, p.last_name].filter(Boolean).join(" ")}
+                  <div
+                    style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 2 }}
+                  >
+                    First and last name from application
+                  </div>
+                </div>
+              </div>
+            )}
+            {p.legal_name && p.legal_name !== p.name && (
+              <div className="card-row" style={{ cursor: "default" }}>
+                <Icon.doc style={{ color: "var(--ink-4)" }} />
+                <div style={{ flex: 1, fontSize: 14 }}>
+                  {p.legal_name}
+                  <div
+                    style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 2 }}
+                  >
+                    Legal name
+                  </div>
+                </div>
+              </div>
+            )}
+            {p.preferred_name && p.preferred_name !== p.name && (
+              <div className="card-row" style={{ cursor: "default" }}>
+                <Icon.check style={{ color: "var(--ink-4)" }} />
+                <div style={{ flex: 1, fontSize: 14 }}>
+                  {p.preferred_name}
+                  <div
+                    style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 2 }}
+                  >
+                    Preferred or business name
+                  </div>
+                </div>
+              </div>
+            )}
             {p.email && (
               <div className="card-row" style={{ cursor: "default" }}>
                 <Icon.mail style={{ color: "var(--ink-4)" }} />
