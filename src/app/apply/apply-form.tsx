@@ -28,8 +28,13 @@ export function ApplyForm() {
     <form className="form-grid" onSubmit={submit}>
       {/* Honeypot — invisible to humans, bots fill it in */}
       <input name="website" style={{ display: "none" }} tabIndex={-1} autoComplete="off" aria-hidden="true" />
+      <div className="muted" style={{ fontSize: 11, lineHeight: 1.4 }}>
+        <RequiredMark /> Required fields
+      </div>
       <div>
-        <label className="form-label">I&apos;m a…</label>
+        <label className="form-label">
+          I&apos;m a… <RequiredMark />
+        </label>
         <select name="role" required defaultValue="" className="input">
           <option value="" disabled>
             Pick one
@@ -43,11 +48,15 @@ export function ApplyForm() {
       </div>
       <div className="form-row">
         <div>
-          <label className="form-label">First name</label>
+          <label className="form-label">
+            First name <RequiredMark />
+          </label>
           <input name="first_name" required className="input" />
         </div>
         <div>
-          <label className="form-label">Last name</label>
+          <label className="form-label">
+            Last name <RequiredMark />
+          </label>
           <input name="last_name" required className="input" />
         </div>
       </div>
@@ -57,7 +66,9 @@ export function ApplyForm() {
       </div>
       <div className="form-row">
         <div>
-          <label className="form-label">Email</label>
+          <label className="form-label">
+            Email <RequiredMark />
+          </label>
           <input name="email" type="email" required className="input" />
         </div>
         <div>
@@ -76,7 +87,9 @@ export function ApplyForm() {
         </div>
       </div>
       <div>
-        <label className="form-label">Specialty</label>
+        <label className="form-label">
+          Specialty <RequiredMark />
+        </label>
         <input
           name="specialty"
           required
@@ -133,5 +146,13 @@ export function ApplyForm() {
         We&apos;ll only use these details to consider you for upcoming shoots.
       </p>
     </form>
+  );
+}
+
+function RequiredMark() {
+  return (
+    <span aria-hidden="true" style={{ color: "var(--terracotta)" }}>
+      *
+    </span>
   );
 }
