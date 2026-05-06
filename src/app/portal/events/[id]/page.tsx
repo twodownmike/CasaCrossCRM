@@ -3,10 +3,10 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Icon } from "@/components/icons";
 import { StatusPill } from "@/components/pill";
-import { fmtDateFull, relTime } from "@/lib/format";
+import { daysUntilLabel, fmtDateFull, relTime } from "@/lib/format";
 import { sendPortalMessage } from "@/app/portal-actions";
 import { PortalThreadReadMarker } from "@/app/portal-thread-read-marker";
-import type { Contract, EventRow, Participant } from "@/lib/types";
+import { ROLE_META, type Contract, type EventRow, type Participant } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -47,12 +47,20 @@ export default async function PortalEventPage({
     .order("created_at", { ascending: true });
 
   const contractRows = (contracts ?? []) as Contract[];
+  const eventRow = event as EventRow;
   const participantRow = participant as Participant;
   const unsignedContracts = contractRows.filter(
     (contract) => contract.status !== "signed" && contract.status !== "void",
   );
   const latestUnsigned = unsignedContracts[0];
   const todoCount = latestUnsigned ? 1 : 0;
+  const signedContracts = contractRows.filter((contract) => contract.status === "signed").length;
+  const eventTiming = daysUntilLabel(eventRow.date) || fmtDateFull(eventRow.date);
+  const mapHref = eventRow.location
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(eventRow.location)}`
+    : null;
+  const roleLabel =
+    participantRow.role_note || ROLE_META[participantRow.role]?.label || participantRow.role;
 
   return (
     <div>
@@ -77,43 +85,113 @@ export default async function PortalEventPage({
         <div style={{ width: 36 }} />
       </header>
 
-      <div className="page-head" style={{ paddingLeft: 0, paddingRight: 0 }}>
-        <div className="page-head-text">
+      <div
+        className="card elev"
+        style={{
+          overflow: "hidden",
+          marginTop: 8,
+          background: "var(--paper)",
+        }}
+      >
+        <div
+          className={eventRow.cover_image_url ? "" : `cover-${eventRow.cover || "modern"}`}
+          style={{
+            height: 174,
+            backgroundImage: eventRow.cover_image_url
+              ? `url(${eventRow.cover_image_url})`
+              : undefined,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        />
+        <div style={{ padding: 18 }}>
           <div className="eyebrow">Assignment</div>
-          <h1>{(event as EventRow).name}</h1>
-          <div className="sub">
-            {fmtDateFull((event as EventRow).date)}
-            {(event as EventRow).time_label ? ` · ${(event as EventRow).time_label}` : ""}
+          <h1 style={{ marginTop: 4 }}>{eventRow.name}</h1>
+          <div className="sub" style={{ marginBottom: 14 }}>
+            {eventTiming}
+            {eventRow.time_label ? ` · ${eventRow.time_label}` : ""}
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <a className="btn sm" href="#messages">
+              <Icon.chat /> Message
+            </a>
+            {mapHref && (
+              <a
+                className="btn sm"
+                href={mapHref}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Icon.pin /> Directions
+              </a>
+            )}
+            {latestUnsigned && (
+              <Link className="btn sm" href={`/sign/${latestUnsigned.share_token}`}>
+                <Icon.doc /> Sign
+              </Link>
+            )}
           </div>
         </div>
       </div>
 
-      <div className="card elev">
-        <PortalLine icon={<Icon.calendar style={{ width: 16, height: 16 }} />} label="Date" value={fmtDateFull((event as EventRow).date)} />
-        <PortalLine icon={<Icon.clock />} label="Time" value={(event as EventRow).time_label || "TBD"} />
-        <PortalLine icon={<Icon.pin />} label="Location" value={(event as EventRow).location || "TBD"} />
-        <PortalLine icon={<Icon.users />} label="Your role" value={participantRow.role_note || participantRow.role} />
+      <div className="card elev" style={{ marginTop: 18 }}>
+        <PortalLine icon={<Icon.calendar style={{ width: 16, height: 16 }} />} label="Date" value={fmtDateFull(eventRow.date)} />
+        <PortalLine icon={<Icon.clock />} label="Time" value={eventRow.time_label || "TBD"} />
+        <PortalLine icon={<Icon.pin />} label="Location" value={eventRow.location || "TBD"} />
+        <PortalLine icon={<Icon.users />} label="Your role" value={roleLabel} />
       </div>
 
-      {(event as EventRow).portal_brief && (
-        <section style={{ marginTop: 22 }}>
-          <div className="section-label" style={{ marginTop: 0 }}>
-            <h2>Event brief</h2>
-          </div>
-          <div
-            className="card elev"
-            style={{
-              padding: 16,
-              fontFamily: "var(--serif)",
-              fontSize: 15,
-              lineHeight: 1.6,
-              whiteSpace: "pre-wrap",
-            }}
-          >
-            {(event as EventRow).portal_brief}
-          </div>
-        </section>
-      )}
+      <section style={{ marginTop: 22 }}>
+        <div className="section-label" style={{ marginTop: 0 }}>
+          <h2>Readiness</h2>
+        </div>
+        <div className="card elev">
+          <ReadinessLine
+            done={Boolean(eventRow.time_label)}
+            label="Schedule"
+            detail={eventRow.time_label || "Casa Cross will confirm the call time."}
+          />
+          <ReadinessLine
+            done={Boolean(eventRow.location)}
+            label="Location"
+            detail={eventRow.location || "Location details are not posted yet."}
+          />
+          <ReadinessLine
+            done={unsignedContracts.length === 0}
+            label="Contracts"
+            detail={
+              contractRows.length === 0
+                ? "No contract is posted yet."
+                : `${signedContracts}/${contractRows.length} signed`
+            }
+          />
+          <ReadinessLine
+            done={Boolean(eventRow.portal_brief)}
+            label="Brief"
+            detail={eventRow.portal_brief ? "Event notes are ready." : "Briefing notes are coming soon."}
+          />
+        </div>
+      </section>
+
+      <section style={{ marginTop: 22 }}>
+        <div className="section-label" style={{ marginTop: 0 }}>
+          <h2>Event brief</h2>
+        </div>
+        <div
+          className="card elev"
+          style={{
+            padding: 16,
+            fontFamily: "var(--serif)",
+            fontSize: 15,
+            lineHeight: 1.6,
+            whiteSpace: "pre-wrap",
+            color: eventRow.portal_brief ? "var(--ink-2)" : "var(--ink-3)",
+          }}
+        >
+          {eventRow.portal_brief ||
+            "Casa Cross will add arrival notes, creative direction, and any day-of details here when they are ready."}
+        </div>
+      </section>
 
       <section style={{ marginTop: 22 }}>
         <div className="section-label" style={{ marginTop: 0 }}>
@@ -261,6 +339,42 @@ export default async function PortalEventPage({
           </form>
         </div>
       </section>
+    </div>
+  );
+}
+
+function ReadinessLine({
+  done,
+  label,
+  detail,
+}: {
+  done: boolean;
+  label: string;
+  detail: string;
+}) {
+  return (
+    <div className="card-row" style={{ cursor: "default" }}>
+      <span
+        style={{
+          width: 26,
+          height: 26,
+          borderRadius: "50%",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          background: done ? "var(--sage-tint)" : "var(--gold-tint)",
+          color: done ? "var(--sage)" : "var(--gold)",
+        }}
+      >
+        {done ? <Icon.check /> : <Icon.clock />}
+      </span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 14, fontWeight: 600 }}>{label}</div>
+        <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 3 }}>
+          {detail}
+        </div>
+      </div>
     </div>
   );
 }

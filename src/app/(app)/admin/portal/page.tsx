@@ -79,6 +79,10 @@ export default async function PortalAdminPage() {
 
   const activeUsers = users.filter((u) => u.active);
   const inactiveUsers = users.filter((u) => !u.active);
+  const setupPendingUsers = activeUsers.filter((u) => !u.setup_completed_at);
+  const expiredInvites = invites.filter((invite) => inviteState(invite) === "expired");
+  const pendingInvites = invites.filter((invite) => inviteState(invite) === "pending");
+  const attentionCount = setupPendingUsers.length + expiredInvites.length;
 
   return (
     <div className="fade-in">
@@ -109,6 +113,84 @@ export default async function PortalAdminPage() {
         </div>
       </div>
 
+      <div className="stat-grid" style={{ marginBottom: 18 }}>
+        <div className="stat">
+          <div className="label">Active</div>
+          <div className="val tabnums">{activeUsers.length}</div>
+          <div className="delta up">can sign in</div>
+        </div>
+        <div className="stat">
+          <div className="label">Setup pending</div>
+          <div className="val tabnums">{setupPendingUsers.length}</div>
+          <div className="delta">accepted, not finished</div>
+        </div>
+        <div className="stat">
+          <div className="label">Pending invites</div>
+          <div className="val tabnums">{pendingInvites.length}</div>
+          <div className="delta">waiting on email</div>
+        </div>
+        <div className="stat">
+          <div className="label">Expired</div>
+          <div className="val tabnums">{expiredInvites.length}</div>
+          <div className="delta down">needs resend</div>
+        </div>
+      </div>
+
+      {attentionCount > 0 && (
+        <>
+          <div className="section-label">
+            <h2>Needs attention</h2>
+            <span className="pill warn">
+              <span className="dot" />
+              {attentionCount}
+            </span>
+          </div>
+          <div style={{ padding: "0 var(--s-5)" }}>
+            <div className="card elev">
+              {expiredInvites.map((invite) => {
+                const personName = peopleById.get(invite.person_id);
+                return (
+                  <AttentionInviteRow
+                    key={`expired-${invite.id}`}
+                    invite={invite}
+                    personName={personName}
+                  />
+                );
+              })}
+              {setupPendingUsers.map((u) => {
+                const personName = peopleById.get(u.person_id);
+                return (
+                  <div
+                    key={`setup-${u.id}`}
+                    className="card-row"
+                    style={{ cursor: "default" }}
+                  >
+                    <Icon.users style={{ color: "var(--gold)" }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600 }}>
+                        {u.display_name || personName || u.email}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 11.5,
+                          color: "var(--ink-4)",
+                          marginTop: 3,
+                        }}
+                      >
+                        Portal access exists, but setup is not complete.
+                      </div>
+                    </div>
+                    <Link className="btn sm" href={`/people/${u.person_id}?tab=portal`}>
+                      View
+                    </Link>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+
       <div className="section-label">
         <h2>Active members</h2>
         <span className="muted" style={{ fontSize: 12 }}>
@@ -136,6 +218,11 @@ export default async function PortalAdminPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 14, fontWeight: 500 }}>
                       {u.display_name || personName || u.email}
+                    </div>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+                      <span className={`pill ${u.setup_completed_at ? "confirmed" : "pending"}`}>
+                        {u.setup_completed_at ? "Setup complete" : "Setup pending"}
+                      </span>
                     </div>
                     <div
                       style={{
@@ -226,6 +313,11 @@ export default async function PortalAdminPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 14, fontWeight: 500 }}>
                       {personName || invite.email}
+                    </div>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+                      <span className={`pill ${state === "expired" ? "warn" : "pending"}`}>
+                        {state === "expired" ? "Expired" : "Pending"}
+                      </span>
                     </div>
                     <div
                       style={{
@@ -342,6 +434,35 @@ export default async function PortalAdminPage() {
       )}
 
       <div style={{ height: 24 }} />
+    </div>
+  );
+}
+
+function AttentionInviteRow({
+  invite,
+  personName,
+}: {
+  invite: PortalInviteRow;
+  personName?: string;
+}) {
+  return (
+    <div className="card-row" style={{ cursor: "default" }}>
+      <Icon.send style={{ color: "var(--terracotta)" }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 14, fontWeight: 600 }}>
+          {personName || invite.email}
+        </div>
+        <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 3 }}>
+          Invite expired {relTime(invite.expires_at)}.
+        </div>
+      </div>
+      <form action={resendPortalInvite}>
+        <input type="hidden" name="invite_id" value={invite.id} />
+        <input type="hidden" name="person_id" value={invite.person_id} />
+        <button className="btn sm" type="submit">
+          Resend
+        </button>
+      </form>
     </div>
   );
 }
