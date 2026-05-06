@@ -67,6 +67,7 @@ export async function grantPortalAccess(form: FormData) {
   });
 
   revalidatePath(`/people/${personId}`);
+  revalidatePath("/admin/portal");
 }
 
 export async function resendPortalInvite(form: FormData) {
@@ -109,6 +110,7 @@ export async function resendPortalInvite(form: FormData) {
   });
 
   if (personId || invite.person_id) revalidatePath(`/people/${personId || invite.person_id}`);
+  revalidatePath("/admin/portal");
 }
 
 export async function acceptPortalInvite(
@@ -221,6 +223,22 @@ export async function revokePortalAccess(form: FormData) {
 
   await supabase.from("portal_users").update({ active: false }).eq("id", id);
   if (personId) revalidatePath(`/people/${personId}`);
+  revalidatePath("/admin/portal");
+}
+
+export async function cancelPortalInvite(form: FormData) {
+  const { supabase } = await requireTeam();
+  const inviteId = s(form, "invite_id");
+  const personId = s(form, "person_id");
+  if (!inviteId) return;
+
+  await supabase
+    .from("portal_invites")
+    .delete()
+    .eq("id", inviteId)
+    .is("accepted_at", null);
+  if (personId) revalidatePath(`/people/${personId}`);
+  revalidatePath("/admin/portal");
 }
 
 export async function sendPortalMessage(form: FormData) {

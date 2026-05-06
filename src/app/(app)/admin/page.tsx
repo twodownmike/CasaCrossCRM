@@ -9,17 +9,33 @@ export default async function AdminHub() {
   const [
     { count: contractTemplates },
     { count: forms },
+    { count: portalActive },
+    { count: portalPending },
     { data: settings },
   ] = await Promise.all([
     supabase
       .from("contract_templates")
       .select("*", { count: "exact", head: true }),
     supabase.from("forms").select("*", { count: "exact", head: true }),
+    supabase
+      .from("portal_users")
+      .select("*", { count: "exact", head: true })
+      .eq("active", true),
+    supabase
+      .from("portal_invites")
+      .select("*", { count: "exact", head: true })
+      .is("accepted_at", null),
     supabase.from("studio_settings").select("*").eq("id", 1).maybeSingle(),
   ]);
 
   const { data: team } = await supabase.rpc("list_team_members");
   const teamCount = (team as Array<unknown> | null)?.length ?? 0;
+  const portalCount = portalActive ?? 0;
+  const pendingCount = portalPending ?? 0;
+  const portalSub =
+    pendingCount > 0
+      ? `${portalCount} active · ${pendingCount} pending`
+      : `${portalCount} ${portalCount === 1 ? "member" : "members"}`;
 
   const tiles: Array<{
     href: string;
@@ -42,6 +58,13 @@ export default async function AdminHub() {
       title: "Team",
       sub: "Who can sign in and edit the CRM.",
       count: `${teamCount} ${teamCount === 1 ? "member" : "members"}`,
+    },
+    {
+      href: "/admin/portal",
+      icon: "mail",
+      title: "Portal access",
+      sub: "Manage clients who can sign into the portal and pending invites.",
+      count: portalSub,
     },
     {
       href: "/contracts/templates",
