@@ -38,6 +38,7 @@ export type EventRow = {
   name: string;
   subtitle: string | null;
   description: string | null;
+  portal_brief: string | null;
   date: string;
   time_label: string | null;
   cover: string | null;

@@ -14,6 +14,7 @@ import {
   bulkRemoveParticipants,
 } from "@/app/actions";
 import { bulkSendContracts } from "@/app/contracts-actions";
+import { grantPortalAccess } from "@/app/portal-actions";
 
 type RosterPart = {
   id: string;
@@ -29,8 +30,10 @@ type RosterPart = {
     initials: string | null;
     tint: string | null;
     ink: string | null;
+    email: string | null;
     specialty: string | null;
   };
+  portal: "active" | "setup" | "invited" | "expired" | "none";
 };
 
 export function RosterClient({
@@ -361,8 +364,31 @@ function Row({
             Contract
           </span>
           <StatusPill status={part.contract} />
+          <span>·</span>
+          <span
+            className="muted"
+            style={{
+              fontSize: 10.5,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+            }}
+          >
+            Portal
+          </span>
+          <PortalStatus status={part.portal} />
         </div>
       </div>
+      {!selecting && part.portal !== "active" && part.person.email && (
+        <form action={grantPortalAccess} onClick={(e) => e.stopPropagation()}>
+          <input type="hidden" name="person_id" value={part.person.id} />
+          <input type="hidden" name="event_id" value={eventId} />
+          <input type="hidden" name="email" value={part.person.email} />
+          <input type="hidden" name="display_name" value={part.person.name} />
+          <button className="btn sm" type="submit">
+            Invite
+          </button>
+        </form>
+      )}
       {Number(part.rate) > 0 && <StatusPill status={part.status} />}
     </>
   );
@@ -385,13 +411,50 @@ function Row({
     );
   }
   return (
-    <Link
-      href={`/events/${eventId}/participants/${part.id}`}
+    <div
       className="card-row"
       style={{ alignItems: "flex-start", paddingTop: 14, paddingBottom: 14 }}
     >
       {inner}
-    </Link>
+      <Link className="btn sm" href={`/events/${eventId}/participants/${part.id}`}>
+        Edit
+      </Link>
+    </div>
+  );
+}
+
+function PortalStatus({ status }: { status: RosterPart["portal"] }) {
+  const label = {
+    active: "Active",
+    setup: "Setup",
+    invited: "Invited",
+    expired: "Expired",
+    none: "None",
+  }[status];
+  const color =
+    status === "active"
+      ? "var(--sage)"
+      : status === "expired"
+        ? "var(--terracotta)"
+        : "var(--ink-3)";
+  const background =
+    status === "active"
+      ? "var(--sage-tint)"
+      : status === "expired"
+        ? "var(--terracotta-tint)"
+        : "var(--hair-2)";
+  return (
+    <span
+      className="pill"
+      style={{
+        background,
+        color,
+        fontSize: 10.5,
+        padding: "3px 7px",
+      }}
+    >
+      {label}
+    </span>
   );
 }
 

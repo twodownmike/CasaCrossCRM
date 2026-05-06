@@ -124,13 +124,28 @@ export function EventForm({ event }: { event?: EventRow }) {
         />
       </div>
       <div>
-        <label className="form-label">Description</label>
+        <label className="form-label">Internal description</label>
         <textarea
           name="description"
           className="input textarea"
           defaultValue={event?.description || ""}
-          placeholder="Tell the story of this shoot…"
+          placeholder="Team-only planning notes, budget context, sensitive logistics..."
         />
+        <p className="muted" style={{ fontSize: 11, marginTop: 6, lineHeight: 1.4 }}>
+          This stays inside the CRM and is not shown in the client portal.
+        </p>
+      </div>
+      <div>
+        <label className="form-label">Portal-safe event brief</label>
+        <textarea
+          name="portal_brief"
+          className="input textarea"
+          defaultValue={event?.portal_brief || ""}
+          placeholder="Client-safe details: parking, arrival instructions, what to bring..."
+        />
+        <p className="muted" style={{ fontSize: 11, marginTop: 6, lineHeight: 1.4 }}>
+          This is the only event brief shown to portal users.
+        </p>
       </div>
 
       <label

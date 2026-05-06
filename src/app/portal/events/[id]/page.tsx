@@ -89,6 +89,26 @@ export default async function PortalEventPage({
         <PortalLine icon={<Icon.users />} label="Your role" value={participantRow.role_note || participantRow.role} />
       </div>
 
+      {(event as EventRow).portal_brief && (
+        <section style={{ marginTop: 22 }}>
+          <div className="section-label" style={{ marginTop: 0 }}>
+            <h2>Event brief</h2>
+          </div>
+          <div
+            className="card elev"
+            style={{
+              padding: 16,
+              fontFamily: "var(--serif)",
+              fontSize: 15,
+              lineHeight: 1.6,
+              whiteSpace: "pre-wrap",
+            }}
+          >
+            {(event as EventRow).portal_brief}
+          </div>
+        </section>
+      )}
+
       <section style={{ marginTop: 22 }}>
         <div className="section-label" style={{ marginTop: 0 }}>
           <h2>To-do</h2>

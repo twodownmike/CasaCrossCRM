@@ -65,6 +65,39 @@ export default async function EventDetail({
   const allPeople = await listPeople();
   const usedIds = new Set(e.participants.map((p) => p.person_id));
   const availablePeople = allPeople.filter((p) => !usedIds.has(p.id));
+  const participantPersonIds = e.participants.map((p) => p.person_id);
+  const supabase = createSupabase();
+  const [{ data: portalUsers }, { data: portalInvites }] =
+    participantPersonIds.length > 0
+      ? await Promise.all([
+          supabase
+            .from("portal_users")
+            .select("person_id, setup_completed_at")
+            .in("person_id", participantPersonIds)
+            .eq("active", true),
+          supabase
+            .from("portal_invites")
+            .select("person_id, accepted_at, expires_at, created_at")
+            .in("person_id", participantPersonIds)
+            .order("created_at", { ascending: false }),
+        ])
+      : [{ data: [] }, { data: [] }];
+  const portalUsersByPerson = new Map(
+    (portalUsers ?? []).map((row) => [row.person_id, row]),
+  );
+  const latestInviteByPerson = new Map<
+    string,
+    {
+      accepted_at: string | null;
+      expires_at: string;
+      created_at: string;
+    }
+  >();
+  (portalInvites ?? []).forEach((invite) => {
+    if (!latestInviteByPerson.has(invite.person_id)) {
+      latestInviteByPerson.set(invite.person_id, invite);
+    }
+  });
 
   return (
     <div className="fade-in">
@@ -284,8 +317,21 @@ export default async function EventDetail({
                 initials: p.person.initials,
                 tint: p.person.tint,
                 ink: p.person.ink,
+                email: p.person.email,
                 specialty: p.person.specialty,
               },
+              portal: (() => {
+                const user = portalUsersByPerson.get(p.person_id);
+                if (user?.setup_completed_at) return "active";
+                if (user) return "setup";
+                const invite = latestInviteByPerson.get(p.person_id);
+                if (!invite) return "none";
+                if (invite.accepted_at) return "setup";
+                if (new Date(invite.expires_at).getTime() < Date.now()) {
+                  return "expired";
+                }
+                return "invited";
+              })(),
             }))}
             templates={await loadTemplates()}
           />

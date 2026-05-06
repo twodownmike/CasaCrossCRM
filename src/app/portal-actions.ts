@@ -40,6 +40,7 @@ async function requireTeam() {
 export async function grantPortalAccess(form: FormData) {
   const { supabase, user } = await requireTeam();
   const personId = s(form, "person_id");
+  const eventId = s(form, "event_id");
   const email = s(form, "email").toLowerCase();
   const displayName = s(form, "display_name");
   if (!personId || !email) return;
@@ -67,6 +68,7 @@ export async function grantPortalAccess(form: FormData) {
   });
 
   revalidatePath(`/people/${personId}`);
+  if (eventId) revalidatePath(`/events/${eventId}`);
   revalidatePath("/admin/portal");
 }
 
