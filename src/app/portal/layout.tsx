@@ -73,27 +73,27 @@ function PortalNav({
 }) {
   const greeting = user.first_name || user.display_name?.split(" ")[0] || null;
   return (
-    <nav className="portal-nav">
-      <Link
-        href="/portal"
-        aria-label="Casa Cross — portal home"
-        style={{ display: "inline-flex", alignItems: "center" }}
-      >
-        <Logo variant="auth" />
-      </Link>
-      <div className="portal-nav-actions">
+    <nav className="portal-nav" aria-label="Portal navigation">
+      <div className="portal-nav-left">
         {greeting && (
-          <span
-            className="muted"
-            style={{ fontSize: 12.5, marginRight: 4 }}
-          >
+          <span className="portal-greeting">
             Hi, {greeting}
           </span>
         )}
+      </div>
+      <Link
+        href="/portal"
+        className="portal-brand"
+        aria-label="Casa Cross — portal home"
+      >
+        <Logo variant="header" />
+      </Link>
+      <div className="portal-nav-actions">
         <Link
           href="/portal/messages"
-          className="btn sm"
+          className="portal-action"
           aria-label="Messages"
+          title="Messages"
         >
           <span style={{ position: "relative", display: "inline-flex" }}>
             <Icon.chat />
@@ -122,21 +122,21 @@ function PortalNav({
               </span>
             )}
           </span>
-          Messages
         </Link>
         <Link
           href="/portal/account"
-          className="btn sm"
+          className="portal-action"
           aria-label="Profile"
+          title="Profile"
         >
-          <Icon.gear /> Profile
+          <Icon.gear />
         </Link>
         <form action="/auth/signout" method="post">
           <button
-            className="btn sm"
+            className="portal-action"
             type="submit"
             aria-label="Sign out"
-            style={{ color: "var(--ink-3)" }}
+            title="Sign out"
           >
             <Icon.exit />
           </button>
