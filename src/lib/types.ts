@@ -50,7 +50,6 @@ export type EventRow = {
   stage: string | null;
   capacity: number | null;
   tags: string[] | null;
-  moodboard: string[] | null;
 };
 
 export type Participant = {
@@ -96,14 +95,6 @@ export type EventNote = {
   body: string;
   created_at: string;
   created_by: string | null;
-};
-
-export type MoodImage = {
-  id: string;
-  event_id: string;
-  url: string;
-  caption: string | null;
-  created_at: string;
 };
 
 export type Expense = {

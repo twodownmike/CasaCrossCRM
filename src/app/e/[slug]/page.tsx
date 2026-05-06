@@ -44,12 +44,6 @@ export default async function PublicEventPage({
     .maybeSingle();
   if (!e) notFound();
 
-  const { data: moodImages } = await supabase
-    .from("mood_images")
-    .select("*")
-    .eq("event_id", e.id)
-    .order("created_at", { ascending: false });
-
   return (
     <div className="public-shell">
       <header className="public-header">
@@ -123,60 +117,6 @@ export default async function PublicEventPage({
                 <span key={t} className="pill">
                   {t}
                 </span>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {e.moodboard && e.moodboard.length > 0 && (
-          <section className="public-section">
-            <h2 className="public-h2">Color story</h2>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(6, 1fr)",
-                gap: 10,
-                maxWidth: 520,
-              }}
-            >
-              {e.moodboard.map((c: string, i: number) => (
-                <div
-                  key={i}
-                  style={{
-                    aspectRatio: "1",
-                    borderRadius: 12,
-                    background: c,
-                    border: "1px solid var(--hair)",
-                  }}
-                />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {(moodImages?.length ?? 0) > 0 && (
-          <section className="public-section">
-            <h2 className="public-h2">Inspiration</h2>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns:
-                  "repeat(auto-fill, minmax(220px, 1fr))",
-                gap: 14,
-              }}
-            >
-              {(moodImages ?? []).map((img) => (
-                <div
-                  key={img.id}
-                  style={{
-                    aspectRatio: "1",
-                    borderRadius: 14,
-                    backgroundImage: `url(${img.url})`,
-                    backgroundSize: "cover",
-                    backgroundPosition: "center",
-                    border: "1px solid var(--hair)",
-                  }}
-                />
               ))}
             </div>
           </section>

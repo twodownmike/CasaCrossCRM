@@ -165,9 +165,8 @@ export function EventForm({ event }: { event?: EventRow }) {
               lineHeight: 1.4,
             }}
           >
-            Anyone with the URL can see the event title, date, location, mood
-            board, and inspiration photos. Hides money, tasks, and the team
-            roster.
+            Anyone with the URL can see the event title, date, and location.
+            Hides money, tasks, and the team roster.
           </span>
           {event?.is_public && event?.public_slug && (
             <PublicLink slug={event.public_slug} />

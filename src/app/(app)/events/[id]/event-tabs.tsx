@@ -18,7 +18,6 @@ export function EventTabs({
     ["portal", "Portal"],
     ["money", "Money"],
     ["tasks", `Tasks (${openTaskCount})`],
-    ["board", "Mood"],
     ["notes", "Notes"],
   ];
   return (

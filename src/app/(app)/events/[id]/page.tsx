@@ -14,7 +14,6 @@ import { Icon } from "@/components/icons";
 import { TaskRow } from "./task-row";
 import { AddParticipantSheet } from "./add-participant-sheet";
 import { EventTabs } from "./event-tabs";
-import { MoodUploader } from "./mood-uploader";
 import { RosterClient } from "./roster-client";
 import { ExpensesPanel } from "./expenses-panel";
 import { AddEventNoteForm } from "./add-event-note-form";
@@ -437,48 +436,6 @@ export default async function EventDetail({
             ))}
           </div>
           <NewTaskForm eventId={e.id} />
-        </div>
-      )}
-
-      {tab === "board" && (
-        <div className="fade-in" style={{ padding: "var(--s-5)" }}>
-          <div
-            style={{
-              fontFamily: "var(--serif)",
-              fontWeight: 500,
-              fontSize: 15,
-              marginBottom: 12,
-            }}
-          >
-            Color story
-          </div>
-          {e.moodboard && e.moodboard.length > 0 ? (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(6, 1fr)",
-                gap: 8,
-                marginBottom: 24,
-              }}
-            >
-              {e.moodboard.map((c, i) => (
-                <div
-                  key={i}
-                  style={{
-                    aspectRatio: "1",
-                    borderRadius: "var(--r-2)",
-                    background: c,
-                    border: "1px solid var(--hair)",
-                  }}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="muted" style={{ fontSize: 13, marginBottom: 24 }}>
-              No palette yet.
-            </div>
-          )}
-          <MoodUploader eventId={e.id} images={e.mood_images} />
         </div>
       )}
 

@@ -2,6 +2,7 @@ node_modules
 .npm-cache
 .next
 .vercel
+supabase/.temp
 .env
 .env.local
 .DS_Store
