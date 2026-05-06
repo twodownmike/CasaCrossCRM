@@ -209,10 +209,12 @@ export function EventForm({ event }: { event?: EventRow }) {
 }
 
 function PublicLink({ slug }: { slug: string }) {
-  const url =
-    typeof window === "undefined"
-      ? `/e/${slug}`
-      : `${window.location.origin}/e/${slug}`;
+  const baseUrl =
+    process.env.NEXT_PUBLIC_EVENTS_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    (typeof window !== "undefined" ? window.location.origin : "");
+  const path = `/e/${slug}`;
+  const url = `${baseUrl}${path}`;
   return (
     <span
       style={{
@@ -227,7 +229,7 @@ function PublicLink({ slug }: { slug: string }) {
       }}
     >
       <a
-        href={`/e/${slug}`}
+        href={url}
         target="_blank"
         rel="noopener noreferrer"
         onClick={(e) => e.stopPropagation()}

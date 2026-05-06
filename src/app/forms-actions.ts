@@ -294,7 +294,8 @@ export async function submitFormResponse(
   }
 
   // Notify team (fire-and-forget)
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "";
+  const siteUrl =
+    process.env.NEXT_PUBLIC_CRM_URL || process.env.NEXT_PUBLIC_SITE_URL || "";
   const formUrl = siteUrl ? `${siteUrl}/forms/${formId}/responses` : "";
   const detailRows = (fields ?? [])
     .map((f) => {

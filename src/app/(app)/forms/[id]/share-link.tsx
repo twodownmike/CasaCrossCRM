@@ -5,10 +5,12 @@ import { Icon } from "@/components/icons";
 
 export function ShareLink({ slug }: { slug: string }) {
   const [copied, setCopied] = useState(false);
-  const url =
-    (typeof window !== "undefined"
-      ? window.location.origin
-      : "https://your-app.vercel.app") + `/f/${slug}`;
+  const baseUrl =
+    process.env.NEXT_PUBLIC_EVENTS_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    (typeof window !== "undefined" ? window.location.origin : "");
+  const path = `/f/${slug}`;
+  const url = `${baseUrl}${path}`;
 
   function copy() {
     navigator.clipboard.writeText(url);
@@ -47,7 +49,7 @@ export function ShareLink({ slug }: { slug: string }) {
       </button>
       <a
         className="btn sm"
-        href={`/f/${slug}`}
+        href={url}
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Open"

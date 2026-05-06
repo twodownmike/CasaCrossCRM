@@ -538,7 +538,8 @@ export async function submitApplication(
   }
 
   // Notify the team. Failures here log but don't fail the submission.
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "";
+  const siteUrl =
+    process.env.NEXT_PUBLIC_CRM_URL || process.env.NEXT_PUBLIC_SITE_URL || "";
   const inboxUrl = siteUrl ? `${siteUrl}/inbox` : "/inbox";
   const roleLabel = ROLE_META[payload.role]?.label || payload.role;
   const subject = `New ${roleLabel.toLowerCase()} application — ${payload.name}`;

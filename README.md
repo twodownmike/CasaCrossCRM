@@ -44,8 +44,8 @@ In the Supabase dashboard, open **SQL Editor** and run, in order:
 
 In **Authentication → URL Configuration**:
 
-- **Site URL:** `https://your-app.vercel.app` (you'll know this after step 4) — for local dev use `http://localhost:3000`
-- **Redirect URLs:** add `https://your-app.vercel.app/auth/callback` and `http://localhost:3000/auth/callback`
+- **Site URL:** `https://crm.casacross.org` — for local dev use `http://localhost:3000`
+- **Redirect URLs:** add `https://crm.casacross.org/auth/callback`, `https://events.casacross.org/auth/callback`, and `http://localhost:3000/auth/callback`
 
 Email magic links work out of the box on the free tier.
 
@@ -56,7 +56,9 @@ Email magic links work out of the box on the free tier.
 3. Set environment variables (Production + Preview + Development):
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `NEXT_PUBLIC_SITE_URL` (your Vercel URL, e.g. `https://casa-cross-crm.vercel.app`)
+   - `NEXT_PUBLIC_SITE_URL` (fallback URL, e.g. `https://crm.casacross.org`)
+   - `NEXT_PUBLIC_CRM_URL` (`https://crm.casacross.org`)
+   - `NEXT_PUBLIC_EVENTS_URL` (`https://events.casacross.org`)
 4. Deploy.
 
 ### 5. Add Anna and you to the team
