@@ -111,7 +111,40 @@ export default async function PortalHome() {
       .filter((contract) => contract.status !== "signed" && contract.status !== "void")
       .map((contract) => ({ booking, contract })),
   );
-  const actionCount = (nextBooking ? 1 : 0) + unsignedContracts.length;
+  const [{ data: teamMessages }, { data: messageReads }] = await Promise.all([
+    eventIds.length
+      ? supabase
+          .from("portal_messages")
+          .select("event_id, person_id, created_at")
+          .eq("sender_kind", "team")
+          .in("event_id", eventIds)
+          .order("created_at", { ascending: false })
+      : Promise.resolve({ data: [] }),
+    eventIds.length
+      ? supabase
+          .from("portal_thread_reads")
+          .select("event_id, person_id, read_at")
+          .eq("reader_kind", "portal")
+          .eq("user_id", user.id)
+      : Promise.resolve({ data: [] }),
+  ]);
+  const readAtByEvent = new Map(
+    (messageReads ?? []).map((row) => [row.event_id, row.read_at]),
+  );
+  const unreadMessageEventIds = new Set<string>();
+  (teamMessages ?? []).forEach((message) => {
+    const readAt = readAtByEvent.get(message.event_id);
+    if (!readAt || message.created_at > readAt) {
+      unreadMessageEventIds.add(message.event_id);
+    }
+  });
+  const unreadMessageBookings = bookings.filter((booking) =>
+    unreadMessageEventIds.has(booking.event.id),
+  );
+  const actionCount =
+    (nextBooking ? 1 : 0) +
+    unsignedContracts.length +
+    unreadMessageBookings.length;
 
   return (
     <div>
@@ -141,6 +174,24 @@ export default async function PortalHome() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 14, fontWeight: 600 }}>
                     Sign {contract.title}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 3 }}>
+                    {booking.event.name}
+                  </div>
+                </div>
+                <Icon.chev style={{ color: "var(--ink-4)" }} />
+              </Link>
+            ))}
+            {unreadMessageBookings.slice(0, 3).map((booking) => (
+              <Link
+                key={`message-${booking.event.id}`}
+                href={`/portal/events/${booking.event.id}#messages`}
+                className="card-row"
+              >
+                <Icon.chat style={{ color: "var(--terracotta)" }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>
+                    New message from Casa Cross
                   </div>
                   <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 3 }}>
                     {booking.event.name}

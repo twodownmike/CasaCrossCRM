@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { AppHeader } from "@/components/app-header";
 import { BottomNav } from "@/components/bottom-nav";
@@ -28,15 +27,12 @@ export default async function AppLayout({
 
   // Sidebar data — fetched once per nav, kept lean.
   const today = new Date().toISOString().slice(0, 10);
-  const fourteenDaysAgo = new Date(
-    Date.now() - 14 * 24 * 3600 * 1000,
-  ).toISOString();
-  const portalReadAt = cookies().get("portal_read_at")?.value ?? fourteenDaysAgo;
 
   const [
     { count: upcomingCountReal },
     { count: peopleCount },
-    { count: messageCount },
+    { data: portalMessages },
+    { data: portalReads },
     { count: inboxCount },
     { data: pinned },
   ] = await Promise.all([
@@ -47,9 +43,15 @@ export default async function AppLayout({
     supabase.from("people").select("*", { count: "exact", head: true }),
     supabase
       .from("portal_messages")
-      .select("*", { count: "exact", head: true })
+      .select("event_id, person_id, created_at")
       .eq("sender_kind", "portal")
-      .gt("created_at", portalReadAt),
+      .order("created_at", { ascending: false })
+      .limit(200),
+    supabase
+      .from("portal_thread_reads")
+      .select("event_id, person_id, read_at")
+      .eq("reader_kind", "team")
+      .eq("user_id", user.id),
     supabase
       .from("submissions")
       .select("*", { count: "exact", head: true })
@@ -71,7 +73,19 @@ export default async function AppLayout({
     cover_image_url: p.cover_image_url,
   }));
 
-  const combinedInboxCount = (inboxCount ?? 0) + (messageCount ?? 0);
+  const readAtByThread = new Map(
+    (portalReads ?? []).map((row) => [
+      `${row.event_id}:${row.person_id}`,
+      row.read_at,
+    ]),
+  );
+  const messageCount = (portalMessages ?? []).filter((message) => {
+    const readAt = readAtByThread.get(
+      `${message.event_id}:${message.person_id}`,
+    );
+    return !readAt || message.created_at > readAt;
+  }).length;
+  const combinedInboxCount = (inboxCount ?? 0) + messageCount;
 
   return (
     <div className="phone-frame">

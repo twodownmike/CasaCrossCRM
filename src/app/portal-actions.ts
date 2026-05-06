@@ -284,6 +284,7 @@ export async function sendPortalMessage(form: FormData) {
   });
 
   revalidatePath(`/portal/events/${eventId}`);
+  revalidatePath("/portal/messages");
   revalidatePath(`/events/${eventId}`);
 }
 
@@ -333,5 +334,57 @@ export async function sendTeamPortalMessage(form: FormData) {
   }
 
   revalidatePath(`/events/${eventId}`);
+  revalidatePath(`/portal/events/${eventId}`);
+  revalidatePath("/portal/messages");
+}
+
+export async function markTeamPortalThreadRead(form: FormData) {
+  const { supabase, user } = await requireTeam();
+  const eventId = s(form, "event_id");
+  const personId = s(form, "person_id");
+  if (!eventId || !personId) return;
+
+  const { error } = await supabase.from("portal_thread_reads").upsert(
+    {
+      event_id: eventId,
+      person_id: personId,
+      user_id: user.id,
+      reader_kind: "team",
+      read_at: new Date().toISOString(),
+    },
+    { onConflict: "event_id,person_id,user_id,reader_kind" },
+  );
+  if (error) throw error;
+
+  revalidatePath("/inbox");
+  revalidatePath(`/events/${eventId}`);
+  revalidatePath("/home");
+}
+
+export async function markPortalThreadRead(form: FormData) {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login?next=/portal");
+
+  const eventId = s(form, "event_id");
+  const personId = s(form, "person_id");
+  if (!eventId || !personId) return;
+
+  const { error } = await supabase.from("portal_thread_reads").upsert(
+    {
+      event_id: eventId,
+      person_id: personId,
+      user_id: user.id,
+      reader_kind: "portal",
+      read_at: new Date().toISOString(),
+    },
+    { onConflict: "event_id,person_id,user_id,reader_kind" },
+  );
+  if (error) throw error;
+
+  revalidatePath("/portal");
+  revalidatePath("/portal/messages");
   revalidatePath(`/portal/events/${eventId}`);
 }

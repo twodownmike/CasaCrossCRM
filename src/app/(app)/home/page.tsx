@@ -44,13 +44,29 @@ export default async function Home() {
   };
   const actions: Action[] = [];
 
-  const { data: submissionRows } = await supabase
-    .from("submissions")
-    .select("*")
-    .neq("status", "approved")
-    .neq("status", "archived")
-    .order("created_at", { ascending: false })
-    .limit(8);
+  const [{ data: submissionRows }, { data: portalMessages }, { data: portalReads }] =
+    await Promise.all([
+      supabase
+        .from("submissions")
+        .select("*")
+        .neq("status", "approved")
+        .neq("status", "archived")
+        .order("created_at", { ascending: false })
+        .limit(8),
+      supabase
+        .from("portal_messages")
+        .select("event_id, person_id, sender_name, body, created_at")
+        .eq("sender_kind", "portal")
+        .order("created_at", { ascending: false })
+        .limit(100),
+      user
+        ? supabase
+            .from("portal_thread_reads")
+            .select("event_id, person_id, read_at")
+            .eq("reader_kind", "team")
+            .eq("user_id", user.id)
+        : Promise.resolve({ data: [] as { event_id: string; person_id: string; read_at: string }[] }),
+    ]);
   const submissions = (submissionRows ?? []) as Submission[];
   submissions.forEach((s) => {
     const age = Math.max(
@@ -73,6 +89,52 @@ export default async function Home() {
       tone: s.status === "pending" ? "warm" : "gold",
       icon: "mail",
       priority: priority + Math.min(age, 10),
+    });
+  });
+
+  const readAtByThread = new Map(
+    (portalReads ?? []).map((row) => [
+      `${row.event_id}:${row.person_id}`,
+      row.read_at,
+    ]),
+  );
+  const latestUnreadByThread = new Map<
+    string,
+    {
+      event_id: string;
+      sender_name: string | null;
+      body: string;
+      created_at: string;
+      count: number;
+    }
+  >();
+  (portalMessages ?? []).forEach((message) => {
+    const key = `${message.event_id}:${message.person_id}`;
+    const readAt = readAtByThread.get(key);
+    if (readAt && message.created_at <= readAt) return;
+    const existing = latestUnreadByThread.get(key);
+    if (!existing) {
+      latestUnreadByThread.set(key, {
+        event_id: message.event_id,
+        sender_name: message.sender_name,
+        body: message.body,
+        created_at: message.created_at,
+        count: 1,
+      });
+    } else {
+      existing.count += 1;
+    }
+  });
+  latestUnreadByThread.forEach((thread) => {
+    const event = events.find((e) => e.id === thread.event_id);
+    actions.push({
+      kind: "lead",
+      href: `/events/${thread.event_id}?tab=portal`,
+      title: `Reply to ${thread.sender_name || "portal message"}`,
+      detail: `${event?.name ?? "Portal"} · ${thread.count} unread`,
+      tone: "warm",
+      icon: "mail",
+      priority: 96,
     });
   });
 

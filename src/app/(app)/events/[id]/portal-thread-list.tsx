@@ -5,6 +5,7 @@ import { Avatar } from "@/components/avatar";
 import { Icon } from "@/components/icons";
 import { relTime } from "@/lib/format";
 import { sendTeamPortalMessage } from "@/app/portal-actions";
+import { PortalThreadReadMarker } from "@/app/portal-thread-read-marker";
 
 export type PortalThread = {
   personId: string;
@@ -17,10 +18,13 @@ export type PortalThread = {
     body: string;
     created_at: string;
   }[];
+  unreadCount: number;
 };
 
 export function PortalThreadList({ threads }: { threads: PortalThread[] }) {
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(
+    threads.find((thread) => thread.unreadCount > 0)?.personId ?? null,
+  );
 
   if (threads.length === 0) {
     return (
@@ -85,6 +89,11 @@ export function PortalThreadList({ threads }: { threads: PortalThread[] }) {
 
             {expanded && (
               <div style={{ padding: "0 14px 14px" }}>
+                <PortalThreadReadMarker
+                  eventId={thread.eventId}
+                  personId={thread.personId}
+                  kind="team"
+                />
                 {hasMessages ? (
                   <div
                     style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}
@@ -154,6 +163,14 @@ export function PortalThreadList({ threads }: { threads: PortalThread[] }) {
                     <Icon.send /> Send
                   </button>
                 </form>
+              </div>
+            )}
+            {!expanded && thread.unreadCount > 0 && (
+              <div style={{ padding: "0 14px 12px 60px" }}>
+                <span className="pill warn">
+                  <span className="dot" />
+                  {thread.unreadCount} unread
+                </span>
               </div>
             )}
           </div>

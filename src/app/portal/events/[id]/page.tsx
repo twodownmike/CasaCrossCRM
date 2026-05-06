@@ -5,6 +5,7 @@ import { Icon } from "@/components/icons";
 import { StatusPill } from "@/components/pill";
 import { fmtDateFull, relTime } from "@/lib/format";
 import { sendPortalMessage } from "@/app/portal-actions";
+import { PortalThreadReadMarker } from "@/app/portal-thread-read-marker";
 import type { Contract, EventRow, Participant } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -55,6 +56,11 @@ export default async function PortalEventPage({
 
   return (
     <div>
+      <PortalThreadReadMarker
+        eventId={params.id}
+        personId={participantRow.person_id}
+        kind="portal"
+      />
       <header className="app-header" style={{ paddingLeft: 0, paddingRight: 0 }}>
         <Link className="icon-btn" href="/portal">
           <Icon.back />
@@ -184,7 +190,7 @@ export default async function PortalEventPage({
         </div>
       </section>
 
-      <section style={{ marginTop: 22 }}>
+      <section id="messages" style={{ marginTop: 22 }}>
         <div className="section-label" style={{ marginTop: 0 }}>
           <h2>Messages</h2>
           <span className="muted" style={{ fontSize: 12 }}>

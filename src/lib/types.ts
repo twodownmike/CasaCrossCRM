@@ -156,6 +156,29 @@ export type Contract = {
   created_at: string;
 };
 
+export type PortalMessage = {
+  id: string;
+  event_id: string;
+  person_id: string;
+  sender_kind: "portal" | "team";
+  sender_user_id: string | null;
+  sender_name: string | null;
+  body: string;
+  read_at: string | null;
+  created_at: string;
+};
+
+export type PortalThreadRead = {
+  id: string;
+  event_id: string;
+  person_id: string;
+  user_id: string;
+  reader_kind: "team" | "portal";
+  read_at: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type ContractTokenView = {
   id: string;
   title: string;

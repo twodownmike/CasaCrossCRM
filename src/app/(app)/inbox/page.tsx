@@ -1,9 +1,7 @@
-import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { PipelineBoard } from "./pipeline-board";
 import { ConversationsList } from "./conversations-list";
 import { InboxViewSwitcher } from "./inbox-view-switcher";
-import { MarkRead } from "../messages/mark-read";
 import type { Submission } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -16,22 +14,28 @@ export default async function InboxPage({
   const view = searchParams.view === "conversations" ? "conversations" : "submissions";
 
   const supabase = createClient();
-  const fourteenDaysAgo = new Date(
-    Date.now() - 14 * 24 * 3600 * 1000,
-  ).toISOString();
-  const portalReadAt =
-    cookies().get("portal_read_at")?.value ?? fourteenDaysAgo;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  const [{ data: subs }, { count: unreadMessages }] = await Promise.all([
+  const [{ data: subs }, { data: portalMessages }, { data: portalReads }] = await Promise.all([
     supabase
       .from("submissions")
       .select("*")
       .order("created_at", { ascending: false }),
     supabase
       .from("portal_messages")
-      .select("*", { count: "exact", head: true })
+      .select("event_id, person_id, created_at")
       .eq("sender_kind", "portal")
-      .gt("created_at", portalReadAt),
+      .order("created_at", { ascending: false })
+      .limit(200),
+    user
+      ? supabase
+          .from("portal_thread_reads")
+          .select("event_id, person_id, read_at")
+          .eq("reader_kind", "team")
+          .eq("user_id", user.id)
+      : Promise.resolve({ data: [] as { event_id: string; person_id: string; read_at: string }[] }),
   ]);
 
   const submissions = (subs ?? []) as Submission[];
@@ -62,11 +66,21 @@ export default async function InboxPage({
       !s.email &&
       !s.phone,
   ).length;
+  const readAtByThread = new Map(
+    (portalReads ?? []).map((row) => [
+      `${row.event_id}:${row.person_id}`,
+      row.read_at,
+    ]),
+  );
+  const unreadMessages = (portalMessages ?? []).filter((message) => {
+    const readAt = readAtByThread.get(
+      `${message.event_id}:${message.person_id}`,
+    );
+    return !readAt || message.created_at > readAt;
+  }).length;
 
   return (
     <div className="fade-in">
-      {view === "conversations" && <MarkRead />}
-
       <div className="page-head">
         <div className="page-head-text">
           <div className="eyebrow">
@@ -98,7 +112,7 @@ export default async function InboxPage({
       <InboxViewSwitcher
         view={view}
         submissionCount={pendingCount}
-        conversationCount={unreadMessages ?? 0}
+        conversationCount={unreadMessages}
       />
 
       {view === "submissions" ? (

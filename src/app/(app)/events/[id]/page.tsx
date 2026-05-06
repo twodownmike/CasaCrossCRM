@@ -772,9 +772,12 @@ async function VendorPacket({ event }: { event: NonNullable<Awaited<ReturnType<t
 
 async function PortalTab({ event }: { event: NonNullable<Awaited<ReturnType<typeof getEvent>>> }) {
   const supabase = createSupabase();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   const personIds = event.participants.map((p) => p.person_id);
 
-  const [{ data: portalMessages }, { data: portalUsers }] = await Promise.all([
+  const [{ data: portalMessages }, { data: portalUsers }, { data: readRows }] = await Promise.all([
     supabase
       .from("portal_messages")
       .select("id, event_id, person_id, sender_kind, sender_name, body, created_at")
@@ -787,9 +790,20 @@ async function PortalTab({ event }: { event: NonNullable<Awaited<ReturnType<type
           .in("person_id", personIds)
           .eq("active", true)
       : Promise.resolve({ data: [] as { person_id: string }[] }),
+    user
+      ? supabase
+          .from("portal_thread_reads")
+          .select("event_id, person_id, read_at")
+          .eq("reader_kind", "team")
+          .eq("user_id", user.id)
+          .eq("event_id", event.id)
+      : Promise.resolve({ data: [] as { event_id: string; person_id: string; read_at: string }[] }),
   ]);
 
   const portalPersonIds = new Set((portalUsers ?? []).map((u) => u.person_id));
+  const readAtByPerson = new Map(
+    (readRows ?? []).map((row) => [row.person_id, row.read_at]),
+  );
 
   const vendorRoles: RoleKind[] = ["venue", "vendor", "hmua", "stylist", "photographer"];
   const portalParticipants = [
@@ -820,6 +834,10 @@ async function PortalTab({ event }: { event: NonNullable<Awaited<ReturnType<type
       body: m.body,
       created_at: m.created_at,
     })),
+    unreadCount: (messagesByPerson.get(p.person_id) ?? []).filter((m) => {
+      const readAt = readAtByPerson.get(p.person_id);
+      return m.sender_kind === "portal" && (!readAt || m.created_at > readAt);
+    }).length,
   }));
 
   return (
