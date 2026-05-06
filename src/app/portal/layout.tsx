@@ -65,22 +65,14 @@ export default async function PortalLayout({
 }
 
 function PortalNav({
-  user,
   unreadCount,
 }: {
   user: { display_name: string | null; first_name: string | null; email: string };
   unreadCount: number;
 }) {
-  const greeting = user.first_name || user.display_name?.split(" ")[0] || null;
   return (
     <nav className="portal-nav" aria-label="Portal navigation">
-      <div className="portal-nav-left">
-        {greeting && (
-          <span className="portal-greeting">
-            Hi, {greeting}
-          </span>
-        )}
-      </div>
+      <div className="portal-nav-left" />
       <Link
         href="/portal"
         className="portal-brand"
