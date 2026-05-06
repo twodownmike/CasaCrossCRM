@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Avatar } from "@/components/avatar";
 import { Icon } from "@/components/icons";
 import { StatusPill } from "@/components/pill";
-import { fmtDateFull, relTime } from "@/lib/format";
+import { daysUntil, daysUntilLabel, fmtDateFull } from "@/lib/format";
 import type { EventRow, Participant, Person, Contract } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +14,7 @@ type PortalAccess = {
   person_id: string;
   email: string;
   display_name: string | null;
+  first_name: string | null;
 };
 
 type PortalBooking = Participant & {
@@ -30,7 +31,7 @@ export default async function PortalHome() {
 
   const { data: access, error: accessError } = await supabase
     .from("portal_users")
-    .select("id, person_id, email, display_name")
+    .select("id, person_id, email, display_name, first_name")
     .eq("active", true)
     .limit(1)
     .maybeSingle();
@@ -104,10 +105,71 @@ export default async function PortalHome() {
     })
     .filter((booking): booking is PortalBooking => Boolean(booking))
     .sort((a, b) => a.event.date.localeCompare(b.event.date));
+  const nextBooking = bookings.find((booking) => daysUntil(booking.event.date) >= 0);
+  const unsignedContracts = bookings.flatMap((booking) =>
+    booking.contracts
+      .filter((contract) => contract.status !== "signed" && contract.status !== "void")
+      .map((contract) => ({ booking, contract })),
+  );
+  const actionCount = (nextBooking ? 1 : 0) + unsignedContracts.length;
 
   return (
     <div>
       <PortalHeader person={person as Person} access={access as PortalAccess} />
+
+      <div className="section-label" style={{ marginTop: 28 }}>
+        <h2>Next actions</h2>
+        <span className="muted" style={{ fontSize: 12 }}>
+          {actionCount}
+        </span>
+      </div>
+      <div className="card elev">
+        {actionCount === 0 ? (
+          <div style={{ padding: 24, color: "var(--sage)", fontSize: 13 }}>
+            You&apos;re all set. Casa Cross will add new details here when they
+            are ready.
+          </div>
+        ) : (
+          <>
+            {unsignedContracts.slice(0, 3).map(({ booking, contract }) => (
+              <Link
+                key={contract.id}
+                href={`/sign/${contract.share_token}`}
+                className="card-row"
+              >
+                <Icon.doc style={{ color: "var(--terracotta)" }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>
+                    Sign {contract.title}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 3 }}>
+                    {booking.event.name}
+                  </div>
+                </div>
+                <Icon.chev style={{ color: "var(--ink-4)" }} />
+              </Link>
+            ))}
+            {nextBooking && (
+              <Link
+                href={`/portal/events/${nextBooking.event.id}`}
+                className="card-row"
+              >
+                <Icon.calendar style={{ color: "var(--slate)" }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>
+                    Review {nextBooking.event.name}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 3 }}>
+                    {daysUntilLabel(nextBooking.event.date) ||
+                      fmtDateFull(nextBooking.event.date)}
+                  </div>
+                </div>
+                <Icon.chev style={{ color: "var(--ink-4)" }} />
+              </Link>
+            )}
+          </>
+        )}
+      </div>
 
       <div className="section-label" style={{ marginTop: 28 }}>
         <h2>Your events</h2>
@@ -188,6 +250,11 @@ function PortalHeader({
       </div>
       <div className="muted" style={{ fontSize: 12 }}>
         Signed in as {access.email}
+      </div>
+      <div style={{ marginTop: 14 }}>
+        <Link className="btn sm" href="/portal/account">
+          <Icon.gear /> Profile
+        </Link>
       </div>
     </div>
   );

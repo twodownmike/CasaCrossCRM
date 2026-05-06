@@ -8,7 +8,12 @@ import { Icon } from "@/components/icons";
 import { PersonTabs } from "./person-tabs";
 import { AddNoteForm } from "./add-note-form";
 import { createClient } from "@/lib/supabase/server";
-import { grantPortalAccess, revokePortalAccess } from "@/app/portal-actions";
+import {
+  grantPortalAccess,
+  resendPortalInvite,
+  revokePortalAccess,
+} from "@/app/portal-actions";
+import { CopyInviteLink } from "./copy-invite-link";
 
 export const dynamic = "force-dynamic";
 
@@ -486,6 +491,14 @@ async function PortalAccessPanel({
     .eq("person_id", personId)
     .eq("active", true)
     .order("created_at", { ascending: false });
+  const { data: inviteRows } = await supabase
+    .from("portal_invites")
+    .select("id, email, token, expires_at, accepted_at, created_at")
+    .eq("person_id", personId)
+    .order("created_at", { ascending: false })
+    .limit(6);
+  const publicUrl =
+    process.env.NEXT_PUBLIC_EVENTS_URL || process.env.NEXT_PUBLIC_SITE_URL || "";
 
   return (
     <div style={{ marginTop: 18 }}>
@@ -527,6 +540,53 @@ async function PortalAccessPanel({
               </form>
             </div>
           ))
+        )}
+      </div>
+
+      <div className="section-label">
+        <h2>Invite history</h2>
+        <span className="muted" style={{ fontSize: 12 }}>
+          {(inviteRows ?? []).length}
+        </span>
+      </div>
+      <div className="card elev">
+        {(inviteRows ?? []).length === 0 ? (
+          <div style={{ padding: 16, color: "var(--ink-3)", fontSize: 13 }}>
+            No portal invites sent yet.
+          </div>
+        ) : (
+          (inviteRows ?? []).map((invite) => {
+            const expired = new Date(invite.expires_at).getTime() < Date.now();
+            const accepted = Boolean(invite.accepted_at);
+            const inviteUrl = `${publicUrl}/portal/signup?token=${invite.token}`;
+            return (
+              <div key={invite.id} className="card-row" style={{ cursor: "default" }}>
+                <Icon.send style={{ color: accepted ? "var(--sage)" : "var(--ink-4)" }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 500 }}>{invite.email}</div>
+                  <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 3 }}>
+                    {accepted
+                      ? `Accepted ${relTime(invite.accepted_at)}`
+                      : expired
+                        ? "Expired"
+                        : `Sent ${relTime(invite.created_at)}`}
+                  </div>
+                </div>
+                {!accepted && (
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                    <CopyInviteLink url={inviteUrl} />
+                    <form action={resendPortalInvite}>
+                      <input type="hidden" name="invite_id" value={invite.id} />
+                      <input type="hidden" name="person_id" value={personId} />
+                      <button className="btn sm" type="submit">
+                        Resend
+                      </button>
+                    </form>
+                  </div>
+                )}
+              </div>
+            );
+          })
         )}
       </div>
 

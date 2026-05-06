@@ -22,6 +22,10 @@ function publicSiteUrl() {
   return process.env.NEXT_PUBLIC_EVENTS_URL || process.env.NEXT_PUBLIC_SITE_URL || "";
 }
 
+function portalSignupUrl(token: string) {
+  return `${publicSiteUrl()}/portal/signup?token=${token}`;
+}
+
 async function requireTeam() {
   const supabase = createClient();
   const {
@@ -58,11 +62,53 @@ export async function grantPortalAccess(form: FormData) {
     subject: "You've been invited to the Casa Cross portal",
     ...(await portalInviteEmail({
       recipientName,
-      portalUrl: `${siteUrl}/portal/signup?token=${token}`,
+      portalUrl: portalSignupUrl(token),
     })),
   });
 
   revalidatePath(`/people/${personId}`);
+}
+
+export async function resendPortalInvite(form: FormData) {
+  const { supabase } = await requireTeam();
+  const inviteId = s(form, "invite_id");
+  const personId = s(form, "person_id");
+  if (!inviteId) return;
+
+  const { data: invite, error } = await supabase
+    .from("portal_invites")
+    .select("id, email, token, expires_at, accepted_at, person_id")
+    .eq("id", inviteId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!invite || invite.accepted_at) return;
+
+  let token = invite.token;
+  if (new Date(invite.expires_at).getTime() < Date.now()) {
+    token = randomBytes(24).toString("base64url");
+    const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+    const { error: updateErr } = await supabase
+      .from("portal_invites")
+      .update({ token, expires_at: expiresAt, accepted_at: null })
+      .eq("id", invite.id);
+    if (updateErr) throw updateErr;
+  }
+
+  const { data: person } = await supabase
+    .from("people")
+    .select("name, preferred_name")
+    .eq("id", invite.person_id)
+    .maybeSingle();
+  await sendEmail({
+    to: invite.email,
+    subject: "Your Casa Cross portal invite",
+    ...(await portalInviteEmail({
+      recipientName: person?.preferred_name || person?.name || invite.email,
+      portalUrl: portalSignupUrl(token),
+    })),
+  });
+
+  if (personId || invite.person_id) revalidatePath(`/people/${personId || invite.person_id}`);
 }
 
 export async function acceptPortalInvite(
@@ -136,6 +182,35 @@ export async function completePortalSetup(form: FormData) {
 
   revalidatePath("/portal");
   redirect("/portal");
+}
+
+export async function updatePortalProfile(form: FormData) {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.email) redirect("/login?next=/portal/account");
+
+  const firstName = s(form, "first_name");
+  const lastName = s(form, "last_name");
+  if (!firstName || !lastName) return;
+
+  const displayName = nullable(form, "display_name") || `${firstName} ${lastName}`;
+  const { error } = await supabase
+    .from("portal_users")
+    .update({
+      first_name: firstName,
+      last_name: lastName,
+      phone: nullable(form, "phone"),
+      display_name: displayName,
+      communication_opt_in: form.get("communication_opt_in") === "on",
+    })
+    .eq("active", true)
+    .eq("email", user.email.toLowerCase());
+  if (error) throw error;
+
+  revalidatePath("/portal");
+  revalidatePath("/portal/account");
 }
 
 export async function revokePortalAccess(form: FormData) {

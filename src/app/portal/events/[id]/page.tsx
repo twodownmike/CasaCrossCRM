@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Icon } from "@/components/icons";
 import { StatusPill } from "@/components/pill";
-import { fmtDateFull, fmtMoney, relTime } from "@/lib/format";
+import { fmtDateFull, relTime } from "@/lib/format";
 import { sendPortalMessage } from "@/app/portal-actions";
 import type { Contract, EventRow, Participant } from "@/lib/types";
 
@@ -47,15 +47,11 @@ export default async function PortalEventPage({
 
   const contractRows = (contracts ?? []) as Contract[];
   const participantRow = participant as Participant;
-  const remaining = Math.max(
-    0,
-    Number(participantRow.rate ?? 0) - Number(participantRow.paid ?? 0),
-  );
   const unsignedContracts = contractRows.filter(
     (contract) => contract.status !== "signed" && contract.status !== "void",
   );
   const latestUnsigned = unsignedContracts[0];
-  const todoCount = (remaining > 0 ? 1 : 0) + (latestUnsigned ? 1 : 0);
+  const todoCount = latestUnsigned ? 1 : 0;
 
   return (
     <div>
@@ -90,7 +86,7 @@ export default async function PortalEventPage({
         <PortalLine icon={<Icon.calendar style={{ width: 16, height: 16 }} />} label="Date" value={fmtDateFull((event as EventRow).date)} />
         <PortalLine icon={<Icon.clock />} label="Time" value={(event as EventRow).time_label || "TBD"} />
         <PortalLine icon={<Icon.pin />} label="Location" value={(event as EventRow).location || "TBD"} />
-        <PortalLine icon={<Icon.users />} label="Your status" value={participantRow.status} status={participantRow.status} />
+        <PortalLine icon={<Icon.users />} label="Your role" value={participantRow.role_note || participantRow.role} />
       </div>
 
       <section style={{ marginTop: 22 }}>
@@ -124,43 +120,10 @@ export default async function PortalEventPage({
                   <Icon.chev style={{ color: "var(--ink-4)" }} />
                 </Link>
               )}
-              {remaining > 0 && (
-                <div className="card-row" style={{ cursor: "default" }}>
-                  <Icon.dollar style={{ color: "var(--terracotta)" }} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600 }}>
-                      Payment remaining: {fmtMoney(remaining)}
-                    </div>
-                    <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 3 }}>
-                      Message Casa Cross here if you need payment instructions.
-                    </div>
-                  </div>
-                </div>
-              )}
             </>
           )}
         </div>
       </section>
-
-      {(event as EventRow).description && (
-        <section style={{ marginTop: 22 }}>
-          <div className="section-label" style={{ marginTop: 0 }}>
-            <h2>Event brief</h2>
-          </div>
-          <div
-            className="card elev"
-            style={{
-              padding: 16,
-              fontFamily: "var(--serif)",
-              fontSize: 15,
-              lineHeight: 1.6,
-              whiteSpace: "pre-wrap",
-            }}
-          >
-            {(event as EventRow).description}
-          </div>
-        </section>
-      )}
 
       <section style={{ marginTop: 22 }}>
         <div className="section-label" style={{ marginTop: 0 }}>
