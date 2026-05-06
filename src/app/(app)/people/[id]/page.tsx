@@ -498,7 +498,7 @@ async function PortalAccessPanel({
     .order("created_at", { ascending: false })
     .limit(6);
   const publicUrl =
-    process.env.NEXT_PUBLIC_EVENTS_URL || process.env.NEXT_PUBLIC_SITE_URL || "";
+    process.env.NEXT_PUBLIC_PORTAL_URL || process.env.NEXT_PUBLIC_EVENTS_URL || process.env.NEXT_PUBLIC_SITE_URL || "";
 
   return (
     <div style={{ marginTop: 18 }}>

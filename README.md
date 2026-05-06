@@ -45,7 +45,7 @@ In the Supabase dashboard, open **SQL Editor** and run, in order:
 In **Authentication → URL Configuration**:
 
 - **Site URL:** `https://crm.casacross.org` — for local dev use `http://localhost:3000`
-- **Redirect URLs:** add `https://crm.casacross.org/auth/callback`, `https://events.casacross.org/auth/callback`, and `http://localhost:3000/auth/callback`
+- **Redirect URLs:** add `https://crm.casacross.org/auth/callback`, `https://portal.casacross.org/auth/callback`, and `http://localhost:3000/auth/callback`
 
 Email magic links work out of the box on the free tier.
 
@@ -58,7 +58,7 @@ Email magic links work out of the box on the free tier.
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `NEXT_PUBLIC_SITE_URL` (fallback URL, e.g. `https://crm.casacross.org`)
    - `NEXT_PUBLIC_CRM_URL` (`https://crm.casacross.org`)
-   - `NEXT_PUBLIC_EVENTS_URL` (`https://events.casacross.org`)
+   - `NEXT_PUBLIC_PORTAL_URL` (`https://portal.casacross.org`)
 4. Deploy.
 
 ### 5. Add Anna and you to the team

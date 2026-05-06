@@ -6,7 +6,7 @@ import { Icon } from "@/components/icons";
 export function ShareLink({ slug }: { slug: string }) {
   const [copied, setCopied] = useState(false);
   const baseUrl =
-    process.env.NEXT_PUBLIC_EVENTS_URL ||
+    process.env.NEXT_PUBLIC_PORTAL_URL || process.env.NEXT_PUBLIC_EVENTS_URL ||
     process.env.NEXT_PUBLIC_SITE_URL ||
     (typeof window !== "undefined" ? window.location.origin : "");
   const path = `/f/${slug}`;

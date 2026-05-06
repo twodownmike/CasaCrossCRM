@@ -210,7 +210,7 @@ export function EventForm({ event }: { event?: EventRow }) {
 
 function PublicLink({ slug }: { slug: string }) {
   const baseUrl =
-    process.env.NEXT_PUBLIC_EVENTS_URL ||
+    process.env.NEXT_PUBLIC_PORTAL_URL || process.env.NEXT_PUBLIC_EVENTS_URL ||
     process.env.NEXT_PUBLIC_SITE_URL ||
     (typeof window !== "undefined" ? window.location.origin : "");
   const path = `/e/${slug}`;

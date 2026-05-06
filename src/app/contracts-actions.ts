@@ -194,7 +194,7 @@ export async function sendContract(
   }
 
   const siteUrl =
-    process.env.NEXT_PUBLIC_EVENTS_URL ||
+    process.env.NEXT_PUBLIC_PORTAL_URL || process.env.NEXT_PUBLIC_EVENTS_URL ||
     process.env.NEXT_PUBLIC_SITE_URL ||
     "";
   const link = `${siteUrl}/sign/${contract!.share_token}`;

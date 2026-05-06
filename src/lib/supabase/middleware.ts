@@ -24,8 +24,10 @@ function isPortalNext(request: NextRequest) {
 
 function domainRedirect(request: NextRequest) {
   const crmHost = hostFromUrl(process.env.NEXT_PUBLIC_CRM_URL);
-  const eventsHost = hostFromUrl(process.env.NEXT_PUBLIC_EVENTS_URL);
-  if (!crmHost || !eventsHost || crmHost === eventsHost) return null;
+  const portalHost = hostFromUrl(
+    process.env.NEXT_PUBLIC_PORTAL_URL || process.env.NEXT_PUBLIC_EVENTS_URL,
+  );
+  if (!crmHost || !portalHost || crmHost === portalHost) return null;
 
   const currentHost = request.nextUrl.host;
   const { pathname } = request.nextUrl;
@@ -55,9 +57,9 @@ function domainRedirect(request: NextRequest) {
     (pathname.startsWith("/auth") && !isPortalNext(request));
 
   if (currentHost === crmHost && isClientPath) {
-    return redirectToHost(request, eventsHost);
+    return redirectToHost(request, portalHost);
   }
-  if (currentHost === eventsHost && isInternalPath) {
+  if (currentHost === portalHost && isInternalPath) {
     return redirectToHost(request, crmHost);
   }
   return null;

@@ -19,7 +19,7 @@ function nullable(form: FormData, key: string) {
 }
 
 function publicSiteUrl() {
-  return process.env.NEXT_PUBLIC_EVENTS_URL || process.env.NEXT_PUBLIC_SITE_URL || "";
+  return process.env.NEXT_PUBLIC_PORTAL_URL || process.env.NEXT_PUBLIC_EVENTS_URL || process.env.NEXT_PUBLIC_SITE_URL || "";
 }
 
 function portalSignupUrl(token: string) {

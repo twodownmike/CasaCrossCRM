@@ -42,7 +42,7 @@ function inviteState(row: PortalInviteRow): "accepted" | "expired" | "pending" {
 export default async function PortalAdminPage() {
   const supabase = createClient();
   const publicUrl =
-    process.env.NEXT_PUBLIC_EVENTS_URL ||
+    process.env.NEXT_PUBLIC_PORTAL_URL || process.env.NEXT_PUBLIC_EVENTS_URL ||
     process.env.NEXT_PUBLIC_SITE_URL ||
     "";
 

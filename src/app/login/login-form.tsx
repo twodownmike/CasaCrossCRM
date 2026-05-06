@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 function redirectUrl(next?: string) {
   const base =
     (next?.startsWith("/portal")
-      ? process.env.NEXT_PUBLIC_EVENTS_URL
+      ? process.env.NEXT_PUBLIC_PORTAL_URL || process.env.NEXT_PUBLIC_EVENTS_URL
       : process.env.NEXT_PUBLIC_CRM_URL) ||
     process.env.NEXT_PUBLIC_SITE_URL ||
     (typeof window !== "undefined" ? window.location.origin : "");

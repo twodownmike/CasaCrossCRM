@@ -43,7 +43,7 @@ export default async function ContractDetail({
     : { data: null };
 
   const siteUrl =
-    process.env.NEXT_PUBLIC_EVENTS_URL ||
+    process.env.NEXT_PUBLIC_PORTAL_URL || process.env.NEXT_PUBLIC_EVENTS_URL ||
     process.env.NEXT_PUBLIC_SITE_URL ||
     "";
   const link = `${siteUrl}/sign/${c.share_token}`;
