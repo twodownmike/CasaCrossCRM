@@ -251,11 +251,6 @@ function PortalHeader({
       <div className="muted" style={{ fontSize: 12 }}>
         Signed in as {access.email}
       </div>
-      <div style={{ marginTop: 14 }}>
-        <Link className="btn sm" href="/portal/account">
-          <Icon.gear /> Profile
-        </Link>
-      </div>
     </div>
   );
 }
