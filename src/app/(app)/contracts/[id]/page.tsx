@@ -42,7 +42,10 @@ export default async function ContractDetail({
         .maybeSingle()
     : { data: null };
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "";
+  const siteUrl =
+    process.env.NEXT_PUBLIC_EVENTS_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    "";
   const link = `${siteUrl}/sign/${c.share_token}`;
 
   const editable = c.status === "draft" || c.status === "sent";

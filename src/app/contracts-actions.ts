@@ -193,7 +193,10 @@ export async function sendContract(
       .eq("id", participantId);
   }
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "";
+  const siteUrl =
+    process.env.NEXT_PUBLIC_EVENTS_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    "";
   const link = `${siteUrl}/sign/${contract!.share_token}`;
 
   if (!isDraft) {
@@ -466,7 +469,10 @@ export async function signContract(
       .select("name")
       .eq("id", contract.event_id)
       .maybeSingle();
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "";
+    const siteUrl =
+      process.env.NEXT_PUBLIC_CRM_URL ||
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      "";
     await sendNotificationEmail({
       subject: `${signedName} signed ${contract.title} — ${event?.name ?? "your event"}`,
       ...(await contractSignedEmail({
