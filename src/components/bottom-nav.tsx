@@ -17,12 +17,11 @@ const TABS: Array<{
   { href: "/people", match: /^\/people/, label: "People", icon: "people" },
   {
     href: "/inbox",
-    match: /^\/inbox/,
+    match: /^\/(inbox|messages)/,
     label: "Inbox",
     icon: "mail",
     badgeKey: "inbox",
   },
-  { href: "/messages", match: /^\/messages/, label: "Messages", icon: "chat" },
 ];
 
 export function BottomNav({ inboxCount = 0 }: { inboxCount?: number }) {

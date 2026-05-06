@@ -14,6 +14,11 @@ type NavItem = {
   count?: number;
 };
 
+type NavSection = {
+  heading?: string;
+  items: NavItem[];
+};
+
 export type SidebarPin = {
   id: string;
   name: string;
@@ -25,74 +30,61 @@ export type SidebarPin = {
 export function DesktopSidebar({
   upcomingCount,
   peopleCount,
-  messageCount,
   inboxCount,
   pinned,
   user,
 }: {
   upcomingCount: number;
   peopleCount: number;
-  messageCount: number;
   inboxCount: number;
   pinned: SidebarPin[];
   user: { name: string; email: string | null } | null;
 }) {
   const pathname = usePathname();
 
-  const items: NavItem[] = [
-    { href: "/home", match: /^\/home/, label: "Dashboard", icon: "home" },
+  const sections: NavSection[] = [
     {
-      href: "/events",
-      match: /^\/events/,
-      label: "Events",
-      icon: "spark",
-      count: upcomingCount,
-    },
-    { href: "/calendar", match: /^\/calendar/, label: "Calendar", icon: "calendar" },
-    {
-      href: "/people",
-      match: /^\/people/,
-      label: "People",
-      icon: "people",
-      count: peopleCount,
+      items: [
+        { href: "/home", match: /^\/home/, label: "Dashboard", icon: "home" },
+        {
+          href: "/inbox",
+          match: /^\/(inbox|messages)/,
+          label: "Inbox",
+          icon: "mail",
+          count: inboxCount || undefined,
+        },
+      ],
     },
     {
-      href: "/messages",
-      match: /^\/messages/,
-      label: "Messages",
-      icon: "chat",
-      count: messageCount || undefined,
+      heading: "Studio",
+      items: [
+        {
+          href: "/events",
+          match: /^\/events/,
+          label: "Events",
+          icon: "spark",
+          count: upcomingCount,
+        },
+        {
+          href: "/calendar",
+          match: /^\/calendar/,
+          label: "Calendar",
+          icon: "calendar",
+        },
+        {
+          href: "/people",
+          match: /^\/people/,
+          label: "People",
+          icon: "people",
+          count: peopleCount,
+        },
+      ],
     },
     {
-      href: "/inbox",
-      match: /^\/inbox/,
-      label: "Inbox",
-      icon: "mail",
-      count: inboxCount || undefined,
-    },
-    {
-      href: "/forms",
-      match: /^\/forms/,
-      label: "Forms",
-      icon: "doc",
-    },
-    {
-      href: "/contracts",
-      match: /^\/contracts/,
-      label: "Contracts",
-      icon: "check",
-    },
-    {
-      href: "/reports",
-      match: /^\/reports/,
-      label: "Reports",
-      icon: "chart",
-    },
-    {
-      href: "/admin",
-      match: /^\/admin/,
-      label: "Admin",
-      icon: "spark",
+      heading: "Settings",
+      items: [
+        { href: "/admin", match: /^\/admin/, label: "Admin", icon: "gear" },
+      ],
     },
   ];
 
@@ -107,23 +99,30 @@ export function DesktopSidebar({
       </Link>
 
       <nav className="ds-nav">
-        {items.map((it) => {
-          const Ico = Icon[it.icon];
-          const active = it.match.test(pathname);
-          return (
-            <Link
-              key={it.href}
-              href={it.href}
-              className={`ds-nav-item ${active ? "active" : ""}`}
-            >
-              <Ico />
-              <span>{it.label}</span>
-              {it.count !== undefined && (
-                <span className="ds-count">{it.count}</span>
-              )}
-            </Link>
-          );
-        })}
+        {sections.map((section, i) => (
+          <div key={i}>
+            {section.heading && (
+              <div className="ds-nav-section">{section.heading}</div>
+            )}
+            {section.items.map((it) => {
+              const Ico = Icon[it.icon];
+              const active = it.match.test(pathname);
+              return (
+                <Link
+                  key={it.href}
+                  href={it.href}
+                  className={`ds-nav-item ${active ? "active" : ""}`}
+                >
+                  <Ico />
+                  <span>{it.label}</span>
+                  {it.count !== undefined && (
+                    <span className="ds-count">{it.count}</span>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </nav>
 
       {pinned.length > 0 && (

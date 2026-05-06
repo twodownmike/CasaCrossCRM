@@ -71,6 +71,8 @@ export default async function AppLayout({
     cover_image_url: p.cover_image_url,
   }));
 
+  const combinedInboxCount = (inboxCount ?? 0) + (messageCount ?? 0);
+
   return (
     <div className="phone-frame">
       <Suspense fallback={null}>
@@ -84,8 +86,7 @@ export default async function AppLayout({
       <DesktopSidebar
         upcomingCount={upcomingCountReal ?? 0}
         peopleCount={peopleCount ?? 0}
-        messageCount={messageCount ?? 0}
-        inboxCount={inboxCount ?? 0}
+        inboxCount={combinedInboxCount}
         pinned={sidebarPins}
         user={{
           name:
@@ -100,7 +101,7 @@ export default async function AppLayout({
       <div className="scroll">{children}</div>
 
       <Fab />
-      <BottomNav inboxCount={inboxCount ?? 0} />
+      <BottomNav inboxCount={combinedInboxCount} />
     </div>
   );
 }

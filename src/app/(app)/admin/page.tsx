@@ -8,6 +8,7 @@ export default async function AdminHub() {
   const supabase = createClient();
   const [
     { count: contractTemplates },
+    { count: contractsTotal },
     { count: forms },
     { count: portalActive },
     { count: portalPending },
@@ -16,6 +17,7 @@ export default async function AdminHub() {
     supabase
       .from("contract_templates")
       .select("*", { count: "exact", head: true }),
+    supabase.from("contracts").select("*", { count: "exact", head: true }),
     supabase.from("forms").select("*", { count: "exact", head: true }),
     supabase
       .from("portal_users")
@@ -67,6 +69,13 @@ export default async function AdminHub() {
       count: portalSub,
     },
     {
+      href: "/contracts",
+      icon: "check",
+      title: "Contracts",
+      sub: "Every contract drafted, sent, or signed across events.",
+      count: `${contractsTotal ?? 0} total`,
+    },
+    {
       href: "/contracts/templates",
       icon: "doc",
       title: "Contract templates",
@@ -85,7 +94,6 @@ export default async function AdminHub() {
       icon: "chart",
       title: "Reports",
       sub: "Revenue, expenses, and booking performance.",
-      mobileOnly: true,
     },
   ];
 
