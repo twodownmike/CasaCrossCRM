@@ -241,6 +241,21 @@ export type FormResponse = {
   created_at: string;
 };
 
+export type FormAssignment = {
+  id: string;
+  form_id: string;
+  event_id: string;
+  participant_id: string;
+  person_id: string;
+  response_id: string | null;
+  share_token: string;
+  sent_at: string | null;
+  completed_at: string | null;
+  assigned_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export const FIELD_TYPE_LABELS: Record<FormFieldType, string> = {
   text: "Short text",
   email: "Email",

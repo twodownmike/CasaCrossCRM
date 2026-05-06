@@ -41,6 +41,7 @@ function domainRedirect(request: NextRequest) {
   const isClientPath =
     pathname.startsWith("/apply") ||
     pathname.startsWith("/e/") ||
+    pathname.startsWith("/fa/") ||
     pathname.startsWith("/f/") ||
     pathname.startsWith("/sign/") ||
     pathname.startsWith("/portal") ||
@@ -109,6 +110,7 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith("/auth") ||
     pathname.startsWith("/apply") ||
     pathname.startsWith("/e/") ||
+    pathname.startsWith("/fa/") ||
     pathname.startsWith("/f/") ||
     pathname.startsWith("/sign/") ||
     pathname.startsWith("/portal/signup");

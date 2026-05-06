@@ -2,8 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { randomBytes } from "crypto";
 import { createClient } from "@/lib/supabase/server";
-import { sendNotificationEmail, escapeHtml } from "@/lib/notify";
+import { sendEmail, sendNotificationEmail, escapeHtml } from "@/lib/notify";
 import type { FormFieldType } from "@/lib/types";
 
 function s(form: FormData, key: string) {
@@ -21,6 +22,15 @@ function slugifyKey(input: string): string {
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "")
     .slice(0, 48);
+}
+
+function publicSiteUrl() {
+  return (
+    process.env.NEXT_PUBLIC_PORTAL_URL ||
+    process.env.NEXT_PUBLIC_EVENTS_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    ""
+  );
 }
 
 const VALID_TYPES: FormFieldType[] = [
@@ -251,6 +261,7 @@ export async function submitFormResponse(
 ): Promise<{ ok: true; slug?: string } | { ok: false; error: string }> {
   const supabase = createClient();
   const formId = s(form, "form_id");
+  const assignmentToken = s(form, "assignment_token");
   if (!formId) return { ok: false, error: "Missing form id." };
 
   // Pull the live field schema so we only persist known keys & enforce required.
@@ -285,12 +296,27 @@ export async function submitFormResponse(
     data[f.field_key] = value;
   }
 
-  const { error } = await supabase
+  const { data: inserted, error } = await supabase
     .from("form_responses")
-    .insert({ form_id: formId, data });
+    .insert({ form_id: formId, data })
+    .select("id")
+    .single();
   if (error) {
     console.error("submitFormResponse failed", error);
     return { ok: false, error: error.message };
+  }
+
+  if (assignmentToken && inserted?.id) {
+    const { error: assignmentError } = await supabase.rpc(
+      "complete_form_assignment",
+      {
+        assignment_token: assignmentToken,
+        response_id_value: inserted.id,
+      },
+    );
+    if (assignmentError) {
+      console.error("complete_form_assignment failed", assignmentError);
+    }
   }
 
   // Notify team (fire-and-forget)
@@ -335,7 +361,109 @@ export async function submitFormResponse(
 
   revalidatePath(`/forms/${formId}`);
   revalidatePath(`/forms/${formId}/responses`);
+  revalidatePath("/portal");
   return { ok: true, slug: meta.slug };
+}
+
+export async function bulkSendForms(form: FormData): Promise<
+  | { ok: true; sent: number; assigned: number; skipped: number }
+  | { ok: false; error: string }
+> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const eventId = s(form, "event_id");
+  const formId = s(form, "form_id");
+  const participantIds = form.getAll("participant_ids[]").filter(
+    (id): id is string => typeof id === "string" && id.length > 0,
+  );
+  if (!eventId || !formId || participantIds.length === 0) {
+    return { ok: false, error: "Choose a form and at least one participant." };
+  }
+
+  const [{ data: formRow }, { data: event }, { data: participants }] =
+    await Promise.all([
+      supabase
+        .from("forms")
+        .select("id, title, description, is_published")
+        .eq("id", formId)
+        .maybeSingle(),
+      supabase.from("events").select("id, name, date").eq("id", eventId).maybeSingle(),
+      supabase
+        .from("participants")
+        .select("id, person_id, people(id, name, email)")
+        .eq("event_id", eventId)
+        .in("id", participantIds),
+    ]);
+  if (!formRow || !formRow.is_published) {
+    return { ok: false, error: "Publish the form before sending it." };
+  }
+  if (!event) return { ok: false, error: "Event not found." };
+
+  let assigned = 0;
+  let sent = 0;
+  let skipped = 0;
+  const siteUrl = publicSiteUrl();
+
+  for (const participant of participants ?? []) {
+    const person = Array.isArray(participant.people)
+      ? participant.people[0]
+      : participant.people;
+    const token = randomBytes(24).toString("base64url");
+    const { data: assignment, error } = await supabase
+      .from("form_assignments")
+      .upsert(
+        {
+          form_id: formId,
+          event_id: eventId,
+          participant_id: participant.id,
+          person_id: participant.person_id,
+          share_token: token,
+          sent_at: new Date().toISOString(),
+          assigned_by: user.id,
+        },
+        { onConflict: "form_id,participant_id" },
+      )
+      .select("share_token")
+      .single();
+    if (error) {
+      skipped += 1;
+      console.error("bulkSendForms assignment failed", error);
+      continue;
+    }
+    assigned += 1;
+
+    const email = person?.email;
+    if (!email || !siteUrl) {
+      skipped += 1;
+      continue;
+    }
+    const formUrl = `${siteUrl}/fa/${assignment?.share_token || token}`;
+    const recipientName = person?.name || email;
+    await sendEmail({
+      to: email,
+      subject: `${formRow.title} — ${event.name}`,
+      html: `
+        <div style="font-family:-apple-system,Inter,Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#1a1814;">
+          <div style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#9a948a;font-weight:500;">Casa Cross</div>
+          <h1 style="font-family:Georgia,serif;font-weight:400;font-size:24px;margin:6px 0 12px;letter-spacing:-0.01em;">${escapeHtml(formRow.title)}</h1>
+          <p style="font-size:14px;line-height:1.55;color:#4f4941;">Hi ${escapeHtml(recipientName)}, please complete this form for <strong>${escapeHtml(event.name)}</strong>.</p>
+          ${formRow.description ? `<p style="font-size:14px;line-height:1.55;color:#6b665e;">${escapeHtml(formRow.description)}</p>` : ""}
+          <div style="margin-top:24px;"><a href="${formUrl}" style="display:inline-block;background:#1a1814;color:#fff;text-decoration:none;padding:11px 22px;border-radius:999px;font-size:14px;font-weight:500;">Open form</a></div>
+        </div>
+      `,
+      text: `Hi ${recipientName}, please complete ${formRow.title} for ${event.name}.\n\n${formUrl}`,
+    });
+    sent += 1;
+  }
+
+  revalidatePath(`/events/${eventId}`);
+  revalidatePath("/portal");
+  revalidatePath(`/portal/events/${eventId}`);
+  return { ok: true, sent, assigned, skipped };
 }
 
 export async function deleteFormResponse(form: FormData) {

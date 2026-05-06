@@ -15,6 +15,7 @@ import {
 } from "@/app/actions";
 import { bulkSendContracts } from "@/app/contracts-actions";
 import { grantPortalAccess } from "@/app/portal-actions";
+import { bulkSendForms } from "@/app/forms-actions";
 
 type RosterPart = {
   id: string;
@@ -40,18 +41,26 @@ export function RosterClient({
   eventId,
   participants,
   templates,
+  forms,
 }: {
   eventId: string;
   participants: RosterPart[];
   templates: Array<{ id: string; name: string }>;
+  forms: Array<{ id: string; title: string }>;
 }) {
   const router = useRouter();
   const [selecting, setSelecting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [pending, start] = useTransition();
   const [contractOpen, setContractOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
   const [bulkResult, setBulkResult] = useState<
     | { kind: "ok"; sent: number; urls: string[] }
+    | { kind: "err"; msg: string }
+    | null
+  >(null);
+  const [formResult, setFormResult] = useState<
+    | { kind: "ok"; sent: number; assigned: number; skipped: number }
     | { kind: "err"; msg: string }
     | null
   >(null);
@@ -241,6 +250,15 @@ export function RosterClient({
             <button
               className="btn sm"
               type="button"
+              onClick={() => setFormOpen(true)}
+              disabled={pending}
+            >
+              <Icon.doc /> Send form
+              {selectedIds.size > 1 ? `s (${selectedIds.size})` : ""}
+            </button>
+            <button
+              className="btn sm"
+              type="button"
               onClick={doMarkPaid}
               disabled={pending}
             >
@@ -276,6 +294,29 @@ export function RosterClient({
           onDone={() => {
             setContractOpen(false);
             setBulkResult(null);
+            setSelectedIds(new Set());
+            setSelecting(false);
+            router.refresh();
+          }}
+        />
+      </Sheet>
+      <Sheet
+        open={formOpen}
+        onClose={() => {
+          setFormOpen(false);
+          setFormResult(null);
+        }}
+        title={`Send ${selectedIds.size} form${selectedIds.size === 1 ? "" : "s"}`}
+      >
+        <BulkFormForm
+          eventId={eventId}
+          participantIds={Array.from(selectedIds)}
+          forms={forms}
+          result={formResult}
+          onResult={setFormResult}
+          onDone={() => {
+            setFormOpen(false);
+            setFormResult(null);
             setSelectedIds(new Set());
             setSelecting(false);
             router.refresh();
@@ -590,6 +631,116 @@ function BulkContractForm({
           {pending
             ? "Generating…"
             : `Generate ${participantIds.length} link${participantIds.length === 1 ? "" : "s"}`}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function BulkFormForm({
+  eventId,
+  participantIds,
+  forms,
+  result,
+  onResult,
+  onDone,
+}: {
+  eventId: string;
+  participantIds: string[];
+  forms: Array<{ id: string; title: string }>;
+  result:
+    | { kind: "ok"; sent: number; assigned: number; skipped: number }
+    | { kind: "err"; msg: string }
+    | null;
+  onResult: (
+    r:
+      | { kind: "ok"; sent: number; assigned: number; skipped: number }
+      | { kind: "err"; msg: string }
+      | null,
+  ) => void;
+  onDone: () => void;
+}) {
+  const [formId, setFormId] = useState(forms[0]?.id ?? "");
+  const [pending, start] = useTransition();
+
+  function send(e: React.FormEvent) {
+    e.preventDefault();
+    onResult(null);
+    const f = new FormData();
+    f.set("event_id", eventId);
+    f.set("form_id", formId);
+    participantIds.forEach((id) => f.append("participant_ids[]", id));
+    start(async () => {
+      const r = await bulkSendForms(f);
+      if (!r.ok) {
+        onResult({ kind: "err", msg: r.error });
+        return;
+      }
+      onResult({
+        kind: "ok",
+        sent: r.sent,
+        assigned: r.assigned,
+        skipped: r.skipped,
+      });
+    });
+  }
+
+  if (result?.kind === "ok") {
+    return (
+      <div className="form-grid" style={{ paddingTop: 8 }}>
+        <div className="notice">
+          {result.assigned} portal form assignment
+          {result.assigned === 1 ? "" : "s"} created.
+        </div>
+        <p className="muted" style={{ fontSize: 12, lineHeight: 1.5 }}>
+          {result.sent} email{result.sent === 1 ? "" : "s"} sent.{" "}
+          {result.skipped > 0
+            ? `${result.skipped} participant${result.skipped === 1 ? "" : "s"} could not be emailed.`
+            : "Each participant can also complete the form from their portal."}
+        </p>
+        <div className="sheet-footer">
+          <button className="btn primary block" type="button" onClick={onDone}>
+            Done
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={send} className="form-grid" style={{ paddingTop: 8 }}>
+      <div className="muted" style={{ fontSize: 13, lineHeight: 1.5 }}>
+        This creates one portal to-do per selected participant and emails a
+        secure form link when the participant has an email address.
+      </div>
+      <div>
+        <label className="form-label">Form</label>
+        <select
+          className="input"
+          required
+          value={formId}
+          onChange={(e) => setFormId(e.target.value)}
+        >
+          {forms.length === 0 && <option value="">No published forms</option>}
+          {forms.map((form) => (
+            <option key={form.id} value={form.id}>
+              {form.title}
+            </option>
+          ))}
+        </select>
+      </div>
+      {result?.kind === "err" && (
+        <div className="notice warn">{result.msg}</div>
+      )}
+      <div className="sheet-footer">
+        <button
+          className="btn primary block"
+          type="submit"
+          disabled={pending || participantIds.length === 0 || !formId}
+        >
+          {pending
+            ? "Sending..."
+            : `Send to ${participantIds.length} participant${participantIds.length === 1 ? "" : "s"}`}
         </button>
       </div>
     </form>

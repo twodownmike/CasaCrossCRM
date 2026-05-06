@@ -5,7 +5,7 @@ import { Avatar } from "@/components/avatar";
 import { Icon } from "@/components/icons";
 import { StatusPill } from "@/components/pill";
 import { daysUntil, daysUntilLabel, fmtDateFull } from "@/lib/format";
-import type { EventRow, Participant, Person, Contract } from "@/lib/types";
+import type { EventRow, Participant, Person, Contract, FormAssignment } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +20,7 @@ type PortalAccess = {
 type PortalBooking = Participant & {
   event: EventRow;
   contracts: Contract[];
+  forms: Array<FormAssignment & { form?: { title: string } | null }>;
 };
 
 export default async function PortalHome() {
@@ -71,7 +72,7 @@ export default async function PortalHome() {
   const eventIds = participants.map((p) => p.event_id);
   const participantIds = participants.map((p) => p.id);
 
-  const [{ data: events }, { data: contracts }] = await Promise.all([
+  const [{ data: events }, { data: contracts }, { data: formAssignments }] = await Promise.all([
     eventIds.length
       ? supabase.from("events").select("*").in("id", eventIds)
       : Promise.resolve({ data: [] }),
@@ -79,6 +80,13 @@ export default async function PortalHome() {
       ? supabase
           .from("contracts")
           .select("*")
+          .in("participant_id", participantIds)
+          .order("created_at", { ascending: false })
+      : Promise.resolve({ data: [] }),
+    participantIds.length
+      ? supabase
+          .from("form_assignments")
+          .select("*, form:forms(title)")
           .in("participant_id", participantIds)
           .order("created_at", { ascending: false })
       : Promise.resolve({ data: [] }),
@@ -92,6 +100,12 @@ export default async function PortalHome() {
     list.push(contract);
     contractsByParticipant.set(contract.participant_id, list);
   });
+  const formsByParticipant = new Map<string, PortalBooking["forms"]>();
+  ((formAssignments ?? []) as PortalBooking["forms"]).forEach((assignment) => {
+    const list = formsByParticipant.get(assignment.participant_id) ?? [];
+    list.push(assignment);
+    formsByParticipant.set(assignment.participant_id, list);
+  });
 
   const bookings: PortalBooking[] = participants
     .map((participant) => {
@@ -101,6 +115,7 @@ export default async function PortalHome() {
         ...participant,
         event,
         contracts: contractsByParticipant.get(participant.id) ?? [],
+        forms: formsByParticipant.get(participant.id) ?? [],
       };
     })
     .filter((booking): booking is PortalBooking => Boolean(booking))
@@ -110,6 +125,11 @@ export default async function PortalHome() {
     booking.contracts
       .filter((contract) => contract.status !== "signed" && contract.status !== "void")
       .map((contract) => ({ booking, contract })),
+  );
+  const openForms = bookings.flatMap((booking) =>
+    booking.forms
+      .filter((assignment) => !assignment.completed_at)
+      .map((assignment) => ({ booking, assignment })),
   );
   const [{ data: teamMessages }, { data: messageReads }] = await Promise.all([
     eventIds.length
@@ -144,6 +164,7 @@ export default async function PortalHome() {
   const actionCount =
     (nextBooking ? 1 : 0) +
     unsignedContracts.length +
+    openForms.length +
     unreadMessageBookings.length;
 
   return (
@@ -192,6 +213,24 @@ export default async function PortalHome() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 14, fontWeight: 600 }}>
                     New message from Casa Cross
+                  </div>
+                  <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 3 }}>
+                    {booking.event.name}
+                  </div>
+                </div>
+                <Icon.chev style={{ color: "var(--ink-4)" }} />
+              </Link>
+            ))}
+            {openForms.slice(0, 3).map(({ booking, assignment }) => (
+              <Link
+                key={assignment.id}
+                href={`/fa/${assignment.share_token}`}
+                className="card-row"
+              >
+                <Icon.doc style={{ color: "var(--gold)" }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>
+                    Complete {assignment.form?.title || "form"}
                   </div>
                   <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 3 }}>
                     {booking.event.name}

@@ -10,10 +10,12 @@ export function PublicFormRenderer({
   formId,
   slug,
   fields,
+  assignmentToken,
 }: {
   formId: string;
   slug: string;
   fields: FormField[];
+  assignmentToken?: string;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -24,6 +26,7 @@ export function PublicFormRenderer({
     setError(null);
     const f = new FormData(e.currentTarget);
     f.set("form_id", formId);
+    if (assignmentToken) f.set("assignment_token", assignmentToken);
     start(async () => {
       const result = await submitFormResponse(f);
       if (!result.ok) {

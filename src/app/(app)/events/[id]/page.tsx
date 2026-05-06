@@ -29,6 +29,15 @@ async function loadTemplates(): Promise<Array<{ id: string; name: string }>> {
     .order("updated_at", { ascending: false });
   return (data ?? []) as Array<{ id: string; name: string }>;
 }
+async function loadForms(): Promise<Array<{ id: string; title: string }>> {
+  const supabase = createSupabase();
+  const { data } = await supabase
+    .from("forms")
+    .select("id, title")
+    .eq("is_published", true)
+    .order("updated_at", { ascending: false });
+  return (data ?? []) as Array<{ id: string; title: string }>;
+}
 import { relTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -334,6 +343,7 @@ export default async function EventDetail({
               })(),
             }))}
             templates={await loadTemplates()}
+            forms={await loadForms()}
           />
           <div style={{ padding: "var(--s-6) var(--s-5)" }}>
             <AddParticipantSheet

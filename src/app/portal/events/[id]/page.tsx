@@ -6,7 +6,7 @@ import { StatusPill } from "@/components/pill";
 import { daysUntilLabel, fmtDateFull, relTime } from "@/lib/format";
 import { sendPortalMessage } from "@/app/portal-actions";
 import { PortalThreadReadMarker } from "@/app/portal-thread-read-marker";
-import { ROLE_META, type Contract, type EventRow, type Participant } from "@/lib/types";
+import { ROLE_META, type Contract, type EventRow, type FormAssignment, type Participant } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +45,11 @@ export default async function PortalEventPage({
     .select("*")
     .eq("event_id", params.id)
     .order("created_at", { ascending: true });
+  const { data: formAssignments } = await supabase
+    .from("form_assignments")
+    .select("*, form:forms(title)")
+    .eq("participant_id", participant.id)
+    .order("created_at", { ascending: false });
 
   const contractRows = (contracts ?? []) as Contract[];
   const eventRow = event as EventRow;
@@ -52,8 +57,12 @@ export default async function PortalEventPage({
   const unsignedContracts = contractRows.filter(
     (contract) => contract.status !== "signed" && contract.status !== "void",
   );
+  const assignedForms = (formAssignments ?? []) as Array<
+    FormAssignment & { form?: { title: string } | null }
+  >;
+  const openForms = assignedForms.filter((assignment) => !assignment.completed_at);
   const latestUnsigned = unsignedContracts[0];
-  const todoCount = latestUnsigned ? 1 : 0;
+  const todoCount = (latestUnsigned ? 1 : 0) + openForms.length;
   const signedContracts = contractRows.filter((contract) => contract.status === "signed").length;
   const eventTiming = daysUntilLabel(eventRow.date) || fmtDateFull(eventRow.date);
   const mapHref = eventRow.location
@@ -224,10 +233,63 @@ export default async function PortalEventPage({
                   <Icon.chev style={{ color: "var(--ink-4)" }} />
                 </Link>
               )}
+              {openForms.map((assignment) => (
+                <Link
+                  key={assignment.id}
+                  href={`/fa/${assignment.share_token}`}
+                  className="card-row"
+                >
+                  <Icon.doc style={{ color: "var(--gold)" }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600 }}>
+                      Complete {assignment.form?.title || "form"}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 3 }}>
+                      Requested by Casa Cross.
+                    </div>
+                  </div>
+                  <Icon.chev style={{ color: "var(--ink-4)" }} />
+                </Link>
+              ))}
             </>
           )}
         </div>
       </section>
+
+      {assignedForms.length > 0 && (
+        <section style={{ marginTop: 22 }}>
+          <div className="section-label" style={{ marginTop: 0 }}>
+            <h2>Forms</h2>
+            <span className="muted" style={{ fontSize: 12 }}>
+              {assignedForms.length}
+            </span>
+          </div>
+          <div className="card elev">
+            {assignedForms.map((assignment) => (
+              <Link
+                key={assignment.id}
+                href={`/fa/${assignment.share_token}`}
+                className="card-row"
+              >
+                <Icon.doc style={{ color: "var(--ink-4)" }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>
+                    {assignment.form?.title || "Form"}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 3 }}>
+                    {assignment.completed_at
+                      ? `Completed ${relTime(assignment.completed_at)}`
+                      : assignment.sent_at
+                        ? `Sent ${relTime(assignment.sent_at)}`
+                        : `Assigned ${relTime(assignment.created_at)}`}
+                  </div>
+                </div>
+                <StatusPill status={assignment.completed_at ? "signed" : "sent"} />
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section style={{ marginTop: 22 }}>
         <div className="section-label" style={{ marginTop: 0 }}>
