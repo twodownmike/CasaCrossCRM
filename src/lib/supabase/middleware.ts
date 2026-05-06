@@ -17,6 +17,13 @@ function redirectToHost(request: NextRequest, host: string) {
   return NextResponse.redirect(url);
 }
 
+function redirectToPath(request: NextRequest, pathname: string) {
+  const url = request.nextUrl.clone();
+  url.pathname = pathname;
+  url.search = "";
+  return NextResponse.redirect(url);
+}
+
 function isPortalNext(request: NextRequest) {
   const next = request.nextUrl.searchParams.get("next");
   return next?.startsWith("/portal") ?? false;
@@ -60,7 +67,7 @@ function domainRedirect(request: NextRequest) {
     return redirectToHost(request, portalHost);
   }
   if (currentHost === portalHost && isInternalPath) {
-    return redirectToHost(request, crmHost);
+    return redirectToPath(request, "/portal");
   }
   return null;
 }
