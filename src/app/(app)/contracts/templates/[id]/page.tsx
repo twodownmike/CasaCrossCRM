@@ -7,13 +7,16 @@ import { Icon } from "@/components/icons";
 import { PdfUploader } from "@/components/pdf-uploader";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import { DeleteTemplateForm } from "./delete-template-form";
+import { SaveTemplateButton } from "./save-template-button";
 
 export const dynamic = "force-dynamic";
 
 export default async function TemplateEdit({
   params,
+  searchParams,
 }: {
   params: { id: string };
+  searchParams: { saved?: string };
 }) {
   const supabase = createClient();
   const { data: t } = await supabase
@@ -45,6 +48,12 @@ export default async function TemplateEdit({
       </div>
 
       <div style={{ padding: "0 var(--s-5) var(--s-7)" }}>
+        {searchParams.saved === "1" && (
+          <div className="notice" style={{ marginBottom: 14 }}>
+            Template changes saved.
+          </div>
+        )}
+
         <form action={updateTemplate} className="form-grid">
           <input type="hidden" name="id" value={t.id} />
           <div>
@@ -79,9 +88,7 @@ export default async function TemplateEdit({
             </p>
           </div>
 
-          <button className="btn primary block" type="submit">
-            Save changes
-          </button>
+          <SaveTemplateButton />
         </form>
 
         <DeleteTemplateForm id={t.id} />

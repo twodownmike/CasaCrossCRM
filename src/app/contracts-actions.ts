@@ -55,9 +55,14 @@ export async function createTemplate(form: FormData) {
 
 export async function updateTemplate(form: FormData) {
   const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
   const id = s(form, "id");
   if (!id) return;
-  await supabase
+  const { error } = await supabase
     .from("contract_templates")
     .update({
       name: s(form, "name"),
@@ -66,8 +71,11 @@ export async function updateTemplate(form: FormData) {
       pdf_url: nullable(form, "pdf_url"),
     })
     .eq("id", id);
+  if (error) throw error;
+
   revalidatePath("/contracts/templates");
   revalidatePath(`/contracts/templates/${id}`);
+  redirect(`/contracts/templates/${id}?saved=1`);
 }
 
 export async function deleteTemplate(form: FormData) {
