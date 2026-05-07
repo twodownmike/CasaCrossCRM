@@ -2,10 +2,15 @@
 
 import { Icon } from "@/components/icons";
 
-export function PacketPrintButton() {
+export function PacketPrintButton({ eventId }: { eventId: string }) {
   return (
-    <button className="btn" type="button" onClick={() => window.print()}>
-      <Icon.doc /> Print packet
-    </button>
+    <a
+      className="btn"
+      href={`/events/${eventId}/packet.pdf`}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      <Icon.doc /> Download packet PDF
+    </a>
   );
 }

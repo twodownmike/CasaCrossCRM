@@ -634,7 +634,7 @@ async function VendorPacket({ event }: { event: NonNullable<Awaited<ReturnType<t
             </div>
           </div>
           <div className="packet-print">
-            <PacketPrintButton />
+            <PacketPrintButton eventId={event.id} />
           </div>
         </div>
 
