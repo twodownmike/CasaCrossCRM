@@ -3,7 +3,7 @@
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "tiptap-markdown";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { mdToHtml } from "@/lib/contracts";
 
 type MergeField = readonly [string, string];
@@ -41,6 +41,27 @@ export function RichTextEditor({
       setHiddenValue((editor.storage as any).markdown.getMarkdown());
     },
   });
+
+  useEffect(() => {
+    const hidden = hiddenRef.current;
+    const form = hidden?.form;
+    if (!form || !editor) return;
+
+    function syncBeforeSubmit() {
+      if (!hiddenRef.current) return;
+      if (mode === "markdown") {
+        hiddenRef.current.value = markdown;
+        return;
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      hiddenRef.current.value = (editor.storage as any).markdown.getMarkdown();
+    }
+
+    form.addEventListener("submit", syncBeforeSubmit, { capture: true });
+    return () => {
+      form.removeEventListener("submit", syncBeforeSubmit, { capture: true });
+    };
+  }, [editor, markdown, mode]);
 
   function insertMergeField(field: string) {
     editor?.chain().focus().insertContent(field).run();

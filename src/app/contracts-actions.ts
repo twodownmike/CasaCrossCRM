@@ -62,7 +62,7 @@ export async function updateTemplate(form: FormData) {
 
   const id = s(form, "id");
   if (!id) return;
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("contract_templates")
     .update({
       name: s(form, "name"),
@@ -70,8 +70,11 @@ export async function updateTemplate(form: FormData) {
       body_md: s(form, "body_md"),
       pdf_url: nullable(form, "pdf_url"),
     })
-    .eq("id", id);
+    .eq("id", id)
+    .select("id")
+    .single();
   if (error) throw error;
+  if (!data) throw new Error("Template save did not update a row.");
 
   revalidatePath("/contracts/templates");
   revalidatePath(`/contracts/templates/${id}`);
