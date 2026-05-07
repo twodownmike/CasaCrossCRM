@@ -267,6 +267,66 @@ export async function addParticipant(
   return { ok: true };
 }
 
+export async function bulkAddParticipants(
+  form: FormData,
+): Promise<{ ok: true; added: number } | { ok: false; error: string }> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const eventId = s(form, "event_id");
+  const personIds = Array.from(
+    new Set(
+      form
+        .getAll("person_ids[]")
+        .filter(
+          (value): value is string =>
+            typeof value === "string" && value.length > 0,
+        ),
+    ),
+  );
+  if (!eventId || personIds.length === 0) {
+    return { ok: false, error: "Choose at least one person." };
+  }
+
+  const roleOverride = nullable(form, "role") as RoleKind | null;
+  const roleNote = nullable(form, "role_note");
+  const rate = num(form, "rate");
+  const dueDate = nullable(form, "due_date");
+  const { data: people, error: peopleError } = await supabase
+    .from("people")
+    .select("id, role, specialty")
+    .in("id", personIds);
+  if (peopleError) return { ok: false, error: peopleError.message };
+  if (!people || people.length === 0) {
+    return { ok: false, error: "No matching people found." };
+  }
+
+  const { error } = await supabase.from("participants").upsert(
+    people.map((person) => ({
+      event_id: eventId,
+      person_id: person.id,
+      role: roleOverride || person.role,
+      role_note: roleNote || person.specialty || null,
+      rate,
+      paid: 0,
+      status: rate === 0 ? "comp" : "due",
+      contract: "unsent",
+      due_date: dueDate,
+    })),
+    { onConflict: "event_id,person_id" },
+  );
+  if (error) {
+    console.error("bulkAddParticipants failed", { eventId, personIds, error });
+    return { ok: false, error: error.message };
+  }
+
+  revalidatePath(`/events/${eventId}`);
+  return { ok: true, added: people.length };
+}
+
 export async function updateParticipant(form: FormData) {
   const supabase = createClient();
   const id = s(form, "id");
