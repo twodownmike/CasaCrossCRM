@@ -175,15 +175,7 @@ export default async function ContractsPage() {
                     {personByPart.get(c.participant_id) || "Unknown"}
                   </span>
                   <StatusPill
-                    status={
-                      c.status === "signed"
-                        ? "signed"
-                        : c.status === "sent"
-                          ? "sent"
-                          : c.status === "void"
-                            ? "wrapped"
-                            : "unsent"
-                    }
+                    status={contractDisplayStatus(c)}
                   />
                 </div>
                 <div
@@ -204,6 +196,8 @@ export default async function ContractsPage() {
                 >
                   {c.signed_at
                     ? `Signed ${relTime(c.signed_at)}`
+                    : c.opened_at
+                      ? `Opened ${relTime(c.opened_at)}`
                     : c.sent_at
                       ? `Sent ${relTime(c.sent_at)}`
                       : `Created ${relTime(c.created_at)}`}
@@ -231,4 +225,15 @@ export default async function ContractsPage() {
       <div style={{ height: 24 }} />
     </div>
   );
+}
+
+function contractDisplayStatus(contract: {
+  status: string;
+  opened_at?: string | null;
+}) {
+  if (contract.status === "signed") return "signed";
+  if (contract.status === "sent" && contract.opened_at) return "opened";
+  if (contract.status === "sent") return "sent";
+  if (contract.status === "void") return "wrapped";
+  return "unsent";
 }

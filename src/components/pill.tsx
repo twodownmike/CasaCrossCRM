@@ -11,6 +11,7 @@ const STATUS_CLASS: Record<string, string> = {
   due: "warn",
   comp: "wrapped",
   signed: "confirmed",
+  opened: "planning",
   sent: "planning",
   unsent: "warn",
   na: "wrapped",

@@ -9,7 +9,7 @@ export type RoleKind =
 
 export type EventStatus = "confirmed" | "planning" | "pending" | "wrapped";
 export type PayStatus = "paid" | "partial" | "due" | "comp";
-export type ContractStatus = "signed" | "sent" | "unsent" | "na";
+export type ContractStatus = "signed" | "opened" | "sent" | "unsent" | "na";
 
 export type Person = {
   id: string;
@@ -146,6 +146,7 @@ export type Contract = {
   status: ContractDocStatus;
   share_token: string;
   sent_at: string | null;
+  opened_at: string | null;
   signed_at: string | null;
   signature_url: string | null;
   signed_name: string | null;
@@ -186,6 +187,7 @@ export type ContractTokenView = {
   pdf_url: string | null;
   status: ContractDocStatus;
   sent_at: string | null;
+  opened_at: string | null;
   signed_at: string | null;
   signature_url: string | null;
   signed_name: string | null;
@@ -323,6 +325,7 @@ export const STATUS_LABEL: Record<string, string> = {
   due: "Due",
   comp: "Comp",
   signed: "Signed",
+  opened: "Opened",
   sent: "Sent",
   unsent: "Unsent",
   na: "N/A",

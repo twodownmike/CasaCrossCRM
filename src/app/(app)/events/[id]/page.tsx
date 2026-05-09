@@ -549,6 +549,7 @@ type PacketContract = {
   status: string;
   share_token: string;
   sent_at: string | null;
+  opened_at: string | null;
   signed_at: string | null;
   created_at: string;
 };
@@ -569,7 +570,7 @@ async function VendorPacket({ event }: { event: NonNullable<Awaited<ReturnType<t
   const { data: contracts } = participantIds.length
     ? await supabase
         .from("contracts")
-        .select("participant_id, title, status, share_token, sent_at, signed_at, created_at")
+        .select("participant_id, title, status, share_token, sent_at, opened_at, signed_at, created_at")
         .in("participant_id", participantIds)
         .order("created_at", { ascending: false })
     : { data: [] };
@@ -670,7 +671,9 @@ async function VendorPacket({ event }: { event: NonNullable<Awaited<ReturnType<t
           ) : (
             packetParticipants.map((participant) => {
               const contract = latestByParticipant.get(participant.id);
-              const contractStatus = contract?.status || participant.contract;
+              const contractStatus = contract
+                ? contractDisplayStatus(contract)
+                : participant.contract;
               return (
                 <div
                   key={participant.id}
@@ -778,6 +781,17 @@ async function VendorPacket({ event }: { event: NonNullable<Awaited<ReturnType<t
       )}
     </div>
   );
+}
+
+function contractDisplayStatus(contract: {
+  status: string;
+  opened_at?: string | null;
+}) {
+  if (contract.status === "signed") return "signed";
+  if (contract.status === "sent" && contract.opened_at) return "opened";
+  if (contract.status === "sent") return "sent";
+  if (contract.status === "void") return "wrapped";
+  return "unsent";
 }
 
 async function PortalTab({ event }: { event: NonNullable<Awaited<ReturnType<typeof getEvent>>> }) {

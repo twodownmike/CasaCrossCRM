@@ -300,7 +300,11 @@ export async function sendDraftContract(form: FormData) {
   if (!row || row.status !== "draft") return;
   await supabase
     .from("contracts")
-    .update({ status: "sent", sent_at: new Date().toISOString() })
+    .update({
+      status: "sent",
+      sent_at: new Date().toISOString(),
+      opened_at: null,
+    })
     .eq("id", id);
   await supabase
     .from("participants")
@@ -323,7 +327,7 @@ export async function recallContract(form: FormData) {
   if (!row || row.status !== "sent") return;
   await supabase
     .from("contracts")
-    .update({ status: "draft" })
+    .update({ status: "draft", opened_at: null })
     .eq("id", id);
   await supabase
     .from("participants")

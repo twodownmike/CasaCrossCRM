@@ -14,6 +14,7 @@ export type PacketContract = {
   title: string;
   status: string;
   sent_at: string | null;
+  opened_at: string | null;
   signed_at: string | null;
   created_at: string;
 };
@@ -252,6 +253,15 @@ function statusLabel(value: string | null | undefined) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
+function contractDisplayStatus(contract: {
+  status: string;
+  opened_at?: string | null;
+}) {
+  if (contract.status === "signed") return "signed";
+  if (contract.status === "sent" && contract.opened_at) return "opened";
+  return contract.status;
+}
+
 function formTitle(row: PacketFormAssignment | undefined) {
   if (!row?.form) return null;
   return Array.isArray(row.form) ? row.form[0]?.title : row.form.title;
@@ -436,6 +446,9 @@ export function EventPacketPdf({ event, contracts, formAssignments }: Props) {
               const contract = contractsByParticipant.get(participant.id);
               const form = formsByParticipant.get(participant.id);
               const requiredFormTitle = formTitle(form);
+              const contractStatus = contract
+                ? contractDisplayStatus(contract)
+                : participant.contract;
               const contact = [
                 participant.person.email,
                 participant.person.phone,
@@ -463,7 +476,7 @@ export function EventPacketPdf({ event, contracts, formAssignments }: Props) {
                         </Text>
                       </View>
                       <Text style={styles.pill}>
-                        {statusLabel(contract?.status || participant.contract)}
+                        {statusLabel(contractStatus)}
                       </Text>
                     </View>
                     {contact && <Text style={styles.metaLine}>{contact}</Text>}
@@ -473,7 +486,7 @@ export function EventPacketPdf({ event, contracts, formAssignments }: Props) {
                     <View style={styles.statusGrid}>
                       <Text style={styles.statusText}>
                         Contract: {contract?.title || "No generated contract"} -{" "}
-                        {statusLabel(contract?.status || participant.contract)}
+                        {statusLabel(contractStatus)}
                       </Text>
                       {requiredFormTitle && (
                         <Text style={styles.statusText}>

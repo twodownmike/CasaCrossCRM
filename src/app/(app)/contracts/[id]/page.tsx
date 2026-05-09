@@ -84,15 +84,7 @@ export default async function ContractDetail({
             style={{ display: "flex", gap: 8, alignItems: "center" }}
           >
             <StatusPill
-              status={
-                c.status === "signed"
-                  ? "signed"
-                  : c.status === "sent"
-                    ? "sent"
-                    : c.status === "void"
-                      ? "wrapped"
-                      : "unsent"
-              }
+              status={contractDisplayStatus(c)}
               label={
                 c.status === "draft"
                   ? "Draft"
@@ -113,6 +105,11 @@ export default async function ContractDetail({
 
       {(c.status === "sent" || c.status === "draft") && (
         <div style={{ padding: "0 var(--s-5) var(--s-5)" }}>
+          {c.opened_at && (
+            <div className="notice" style={{ marginBottom: 12 }}>
+              Opened {relTime(c.opened_at)}
+            </div>
+          )}
           <div
             className="card elev"
             style={{
@@ -238,6 +235,17 @@ export default async function ContractDetail({
       </div>
     </div>
   );
+}
+
+function contractDisplayStatus(contract: {
+  status: string;
+  opened_at?: string | null;
+}) {
+  if (contract.status === "signed") return "signed";
+  if (contract.status === "sent" && contract.opened_at) return "opened";
+  if (contract.status === "sent") return "sent";
+  if (contract.status === "void") return "wrapped";
+  return "unsent";
 }
 
 import { CopyButton } from "./copy-button";

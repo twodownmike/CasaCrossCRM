@@ -318,12 +318,14 @@ export default async function PortalEventPage({
                   <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 3 }}>
                     {contract.signed_at
                       ? `Signed ${relTime(contract.signed_at)}`
+                      : contract.opened_at
+                        ? `Opened ${relTime(contract.opened_at)}`
                       : contract.sent_at
                         ? `Sent ${relTime(contract.sent_at)}`
                         : `Created ${relTime(contract.created_at)}`}
                   </div>
                 </div>
-                <StatusPill status={contract.status} />
+                <StatusPill status={contractDisplayStatus(contract)} />
               </Link>
             ))
           )}
@@ -403,6 +405,12 @@ export default async function PortalEventPage({
       </section>
     </div>
   );
+}
+
+function contractDisplayStatus(contract: Contract) {
+  if (contract.status === "signed") return "signed";
+  if (contract.status === "sent" && contract.opened_at) return "opened";
+  return contract.status;
 }
 
 function ReadinessLine({

@@ -33,7 +33,7 @@ export async function GET(
     ? await Promise.all([
         supabase
           .from("contracts")
-          .select("participant_id, title, status, sent_at, signed_at, created_at")
+          .select("participant_id, title, status, sent_at, opened_at, signed_at, created_at")
           .in("participant_id", participantIds)
           .order("created_at", { ascending: false }),
         supabase

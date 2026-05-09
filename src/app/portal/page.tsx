@@ -309,7 +309,7 @@ export default async function PortalHome() {
                 <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
                   <StatusPill status={booking.contract} />
                   {booking.contracts[0] && (
-                    <StatusPill status={booking.contracts[0].status} />
+                    <StatusPill status={contractDisplayStatus(booking.contracts[0])} />
                   )}
                 </div>
               </div>
@@ -320,6 +320,12 @@ export default async function PortalHome() {
       </div>
     </div>
   );
+}
+
+function contractDisplayStatus(contract: Contract) {
+  if (contract.status === "signed") return "signed";
+  if (contract.status === "sent" && contract.opened_at) return "opened";
+  return contract.status;
 }
 
 function PortalHeader({

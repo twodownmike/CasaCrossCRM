@@ -176,15 +176,7 @@ async function ContractsSection({
                       {c.title}
                     </span>
                     <StatusPill
-                      status={
-                        c.status === "signed"
-                          ? "signed"
-                          : c.status === "sent"
-                            ? "sent"
-                            : c.status === "void"
-                              ? "wrapped"
-                              : "unsent"
-                      }
+                      status={contractDisplayStatus(c)}
                     />
                   </div>
                   <div
@@ -196,6 +188,8 @@ async function ContractsSection({
                   >
                     {c.signed_at
                       ? `Signed ${relTime(c.signed_at)} by ${c.signed_name || ""}`
+                      : c.opened_at
+                        ? `Opened ${relTime(c.opened_at)}`
                       : c.sent_at
                         ? `Sent ${relTime(c.sent_at)}`
                         : `Created ${relTime(c.created_at)}`}
@@ -218,4 +212,15 @@ async function ContractsSection({
       </div>
     </>
   );
+}
+
+function contractDisplayStatus(contract: {
+  status: string;
+  opened_at?: string | null;
+}) {
+  if (contract.status === "signed") return "signed";
+  if (contract.status === "sent" && contract.opened_at) return "opened";
+  if (contract.status === "sent") return "sent";
+  if (contract.status === "void") return "wrapped";
+  return "unsent";
 }

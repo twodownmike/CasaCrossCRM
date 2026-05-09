@@ -25,6 +25,16 @@ export default async function SignPage({
   const contract = (data as ContractTokenView | null) || null;
   if (!contract) notFound();
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: isTeamMember } = user
+    ? await supabase.rpc("is_team_member")
+    : { data: false };
+  if (!isTeamMember && !contract.opened_at && contract.status === "sent") {
+    await supabase.rpc("mark_contract_opened", { token: params.token });
+  }
+
   const html = mdToHtml(contract.body_md);
   const signed = contract.status === "signed";
   const isVoid = contract.status === "void";
