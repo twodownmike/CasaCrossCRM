@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Sheet } from "@/components/sheet";
 import { Icon } from "@/components/icons";
+import { createClient } from "@/lib/supabase/client";
 import { fmtMoney, fmtDate } from "@/lib/format";
 import { EXPENSE_CATEGORIES, type Expense } from "@/lib/types";
 import {
@@ -11,6 +12,15 @@ import {
   updateExpense,
   deleteExpense,
 } from "@/app/actions";
+
+const RECEIPT_MAX_BYTES = 8 * 1024 * 1024;
+const RECEIPT_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+];
 
 export function ExpensesPanel({
   eventId,
@@ -211,6 +221,11 @@ export function ExpensesPanel({
                     {e.description}
                   </span>
                   {e.category && <span className="pill">{e.category}</span>}
+                  {e.receipt_url && (
+                    <span className="pill">
+                      <Icon.doc style={{ width: 12, height: 12 }} /> Receipt
+                    </span>
+                  )}
                 </div>
                 <div
                   style={{
@@ -288,7 +303,48 @@ function ExpenseForm({
   const [vendorName, setVendorName] = useState(expense?.vendor_name || "");
   const [spentAt, setSpentAt] = useState(expense?.spent_at || "");
   const [notes, setNotes] = useState(expense?.notes || "");
+  const [receiptUrl, setReceiptUrl] = useState(expense?.receipt_url || "");
+  const [uploadingReceipt, setUploadingReceipt] = useState(false);
+  const [receiptError, setReceiptError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+
+  async function uploadReceipt(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setReceiptError(null);
+    if (file.size > RECEIPT_MAX_BYTES) {
+      setReceiptError("Receipt image must be under 8 MB.");
+      return;
+    }
+    if (!RECEIPT_IMAGE_TYPES.includes(file.type) && !file.type.startsWith("image/")) {
+      setReceiptError("Please upload an image receipt.");
+      return;
+    }
+
+    setUploadingReceipt(true);
+    try {
+      const supabase = createClient();
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `receipts/${eventId}/${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2, 8)}.${ext}`;
+      const { error } = await supabase.storage
+        .from("event-covers")
+        .upload(path, file, {
+          cacheControl: "31536000",
+          contentType: file.type || "image/jpeg",
+          upsert: false,
+        });
+      if (error) throw error;
+      const { data } = supabase.storage.from("event-covers").getPublicUrl(path);
+      setReceiptUrl(data.publicUrl);
+    } catch (err) {
+      setReceiptError(err instanceof Error ? err.message : "Receipt upload failed.");
+    } finally {
+      setUploadingReceipt(false);
+      e.target.value = "";
+    }
+  }
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -301,6 +357,7 @@ function ExpenseForm({
     f.set("vendor_name", vendorName);
     f.set("spent_at", spentAt);
     f.set("notes", notes);
+    f.set("receipt_url", receiptUrl);
     start(async () => {
       const fn = expense ? updateExpense : createExpense;
       await fn(f);
@@ -389,6 +446,105 @@ function ExpenseForm({
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
         />
+      </div>
+      <div>
+        <label className="form-label">Receipt image</label>
+        <input type="hidden" name="receipt_url" value={receiptUrl} />
+        {receiptUrl ? (
+          <div
+            className="card elev"
+            style={{
+              padding: 12,
+              display: "grid",
+              gridTemplateColumns: "72px 1fr",
+              gap: 12,
+              alignItems: "center",
+            }}
+          >
+            <a
+              href={receiptUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: 8,
+                border: "1px solid var(--hair)",
+                background: `url(${receiptUrl}) center / cover`,
+                display: "block",
+              }}
+              aria-label="Open receipt"
+            />
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 500 }}>Receipt attached</div>
+              <a
+                href={receiptUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="muted"
+                style={{
+                  display: "block",
+                  fontSize: 12,
+                  marginTop: 4,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                View receipt
+              </a>
+              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                <label
+                  className="btn sm"
+                  style={{ cursor: uploadingReceipt ? "wait" : "pointer" }}
+                >
+                  {uploadingReceipt ? "Uploading..." : "Replace"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={uploadReceipt}
+                    disabled={uploadingReceipt || pending}
+                    style={{ display: "none" }}
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="btn sm"
+                  onClick={() => {
+                    setReceiptUrl("");
+                    setReceiptError(null);
+                  }}
+                  disabled={uploadingReceipt || pending}
+                  style={{ color: "var(--terracotta)" }}
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <label
+            className="btn block"
+            style={{ cursor: uploadingReceipt ? "wait" : "pointer", margin: 0 }}
+          >
+            <Icon.doc /> {uploadingReceipt ? "Uploading..." : "Upload receipt image"}
+            <input
+              type="file"
+              accept="image/*"
+              onChange={uploadReceipt}
+              disabled={uploadingReceipt || pending}
+              style={{ display: "none" }}
+            />
+          </label>
+        )}
+        {receiptError && (
+          <div className="notice warn" style={{ marginTop: 10 }}>
+            {receiptError}
+          </div>
+        )}
+        <p className="muted" style={{ fontSize: 11, marginTop: 8, lineHeight: 1.5 }}>
+          Stored in Supabase Storage. JPG, PNG, WebP, HEIC, or HEIF up to 8 MB.
+        </p>
       </div>
       <div className="sheet-footer">
         <button className="btn primary block" type="submit" disabled={pending}>
