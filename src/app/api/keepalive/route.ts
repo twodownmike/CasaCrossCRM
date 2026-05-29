@@ -21,13 +21,24 @@ export async function GET(request: Request) {
     );
   }
 
-  const response = await fetch(`${supabaseUrl}/rest/v1/events?select=id&limit=1`, {
-    headers: {
-      apikey: supabaseAnonKey,
-      authorization: `Bearer ${supabaseAnonKey}`,
-    },
-    cache: "no-store",
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${supabaseUrl}/rest/v1/events?select=id&limit=1`, {
+      headers: {
+        apikey: supabaseAnonKey,
+        authorization: `Bearer ${supabaseAnonKey}`,
+      },
+      cache: "no-store",
+    });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: error instanceof Error ? error.message : "Supabase request failed",
+      },
+      { status: 502 },
+    );
+  }
 
   if (!response.ok) {
     return NextResponse.json(
