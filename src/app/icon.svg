@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="104" fill="#b8654a" />
+  <rect x="18" y="18" width="476" height="476" rx="88" fill="none" stroke="#dba995" stroke-width="6" />
+  <text
+    x="244"
+    y="370"
+    fill="#fffaf5"
+    font-family="Georgia, 'Times New Roman', serif"
+    font-size="350"
+    font-style="italic"
+    text-anchor="middle"
+  >C</text>
+  <g fill="none" stroke="#fffaf5" stroke-linecap="round" stroke-linejoin="round" stroke-width="12">
+    <path d="M332 150c32-18 58-48 72-83" />
+    <ellipse cx="368" cy="111" rx="13" ry="28" transform="rotate(49 368 111)" />
+    <ellipse cx="402" cy="76" rx="12" ry="25" transform="rotate(18 402 76)" />
+    <ellipse cx="421" cy="116" rx="13" ry="27" transform="rotate(72 421 116)" />
+    <circle cx="432" cy="61" r="7" fill="#fffaf5" stroke="none" />
+  </g>
+</svg>
