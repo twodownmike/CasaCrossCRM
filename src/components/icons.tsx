@@ -69,6 +69,26 @@ export const Icon = {
       <circle cx="18" cy="12" r="1.6" />
     </svg>
   ),
+  grip: (p: P) => (
+    <svg width="18" height="18" viewBox="0 0 24 24" {...base} strokeWidth={1.8} {...p}>
+      <circle cx="9" cy="6" r="1" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="6" r="1" fill="currentColor" stroke="none" />
+      <circle cx="9" cy="12" r="1" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="12" r="1" fill="currentColor" stroke="none" />
+      <circle cx="9" cy="18" r="1" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="18" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  ),
+  moveTop: (p: P) => (
+    <svg width="18" height="18" viewBox="0 0 24 24" {...base} strokeWidth={1.8} {...p}>
+      <path d="M5 5h14M7 15l5-5 5 5M12 10v9" />
+    </svg>
+  ),
+  moveBottom: (p: P) => (
+    <svg width="18" height="18" viewBox="0 0 24 24" {...base} strokeWidth={1.8} {...p}>
+      <path d="M5 19h14M7 9l5 5 5-5M12 5v9" />
+    </svg>
+  ),
   share: (p: P) => (
     <svg width="18" height="18" viewBox="0 0 24 24" {...base} strokeWidth={1.8} {...p}>
       <path d="M12 4v12M8 8l4-4 4 4M5 14v5h14v-5" />

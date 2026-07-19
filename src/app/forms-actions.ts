@@ -255,39 +255,45 @@ export async function duplicateFormField(form: FormData) {
   revalidatePath(`/forms/${formId}/edit`);
 }
 
-export async function moveFormField(form: FormData) {
+export async function reorderFormFields(
+  form: FormData,
+): Promise<{ ok: true } | { ok: false; error: string }> {
   const supabase = createClient();
-  const id = s(form, "id");
   const formId = s(form, "form_id");
-  const direction = s(form, "direction"); // "up" | "down"
-  if (!id || !formId) return;
-  const { data: row } = await supabase
+  const orderedIds = form
+    .getAll("field_ids[]")
+    .filter((id): id is string => typeof id === "string" && id.length > 0);
+  if (!formId || orderedIds.length === 0) {
+    return { ok: false, error: "Missing form order." };
+  }
+  if (new Set(orderedIds).size !== orderedIds.length) {
+    return { ok: false, error: "The form order contains duplicate fields." };
+  }
+
+  const { data: existing, error: readError } = await supabase
     .from("form_fields")
-    .select("position")
-    .eq("id", id)
-    .maybeSingle();
-  if (!row) return;
-  const op = direction === "up" ? "lt" : "gt";
-  const order = direction === "up" ? "desc" : "asc";
-  const { data: neighbor } = await supabase
-    .from("form_fields")
-    .select("id, position")
-    .eq("form_id", formId)
-    [op as "lt" | "gt"]("position", row.position)
-    .order("position", { ascending: order === "asc" })
-    .limit(1)
-    .maybeSingle();
-  if (!neighbor) return;
-  // Swap positions
-  await supabase
-    .from("form_fields")
-    .update({ position: neighbor.position })
-    .eq("id", id);
-  await supabase
-    .from("form_fields")
-    .update({ position: row.position })
-    .eq("id", neighbor.id);
+    .select("id")
+    .eq("form_id", formId);
+  if (readError) return { ok: false, error: readError.message };
+
+  const existingIds = new Set((existing ?? []).map((field) => field.id));
+  if (
+    existingIds.size !== orderedIds.length ||
+    orderedIds.some((id) => !existingIds.has(id))
+  ) {
+    return { ok: false, error: "The form changed. Refresh and try again." };
+  }
+
+  const results = await Promise.all(
+    orderedIds.map((id, position) =>
+      supabase.from("form_fields").update({ position }).eq("id", id),
+    ),
+  );
+  const updateError = results.find((result) => result.error)?.error;
+  if (updateError) return { ok: false, error: updateError.message };
+
   revalidatePath(`/forms/${formId}/edit`);
+  return { ok: true };
 }
 
 // ─── Responses ───

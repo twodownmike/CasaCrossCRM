@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Sheet } from "@/components/sheet";
 import { Icon } from "@/components/icons";
@@ -10,7 +10,7 @@ import {
   updateFormField,
   deleteFormField,
   duplicateFormField,
-  moveFormField,
+  reorderFormFields,
 } from "@/app/forms-actions";
 import {
   FIELD_TYPE_LABELS,
@@ -25,17 +25,80 @@ export function FieldList({
   formId: string;
   fields: FormField[];
 }) {
+  const router = useRouter();
+  const [orderedFields, setOrderedFields] = useState(fields);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<{
+    id: string;
+    after: boolean;
+  } | null>(null);
+  const [reorderPending, startReorder] = useTransition();
+
+  useEffect(() => setOrderedFields(fields), [fields]);
+
+  function saveOrder(nextFields: FormField[]) {
+    const previousFields = orderedFields;
+    setOrderedFields(nextFields);
+    const form = new FormData();
+    form.set("form_id", formId);
+    nextFields.forEach((field) => form.append("field_ids[]", field.id));
+    startReorder(async () => {
+      const result = await reorderFormFields(form);
+      if (!result.ok) {
+        setOrderedFields(previousFields);
+        alert(result.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
+  function moveToEdge(fieldId: string, edge: "top" | "bottom") {
+    const field = orderedFields.find((candidate) => candidate.id === fieldId);
+    if (!field) return;
+    const remaining = orderedFields.filter(
+      (candidate) => candidate.id !== fieldId,
+    );
+    saveOrder(edge === "top" ? [field, ...remaining] : [...remaining, field]);
+  }
+
+  function dropField(targetId: string, after: boolean) {
+    if (!draggingId || draggingId === targetId) return;
+    const dragged = orderedFields.find((field) => field.id === draggingId);
+    if (!dragged) return;
+    const remaining = orderedFields.filter((field) => field.id !== draggingId);
+    const targetIndex = remaining.findIndex((field) => field.id === targetId);
+    if (targetIndex < 0) return;
+    const insertionIndex = targetIndex + (after ? 1 : 0);
+    const nextFields = [...remaining];
+    nextFields.splice(insertionIndex, 0, dragged);
+    saveOrder(nextFields);
+    setDraggingId(null);
+    setDropTarget(null);
+  }
+
   return (
-    <div className="card elev">
-      {fields.map((f, i) => (
+    <div className="card elev" aria-busy={reorderPending}>
+      {orderedFields.map((f, i) => (
         <FieldRow
           key={f.id}
           field={f}
           formId={formId}
           isFirst={i === 0}
-          isLast={i === fields.length - 1}
+          isLast={i === orderedFields.length - 1}
+          reorderPending={reorderPending}
+          isDragging={draggingId === f.id}
+          dropAfter={dropTarget?.id === f.id ? dropTarget.after : null}
+          onDragStart={() => setDraggingId(f.id)}
+          onDragOver={(after) => setDropTarget({ id: f.id, after })}
+          onDrop={(after) => dropField(f.id, after)}
+          onDragEnd={() => {
+            setDraggingId(null);
+            setDropTarget(null);
+          }}
+          onMoveToEdge={(edge) => moveToEdge(f.id, edge)}
           previousQuestionLabel={
-            fields
+            orderedFields
               .slice(0, i)
               .reverse()
               .find((candidate) => candidate.type !== "section")?.label
@@ -51,28 +114,33 @@ function FieldRow({
   formId,
   isFirst,
   isLast,
+  reorderPending,
+  isDragging,
+  dropAfter,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
+  onMoveToEdge,
   previousQuestionLabel,
 }: {
   field: FormField;
   formId: string;
   isFirst: boolean;
   isLast: boolean;
+  reorderPending: boolean;
+  isDragging: boolean;
+  dropAfter: boolean | null;
+  onDragStart: () => void;
+  onDragOver: (after: boolean) => void;
+  onDrop: (after: boolean) => void;
+  onDragEnd: () => void;
+  onMoveToEdge: (edge: "top" | "bottom") => void;
   previousQuestionLabel?: string;
 }) {
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
   const [pending, start] = useTransition();
-
-  function move(direction: "up" | "down") {
-    const f = new FormData();
-    f.set("id", field.id);
-    f.set("form_id", formId);
-    f.set("direction", direction);
-    start(async () => {
-      await moveFormField(f);
-      router.refresh();
-    });
-  }
 
   function remove() {
     if (!confirm(`Delete field "${field.label}"?`)) return;
@@ -98,14 +166,47 @@ function FieldRow({
   return (
     <div
       className="card-row"
+      onDragOver={(event) => {
+        event.preventDefault();
+        const rect = event.currentTarget.getBoundingClientRect();
+        onDragOver(event.clientY >= rect.top + rect.height / 2);
+      }}
+      onDrop={(event) => {
+        event.preventDefault();
+        const rect = event.currentTarget.getBoundingClientRect();
+        onDrop(event.clientY >= rect.top + rect.height / 2);
+      }}
       style={{
         cursor: "default",
         alignItems: "flex-start",
-        opacity: pending ? 0.6 : 1,
+        opacity: pending || isDragging ? 0.5 : 1,
+        boxShadow:
+          dropAfter === null
+            ? undefined
+            : dropAfter
+              ? "inset 0 -2px var(--terracotta)"
+              : "inset 0 2px var(--terracotta)",
       }}
     >
+      <button
+        className="icon-btn"
+        type="button"
+        draggable={!reorderPending}
+        aria-label={`Drag to reorder ${field.label}`}
+        title="Drag to reorder"
+        onDragStart={(event) => {
+          event.dataTransfer.effectAllowed = "move";
+          event.dataTransfer.setData("text/plain", field.id);
+          onDragStart();
+        }}
+        onDragEnd={onDragEnd}
+        disabled={reorderPending}
+        style={{ cursor: reorderPending ? "wait" : "grab", flexShrink: 0 }}
+      >
+        <Icon.grip />
+      </button>
       <span
-        className="pill"
+        className="pill form-field-type-pill"
         style={{
           background: "var(--hair-2)",
           color: "var(--ink-3)",
@@ -154,46 +255,28 @@ function FieldRow({
           </div>
         )}
       </div>
-      <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+      <div className="form-field-actions">
         <button
           className="icon-btn"
-          aria-label="Move up"
-          onClick={() => move("up")}
-          disabled={isFirst || pending}
+          type="button"
+          aria-label="Move to top"
+          title="Move to top"
+          onClick={() => onMoveToEdge("top")}
+          disabled={isFirst || pending || reorderPending}
           style={{ opacity: isFirst ? 0.4 : 1 }}
         >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M6 15l6-6 6 6" />
-          </svg>
+          <Icon.moveTop />
         </button>
         <button
           className="icon-btn"
-          aria-label="Move down"
-          onClick={() => move("down")}
-          disabled={isLast || pending}
+          type="button"
+          aria-label="Move to bottom"
+          title="Move to bottom"
+          onClick={() => onMoveToEdge("bottom")}
+          disabled={isLast || pending || reorderPending}
           style={{ opacity: isLast ? 0.4 : 1 }}
         >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M6 9l6 6 6-6" />
-          </svg>
+          <Icon.moveBottom />
         </button>
         <button
           className="icon-btn"
