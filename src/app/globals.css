@@ -311,6 +311,14 @@ a { color: inherit; text-decoration: none; }
 .card-row:active { background: var(--hair-2); }
 
 .form-field-type-pill { display: none; }
+.form-section-row {
+  background: var(--terracotta-tint);
+  box-shadow: inset 4px 0 var(--terracotta);
+  padding-top: 18px;
+  padding-bottom: 18px;
+}
+.form-section-row:hover { background: #f0ddd5; }
+.form-section-row .form-field-type-pill { display: inline-flex; }
 .form-field-actions {
   display: grid;
   grid-template-columns: repeat(3, 36px);

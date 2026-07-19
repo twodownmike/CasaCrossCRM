@@ -139,11 +139,13 @@ function FieldRow({
   previousQuestionLabel?: string;
 }) {
   const router = useRouter();
+  const isSection = field.type === "section";
   const [editOpen, setEditOpen] = useState(false);
   const [pending, start] = useTransition();
 
   function remove() {
-    if (!confirm(`Delete field "${field.label}"?`)) return;
+    if (!confirm(`Delete ${isSection ? "section" : "field"} "${field.label}"?`))
+      return;
     const f = new FormData();
     f.set("id", field.id);
     f.set("form_id", formId);
@@ -165,7 +167,7 @@ function FieldRow({
 
   return (
     <div
-      className="card-row"
+      className={`card-row${isSection ? " form-section-row" : ""}`}
       onDragOver={(event) => {
         event.preventDefault();
         const rect = event.currentTarget.getBoundingClientRect();
@@ -192,7 +194,7 @@ function FieldRow({
         className="icon-btn"
         type="button"
         draggable={!reorderPending}
-        aria-label={`Drag to reorder ${field.label}`}
+        aria-label={`Drag to reorder ${isSection ? "section" : "field"} ${field.label}`}
         title="Drag to reorder"
         onDragStart={(event) => {
           event.dataTransfer.effectAllowed = "move";
@@ -201,15 +203,19 @@ function FieldRow({
         }}
         onDragEnd={onDragEnd}
         disabled={reorderPending}
-        style={{ cursor: reorderPending ? "wait" : "grab", flexShrink: 0 }}
+        style={{
+          cursor: reorderPending ? "wait" : "grab",
+          flexShrink: 0,
+          color: isSection ? "var(--terracotta)" : undefined,
+        }}
       >
         <Icon.grip />
       </button>
       <span
         className="pill form-field-type-pill"
         style={{
-          background: "var(--hair-2)",
-          color: "var(--ink-3)",
+          background: isSection ? "var(--terracotta)" : "var(--hair-2)",
+          color: isSection ? "white" : "var(--ink-3)",
           marginTop: 2,
         }}
       >
@@ -218,8 +224,11 @@ function FieldRow({
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
           style={{
-            fontSize: 14,
-            fontWeight: 500,
+            fontSize: isSection ? 18 : 14,
+            fontFamily: isSection ? "var(--serif)" : undefined,
+            fontWeight: isSection ? 600 : 500,
+            color: isSection ? "var(--ink)" : undefined,
+            lineHeight: isSection ? 1.2 : undefined,
             display: "flex",
             gap: 8,
             alignItems: "center",
@@ -280,14 +289,16 @@ function FieldRow({
         </button>
         <button
           className="icon-btn"
-          aria-label="Edit"
+          aria-label={isSection ? "Edit section" : "Edit field"}
+          title={isSection ? "Edit section" : "Edit field"}
           onClick={() => setEditOpen(true)}
         >
           <Icon.doc />
         </button>
         <button
           className="icon-btn"
-          aria-label="Duplicate"
+          aria-label={isSection ? "Duplicate section" : "Duplicate field"}
+          title={isSection ? "Duplicate section" : "Duplicate field"}
           onClick={duplicate}
           disabled={pending}
         >
@@ -295,7 +306,8 @@ function FieldRow({
         </button>
         <button
           className="icon-btn"
-          aria-label="Delete"
+          aria-label={isSection ? "Delete section" : "Delete field"}
+          title={isSection ? "Delete section" : "Delete field"}
           onClick={remove}
           style={{ color: "var(--terracotta)" }}
         >
@@ -306,7 +318,7 @@ function FieldRow({
       <Sheet
         open={editOpen}
         onClose={() => setEditOpen(false)}
-        title="Edit field"
+        title={isSection ? "Edit section" : "Edit field"}
       >
         <FieldForm
           formId={formId}
