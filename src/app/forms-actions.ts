@@ -42,8 +42,27 @@ const VALID_TYPES: FormFieldType[] = [
   "date",
   "textarea",
   "select",
+  "multiselect",
   "checkbox",
+  "section",
 ];
+
+function isAnswerableField(field: { type: string }) {
+  return field.type !== "section";
+}
+
+function isYes(value: unknown) {
+  if (value === true) return true;
+  if (Array.isArray(value)) return value.some(isYes);
+  return typeof value === "string" && value.trim().toLowerCase() === "yes";
+}
+
+function displayFormValue(value: unknown) {
+  if (value === null || value === undefined || value === "") return "—";
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (Array.isArray(value)) return value.length > 0 ? value.join(", ") : "—";
+  return String(value);
+}
 
 // ─── Forms ───
 export async function createForm(form: FormData) {
@@ -57,7 +76,11 @@ export async function createForm(form: FormData) {
   if (!title) return;
   const { data, error } = await supabase
     .from("forms")
-    .insert({ title, description: nullable(form, "description"), created_by: user.id })
+    .insert({
+      title,
+      description: nullable(form, "description"),
+      created_by: user.id,
+    })
     .select("id")
     .single();
   if (error) throw error;
@@ -71,7 +94,8 @@ export async function updateFormMeta(form: FormData) {
   if (!id) return;
   const updates: Record<string, unknown> = {};
   if (form.has("title")) updates.title = s(form, "title");
-  if (form.has("description")) updates.description = nullable(form, "description");
+  if (form.has("description"))
+    updates.description = nullable(form, "description");
   if (form.has("thank_you_message"))
     updates.thank_you_message = nullable(form, "thank_you_message");
   if (form.has("is_published"))
@@ -136,8 +160,11 @@ export async function addFormField(form: FormData) {
   const fieldKey = await uniqueFieldKey(formId, slugifyKey(label));
   const optionsRaw = s(form, "options");
   const options =
-    typeRaw === "select"
-      ? optionsRaw.split("\n").map((o) => o.trim()).filter(Boolean)
+    typeRaw === "select" || typeRaw === "multiselect"
+      ? optionsRaw
+          .split("\n")
+          .map((o) => o.trim())
+          .filter(Boolean)
       : null;
 
   await supabase.from("form_fields").insert({
@@ -147,9 +174,11 @@ export async function addFormField(form: FormData) {
     label,
     type: typeRaw,
     options,
-    required: form.get("required") === "on",
-    placeholder: nullable(form, "placeholder"),
+    required: typeRaw !== "section" && form.get("required") === "on",
+    placeholder: typeRaw === "section" ? null : nullable(form, "placeholder"),
     helper: nullable(form, "helper"),
+    show_if_previous_yes:
+      typeRaw !== "section" && form.get("show_if_previous_yes") === "on",
   });
   revalidatePath(`/forms/${formId}/edit`);
 }
@@ -164,8 +193,11 @@ export async function updateFormField(form: FormData) {
 
   const optionsRaw = s(form, "options");
   const options =
-    typeRaw === "select"
-      ? optionsRaw.split("\n").map((o) => o.trim()).filter(Boolean)
+    typeRaw === "select" || typeRaw === "multiselect"
+      ? optionsRaw
+          .split("\n")
+          .map((o) => o.trim())
+          .filter(Boolean)
       : null;
 
   await supabase
@@ -174,9 +206,11 @@ export async function updateFormField(form: FormData) {
       label,
       type: typeRaw,
       options,
-      required: form.get("required") === "on",
-      placeholder: nullable(form, "placeholder"),
+      required: typeRaw !== "section" && form.get("required") === "on",
+      placeholder: typeRaw === "section" ? null : nullable(form, "placeholder"),
       helper: nullable(form, "helper"),
+      show_if_previous_yes:
+        typeRaw !== "section" && form.get("show_if_previous_yes") === "on",
     })
     .eq("id", id);
   revalidatePath(`/forms/${formId}/edit`);
@@ -216,6 +250,7 @@ export async function duplicateFormField(form: FormData) {
     required: source.required,
     placeholder: source.placeholder,
     helper: source.helper,
+    show_if_previous_yes: source.show_if_previous_yes,
   });
   revalidatePath(`/forms/${formId}/edit`);
 }
@@ -280,20 +315,41 @@ export async function submitFormResponse(
     .order("position", { ascending: true });
 
   const data: Record<string, unknown> = {};
+  let previousAnswer: unknown;
   for (const f of fields ?? []) {
+    if (!isAnswerableField(f)) continue;
+    const isVisible = !f.show_if_previous_yes || isYes(previousAnswer);
+    if (!isVisible) {
+      data[f.field_key] = null;
+      previousAnswer = null;
+      continue;
+    }
     const raw = form.get(f.field_key);
     let value: unknown;
     if (f.type === "checkbox") {
       value = raw === "on" || raw === "true";
+    } else if (f.type === "multiselect") {
+      value = form
+        .getAll(f.field_key)
+        .filter((item): item is string => typeof item === "string")
+        .map((item) => item.trim())
+        .filter(Boolean);
     } else if (typeof raw === "string") {
       value = raw.trim() || null;
     } else {
       value = null;
     }
-    if (f.required && (value === null || value === false || value === "")) {
+    if (
+      f.required &&
+      (value === null ||
+        value === false ||
+        value === "" ||
+        (Array.isArray(value) && value.length === 0))
+    ) {
       return { ok: false, error: `"${f.label}" is required.` };
     }
     data[f.field_key] = value;
+    previousAnswer = value;
   }
 
   const { data: inserted, error } = await supabase
@@ -324,14 +380,10 @@ export async function submitFormResponse(
     process.env.NEXT_PUBLIC_CRM_URL || process.env.NEXT_PUBLIC_SITE_URL || "";
   const formUrl = siteUrl ? `${siteUrl}/forms/${formId}/responses` : "";
   const detailRows = (fields ?? [])
+    .filter(isAnswerableField)
     .map((f) => {
       const v = data[f.field_key];
-      const display =
-        v === null || v === undefined
-          ? "—"
-          : typeof v === "boolean"
-            ? v ? "Yes" : "No"
-            : String(v);
+      const display = displayFormValue(v);
       return `<tr><td style="padding:6px 14px 6px 0;color:#6b665e;font-size:13px;">${escapeHtml(
         f.label,
       )}</td><td style="padding:6px 0;font-size:13px;color:#1a1814;">${escapeHtml(
@@ -349,11 +401,13 @@ export async function submitFormResponse(
         ${formUrl ? `<div style="margin-top:24px;"><a href="${formUrl}" style="display:inline-block;background:#1a1814;color:#fff;text-decoration:none;padding:11px 22px;border-radius:999px;font-size:14px;font-weight:500;">View responses</a></div>` : ""}
       </div>
     `,
-    text: `New response — ${meta.title}\n\n` +
+    text:
+      `New response — ${meta.title}\n\n` +
       (fields ?? [])
+        .filter(isAnswerableField)
         .map((f) => {
           const v = data[f.field_key];
-          return `${f.label}: ${v === null || v === undefined ? "—" : typeof v === "boolean" ? (v ? "Yes" : "No") : v}`;
+          return `${f.label}: ${displayFormValue(v)}`;
         })
         .join("\n") +
       (formUrl ? `\n\n${formUrl}` : ""),
@@ -365,7 +419,9 @@ export async function submitFormResponse(
   return { ok: true, slug: meta.slug };
 }
 
-export async function bulkSendForms(form: FormData): Promise<
+export async function bulkSendForms(
+  form: FormData,
+): Promise<
   | { ok: true; sent: number; assigned: number; skipped: number }
   | { ok: false; error: string }
 > {
@@ -377,9 +433,9 @@ export async function bulkSendForms(form: FormData): Promise<
 
   const eventId = s(form, "event_id");
   const formId = s(form, "form_id");
-  const participantIds = form.getAll("participant_ids[]").filter(
-    (id): id is string => typeof id === "string" && id.length > 0,
-  );
+  const participantIds = form
+    .getAll("participant_ids[]")
+    .filter((id): id is string => typeof id === "string" && id.length > 0);
   if (!eventId || !formId || participantIds.length === 0) {
     return { ok: false, error: "Choose a form and at least one participant." };
   }
@@ -391,7 +447,11 @@ export async function bulkSendForms(form: FormData): Promise<
         .select("id, title, description, is_published")
         .eq("id", formId)
         .maybeSingle(),
-      supabase.from("events").select("id, name, date").eq("id", eventId).maybeSingle(),
+      supabase
+        .from("events")
+        .select("id, name, date")
+        .eq("id", eventId)
+        .maybeSingle(),
       supabase
         .from("participants")
         .select("id, person_id, people(id, name, email)")

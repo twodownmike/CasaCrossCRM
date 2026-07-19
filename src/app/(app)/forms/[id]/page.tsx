@@ -33,7 +33,9 @@ export default async function FormOverview({
   if (!f) notFound();
 
   const totalResponses = count ?? 0;
-  const fieldCount = (fields ?? []).length;
+  const fieldCount = (fields ?? []).filter(
+    (field) => field.type !== "section",
+  ).length;
 
   return (
     <div className="fade-in">
@@ -76,7 +78,7 @@ export default async function FormOverview({
           </div>
         </div>
         <div className="stat">
-          <div className="label">Fields</div>
+          <div className="label">Questions</div>
           <div className="val tabnums">{fieldCount}</div>
           <div className="delta">
             <Link href={`/forms/${params.id}/edit`} className="more">
@@ -162,9 +164,9 @@ export default async function FormOverview({
 
 function summarize(
   data: Record<string, unknown>,
-  fields: Array<{ field_key: string; label: string }>,
+  fields: Array<{ field_key: string; label: string; type: string }>,
 ) {
-  const first = fields.slice(0, 2);
+  const first = fields.filter((field) => field.type !== "section").slice(0, 2);
   return first
     .map((f) => {
       const v = data[f.field_key];
@@ -175,7 +177,9 @@ function summarize(
             ? v
               ? "yes"
               : "no"
-            : String(v);
+            : Array.isArray(v)
+              ? v.join(", ")
+              : String(v);
       return `${f.label}: ${display || "—"}`;
     })
     .join(" · ");

@@ -98,7 +98,7 @@ export default async function FormResponses({
                   margin: 0,
                 }}
               >
-                {(fields ?? []).map((field) => {
+                {(fields ?? []).filter((field) => field.type !== "section").map((field) => {
                   const v = (r.data as Record<string, unknown>)[
                     field.field_key
                   ];
@@ -109,7 +109,11 @@ export default async function FormResponses({
                         ? v
                           ? "Yes"
                           : "No"
-                        : String(v);
+                        : Array.isArray(v)
+                          ? v.length > 0
+                            ? v.join(", ")
+                            : "—"
+                          : String(v);
                   return (
                     <div
                       key={field.id}

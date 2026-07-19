@@ -85,7 +85,14 @@ export default async function FormEditorPage({
       </div>
 
       <div style={{ padding: "var(--s-5)" }}>
-        <AddFieldButton formId={f.id} />
+        <AddFieldButton
+          formId={f.id}
+          previousQuestionLabel={
+            [...(fields ?? [])]
+              .reverse()
+              .find((field) => field.type !== "section")?.label
+          }
+        />
       </div>
 
       <div className="section-label">

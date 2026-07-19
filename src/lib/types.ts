@@ -210,7 +210,9 @@ export type FormFieldType =
   | "date"
   | "textarea"
   | "select"
-  | "checkbox";
+  | "multiselect"
+  | "checkbox"
+  | "section";
 
 export type FormRow = {
   id: string;
@@ -234,6 +236,7 @@ export type FormField = {
   required: boolean;
   placeholder: string | null;
   helper: string | null;
+  show_if_previous_yes: boolean;
 };
 
 export type FormResponse = {
@@ -267,10 +270,17 @@ export const FIELD_TYPE_LABELS: Record<FormFieldType, string> = {
   date: "Date",
   textarea: "Long text",
   select: "Dropdown",
+  multiselect: "Multi-select dropdown",
   checkbox: "Checkbox",
+  section: "Section",
 };
 
-export type SubmissionStatus = "pending" | "reviewing" | "invited" | "approved" | "archived";
+export type SubmissionStatus =
+  | "pending"
+  | "reviewing"
+  | "invited"
+  | "approved"
+  | "archived";
 
 export type Submission = {
   id: string;

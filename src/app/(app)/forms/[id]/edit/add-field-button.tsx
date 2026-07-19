@@ -6,21 +6,24 @@ import { Sheet } from "@/components/sheet";
 import { Icon } from "@/components/icons";
 import { FieldForm } from "./field-list";
 
-export function AddFieldButton({ formId }: { formId: string }) {
+export function AddFieldButton({
+  formId,
+  previousQuestionLabel,
+}: {
+  formId: string;
+  previousQuestionLabel?: string;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button
-        className="btn block"
-        type="button"
-        onClick={() => setOpen(true)}
-      >
+      <button className="btn block" type="button" onClick={() => setOpen(true)}>
         <Icon.plus /> Add field
       </button>
       <Sheet open={open} onClose={() => setOpen(false)} title="Add field">
         <FieldForm
           formId={formId}
+          previousQuestionLabel={previousQuestionLabel}
           onSaved={() => {
             setOpen(false);
             router.refresh();
