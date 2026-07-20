@@ -248,11 +248,23 @@ export type FormConditionOperator =
   | "contains"
   | "not_empty";
 
+export type FormResponseStatus =
+  | "new"
+  | "reviewing"
+  | "follow_up"
+  | "qualified"
+  | "closed";
+
 export type FormResponse = {
   id: string;
   form_id: string;
   data: Record<string, unknown>;
+  status: FormResponseStatus;
+  assigned_to: string | null;
+  internal_notes: string | null;
+  tags: string[];
   created_at: string;
+  updated_at: string;
 };
 
 export type FormAssignment = {

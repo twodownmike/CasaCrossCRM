@@ -2,7 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { submitFormResponse } from "@/app/forms-actions";
+import {
+  recordFormAnalyticsEvent,
+  submitFormResponse,
+} from "@/app/forms-actions";
 import { isFormFieldVisible } from "@/lib/form-conditions";
 import { normalizeFormFieldOptions } from "@/lib/form-fields";
 import type { FormField } from "@/lib/types";
@@ -29,6 +32,8 @@ export function PublicFormRenderer({
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
+  const analyticsSessionRef = useRef<string | null>(null);
+  const startTrackedRef = useRef(false);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
@@ -68,6 +73,17 @@ export function PublicFormRenderer({
     }
   }, [storageKey]);
 
+  useEffect(() => {
+    const sessionKey = `casa-cross-form-session:${formId}`;
+    let sessionId = window.sessionStorage.getItem(sessionKey);
+    if (!sessionId) {
+      sessionId = window.crypto.randomUUID();
+      window.sessionStorage.setItem(sessionKey, sessionId);
+    }
+    analyticsSessionRef.current = sessionId;
+    void recordFormAnalyticsEvent(formId, "view", sessionId);
+  }, [formId]);
+
   function persistAnswers(
     nextAnswers: Record<string, unknown>,
     nextStepIndex = stepIndex,
@@ -101,6 +117,14 @@ export function PublicFormRenderer({
       (candidate) => candidate.field_key === target.name,
     );
     if (!field) return;
+    if (!startTrackedRef.current && analyticsSessionRef.current) {
+      startTrackedRef.current = true;
+      void recordFormAnalyticsEvent(
+        formId,
+        "start",
+        analyticsSessionRef.current,
+      );
+    }
     setError(null);
     const formData = new FormData(e.currentTarget);
     const value =

@@ -10,6 +10,7 @@ import type {
   FormConditionOperator,
   FormField,
   FormFieldType,
+  FormResponseStatus,
 } from "@/lib/types";
 
 function s(form: FormData, key: string) {
@@ -59,6 +60,20 @@ const VALID_CONDITION_OPERATORS: FormConditionOperator[] = [
   "not_empty",
 ];
 
+const VALID_RESPONSE_STATUSES: FormResponseStatus[] = [
+  "new",
+  "reviewing",
+  "follow_up",
+  "qualified",
+  "closed",
+];
+
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+}
+
 function isAnswerableField(field: { type: string }) {
   return field.type !== "section";
 }
@@ -68,6 +83,35 @@ function displayFormValue(value: unknown) {
   if (typeof value === "boolean") return value ? "Yes" : "No";
   if (Array.isArray(value)) return value.length > 0 ? value.join(", ") : "—";
   return String(value);
+}
+
+function findRespondentEmail(
+  fields: FormField[],
+  data: Record<string, unknown>,
+) {
+  const emailField = fields.find(
+    (field) =>
+      field.type === "email" &&
+      isFormFieldVisible(field, fields, data) &&
+      typeof data[field.field_key] === "string",
+  );
+  const email = emailField ? String(data[emailField.field_key]).trim() : "";
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
+}
+
+export async function recordFormAnalyticsEvent(
+  formId: string,
+  eventType: "view" | "start",
+  sessionId: string,
+) {
+  if (!isUuid(formId) || !isUuid(sessionId)) return;
+  const supabase = createClient();
+  const { error } = await supabase.rpc("record_form_analytics_event", {
+    form_id_value: formId,
+    event_type_value: eventType,
+    session_id_value: sessionId,
+  });
+  if (error) console.error("recordFormAnalyticsEvent failed", error);
 }
 
 // ─── Forms ───
@@ -506,10 +550,81 @@ export async function submitFormResponse(
       (formUrl ? `\n\n${formUrl}` : ""),
   });
 
+  const respondentEmail = findRespondentEmail(typedFields, data);
+  if (respondentEmail) {
+    await sendEmail({
+      to: respondentEmail,
+      subject: `We received your ${meta.title} response`,
+      html: `
+        <div style="font-family:-apple-system,Inter,Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;padding:28px;color:#1a1814;">
+          <div style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#9a948a;font-weight:500;">Casa Cross Events</div>
+          <h1 style="font-family:Georgia,serif;font-weight:400;font-size:28px;margin:8px 0 16px;line-height:1.2;">Your response is in.</h1>
+          <p style="font-size:15px;line-height:1.65;color:#4f4941;margin:0 0 16px;">Thank you for completing <strong>${escapeHtml(meta.title)}</strong>. We received your submission successfully and our team will review it.</p>
+          <div style="border-top:1px solid #e8e2d9;margin-top:24px;padding-top:18px;font-size:13px;line-height:1.6;color:#777168;">There is nothing else you need to do right now. Keep this email as confirmation of your submission.</div>
+        </div>
+      `,
+      text: `Your response is in.\n\nThank you for completing ${meta.title}. We received your submission successfully and our team will review it. There is nothing else you need to do right now.`,
+    });
+  }
+
   revalidatePath(`/forms/${formId}`);
   revalidatePath(`/forms/${formId}/responses`);
   revalidatePath("/portal");
   return { ok: true, slug: meta.slug };
+}
+
+export async function updateFormResponseWorkflow(
+  form: FormData,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Sign in to update this response." };
+
+  const id = s(form, "id");
+  const formId = s(form, "form_id");
+  const status = s(form, "status") as FormResponseStatus;
+  const assignedTo = nullable(form, "assigned_to");
+  if (!id || !formId || !VALID_RESPONSE_STATUSES.includes(status)) {
+    return { ok: false, error: "Invalid workflow update." };
+  }
+  if (assignedTo && !isUuid(assignedTo)) {
+    return { ok: false, error: "Invalid owner." };
+  }
+  if (assignedTo) {
+    const { data: owner } = await supabase
+      .from("team_members")
+      .select("user_id")
+      .eq("user_id", assignedTo)
+      .maybeSingle();
+    if (!owner) return { ok: false, error: "Choose a current team member." };
+  }
+
+  const tags = s(form, "tags")
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean)
+    .slice(0, 12);
+  const { data: updated, error } = await supabase
+    .from("form_responses")
+    .update({
+      status,
+      assigned_to: assignedTo,
+      internal_notes: nullable(form, "internal_notes"),
+      tags,
+    })
+    .eq("id", id)
+    .eq("form_id", formId)
+    .select("id")
+    .maybeSingle();
+  if (error) return { ok: false, error: error.message };
+  if (!updated) return { ok: false, error: "Response not found." };
+
+  revalidatePath(`/forms/${formId}`);
+  revalidatePath(`/forms/${formId}/responses`);
+  revalidatePath(`/forms/${formId}/analytics`);
+  return { ok: true };
 }
 
 export async function bulkSendForms(

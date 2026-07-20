@@ -72,9 +72,18 @@ export default async function FormOverview({
           <div className="label">Responses</div>
           <div className="val tabnums">{totalResponses}</div>
           <div className="delta">
-            {responses && responses[0]
-              ? `latest ${relTime(responses[0].created_at)}`
-              : "no responses yet"}
+            {responses && responses[0] ? (
+              <>
+                latest {relTime(responses[0].created_at)} ·{" "}
+                <Link href={`/forms/${params.id}/analytics`} className="more">
+                  analytics ›
+                </Link>
+              </>
+            ) : (
+              <Link href={`/forms/${params.id}/analytics`} className="more">
+                view analytics ›
+              </Link>
+            )}
           </div>
         </div>
         <div className="stat">
