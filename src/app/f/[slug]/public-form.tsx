@@ -163,12 +163,6 @@ export function PublicFormRenderer({
     );
   }
 
-  function continueToNextStep() {
-    const latestAnswers = captureCurrentStepAnswers();
-    if (!validateCurrentStep(latestAnswers)) return;
-    goToStep(currentStepIndex + 1, latestAnswers);
-  }
-
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
@@ -287,12 +281,7 @@ export function PublicFormRenderer({
             {pending ? "Sending…" : "Submit"}
           </button>
         ) : (
-          <button
-            className="btn primary"
-            type="button"
-            disabled={pending}
-            onClick={continueToNextStep}
-          >
+          <button className="btn primary" type="submit" disabled={pending}>
             Continue
           </button>
         )}
