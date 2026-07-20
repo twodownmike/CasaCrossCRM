@@ -34,6 +34,7 @@ export function PublicFormRenderer({
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [stepIndex, setStepIndex] = useState(0);
   const [draftReady, setDraftReady] = useState(false);
+  const [returnToReview, setReturnToReview] = useState(false);
   const steps = useMemo(() => buildFormSteps(fields), [fields]);
   const reviewStepIndex = steps.length;
   const currentStepIndex = Math.min(stepIndex, reviewStepIndex);
@@ -174,7 +175,28 @@ export function PublicFormRenderer({
     const latestAnswers = isReviewStep ? answers : captureCurrentStepAnswers();
     if (!isReviewStep && !validateCurrentStep(latestAnswers)) return;
     if (!isReviewStep) {
-      goToStep(currentStepIndex + 1, latestAnswers);
+      if (returnToReview) {
+        setReturnToReview(false);
+        goToStep(reviewStepIndex, latestAnswers);
+      } else {
+        goToStep(currentStepIndex + 1, latestAnswers);
+      }
+      return;
+    }
+    const missingField = fields.find(
+      (field) =>
+        field.type !== "section" &&
+        field.required &&
+        isFormFieldVisible(field, fields, latestAnswers) &&
+        isMissingAnswer(latestAnswers[field.field_key]),
+    );
+    if (missingField) {
+      const missingStepIndex = steps.findIndex((step) =>
+        step.fields.some((field) => field.id === missingField.id),
+      );
+      setError(`“${missingField.label}” is required.`);
+      setReturnToReview(true);
+      goToStep(Math.max(missingStepIndex, 0), latestAnswers);
       return;
     }
     const f = new FormData();
@@ -281,7 +303,10 @@ export function PublicFormRenderer({
           steps={steps}
           fields={fields}
           answers={answers}
-          onEdit={(index) => goToStep(index)}
+          onEdit={(index) => {
+            setReturnToReview(true);
+            goToStep(index);
+          }}
         />
       ) : (
         <div className="form-grid" key={currentStep!.id}>
@@ -306,7 +331,10 @@ export function PublicFormRenderer({
             className="btn"
             type="button"
             disabled={pending}
-            onClick={() => goToStep(currentStepIndex - 1)}
+            onClick={() => {
+              setReturnToReview(false);
+              goToStep(currentStepIndex - 1);
+            }}
           >
             Back
           </button>
@@ -404,6 +432,13 @@ function displayAnswer(value: unknown) {
   if (typeof value === "boolean") return value ? "Yes" : "No";
   if (typeof value === "string" && value.trim()) return value;
   return "Not answered";
+}
+
+function isMissingAnswer(value: unknown) {
+  if (Array.isArray(value)) return value.length === 0;
+  return (
+    value === null || value === undefined || value === false || value === ""
+  );
 }
 
 function FieldInput({
