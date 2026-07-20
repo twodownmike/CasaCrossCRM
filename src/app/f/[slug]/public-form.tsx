@@ -365,14 +365,16 @@ function FieldInput({
   if (!visible) return null;
 
   const required = field.required || undefined;
+  const inputId = `field-${field.id}`;
   if (field.type === "textarea") {
     return (
       <div>
-        <label className="form-label">
+        <label className="form-label" htmlFor={inputId}>
           {field.label}
           {field.required && <RequiredMark />}
         </label>
         <textarea
+          id={inputId}
           name={field.field_key}
           className="input textarea"
           required={required}
@@ -386,11 +388,12 @@ function FieldInput({
   if (field.type === "select") {
     return (
       <div>
-        <label className="form-label">
+        <label className="form-label" htmlFor={inputId}>
           {field.label}
           {field.required && <RequiredMark />}
         </label>
         <select
+          id={inputId}
           name={field.field_key}
           className="input"
           required={required}
@@ -469,11 +472,12 @@ function FieldInput({
   };
   return (
     <div>
-      <label className="form-label">
+      <label className="form-label" htmlFor={inputId}>
         {field.label}
         {field.required && <RequiredMark />}
       </label>
       <input
+        id={inputId}
         type={inputType[field.type] || "text"}
         name={field.field_key}
         className="input"
@@ -497,14 +501,16 @@ function MultiSelectInput({
     initialSelected.filter((item): item is string => typeof item === "string"),
   );
   const options = normalizeFormFieldOptions(field.options);
+  const labelId = `field-label-${field.id}`;
 
   return (
     <div>
-      <label className="form-label">
+      <div className="form-label" id={labelId}>
         {field.label}
         {field.required && <RequiredMark />}
-      </label>
+      </div>
       <details
+        aria-labelledby={labelId}
         aria-required={field.required}
         style={{
           border: "1px solid var(--hair)",
