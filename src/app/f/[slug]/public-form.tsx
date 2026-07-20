@@ -97,6 +97,7 @@ export function PublicFormRenderer({
       (candidate) => candidate.field_key === target.name,
     );
     if (!field) return;
+    setError(null);
     const formData = new FormData(e.currentTarget);
     const value =
       field.type === "multiselect"
