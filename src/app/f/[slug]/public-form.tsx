@@ -29,12 +29,12 @@ export function PublicFormRenderer({
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
+  const returnToReviewRef = useRef(false);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [stepIndex, setStepIndex] = useState(0);
   const [draftReady, setDraftReady] = useState(false);
-  const [returnToReview, setReturnToReview] = useState(false);
   const steps = useMemo(() => buildFormSteps(fields), [fields]);
   const reviewStepIndex = steps.length;
   const currentStepIndex = Math.min(stepIndex, reviewStepIndex);
@@ -175,8 +175,8 @@ export function PublicFormRenderer({
     const latestAnswers = isReviewStep ? answers : captureCurrentStepAnswers();
     if (!isReviewStep && !validateCurrentStep(latestAnswers)) return;
     if (!isReviewStep) {
-      if (returnToReview) {
-        setReturnToReview(false);
+      if (returnToReviewRef.current) {
+        returnToReviewRef.current = false;
         goToStep(reviewStepIndex, latestAnswers);
       } else {
         goToStep(currentStepIndex + 1, latestAnswers);
@@ -195,7 +195,7 @@ export function PublicFormRenderer({
         step.fields.some((field) => field.id === missingField.id),
       );
       setError(`“${missingField.label}” is required.`);
-      setReturnToReview(true);
+      returnToReviewRef.current = true;
       goToStep(Math.max(missingStepIndex, 0), latestAnswers);
       return;
     }
@@ -304,7 +304,7 @@ export function PublicFormRenderer({
           fields={fields}
           answers={answers}
           onEdit={(index) => {
-            setReturnToReview(true);
+            returnToReviewRef.current = true;
             goToStep(index);
           }}
         />
@@ -332,7 +332,7 @@ export function PublicFormRenderer({
             type="button"
             disabled={pending}
             onClick={() => {
-              setReturnToReview(false);
+              returnToReviewRef.current = false;
               goToStep(currentStepIndex - 1);
             }}
           >
