@@ -5,7 +5,12 @@ import { redirect } from "next/navigation";
 import { randomBytes, randomUUID } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { sendEmail, sendNotificationEmail, escapeHtml } from "@/lib/notify";
-import type { FormFieldType } from "@/lib/types";
+import { isFormFieldVisible } from "@/lib/form-conditions";
+import type {
+  FormConditionOperator,
+  FormField,
+  FormFieldType,
+} from "@/lib/types";
 
 function s(form: FormData, key: string) {
   const v = form.get(key);
@@ -47,14 +52,15 @@ const VALID_TYPES: FormFieldType[] = [
   "section",
 ];
 
+const VALID_CONDITION_OPERATORS: FormConditionOperator[] = [
+  "equals",
+  "not_equals",
+  "contains",
+  "not_empty",
+];
+
 function isAnswerableField(field: { type: string }) {
   return field.type !== "section";
-}
-
-function isYes(value: unknown) {
-  if (value === true) return true;
-  if (Array.isArray(value)) return value.some(isYes);
-  return typeof value === "string" && value.trim().toLowerCase() === "yes";
 }
 
 function displayFormValue(value: unknown) {
@@ -150,6 +156,61 @@ async function uniqueFieldKey(
   }
 }
 
+async function conditionValues(
+  form: FormData,
+  formId: string,
+  type: FormFieldType,
+  targetId?: string,
+) {
+  const emptyCondition = {
+    show_if_previous_yes: false,
+    condition_field_id: null,
+    condition_operator: null,
+    condition_value: null,
+  };
+  if (type === "section") return emptyCondition;
+
+  const conditionFieldId = s(form, "condition_field_id");
+  const operator = s(form, "condition_operator") as FormConditionOperator;
+  if (
+    !conditionFieldId ||
+    !VALID_CONDITION_OPERATORS.includes(operator) ||
+    conditionFieldId === targetId
+  ) {
+    return emptyCondition;
+  }
+
+  const supabase = createClient();
+  const { data: source } = await supabase
+    .from("form_fields")
+    .select("id, position, type")
+    .eq("id", conditionFieldId)
+    .eq("form_id", formId)
+    .maybeSingle();
+  if (!source || source.type === "section") return emptyCondition;
+
+  if (targetId) {
+    const { data: target } = await supabase
+      .from("form_fields")
+      .select("position")
+      .eq("id", targetId)
+      .eq("form_id", formId)
+      .maybeSingle();
+    if (!target || source.position >= target.position) return emptyCondition;
+  }
+
+  const conditionValue =
+    operator === "not_empty" ? null : nullable(form, "condition_value");
+  if (operator !== "not_empty" && !conditionValue) return emptyCondition;
+
+  return {
+    show_if_previous_yes: false,
+    condition_field_id: source.id,
+    condition_operator: operator,
+    condition_value: conditionValue,
+  };
+}
+
 export async function addFormField(form: FormData) {
   const supabase = createClient();
   const formId = s(form, "form_id");
@@ -166,6 +227,7 @@ export async function addFormField(form: FormData) {
           .map((o) => o.trim())
           .filter(Boolean)
       : null;
+  const condition = await conditionValues(form, formId, typeRaw);
 
   await supabase.from("form_fields").insert({
     form_id: formId,
@@ -177,8 +239,7 @@ export async function addFormField(form: FormData) {
     required: typeRaw !== "section" && form.get("required") === "on",
     placeholder: typeRaw === "section" ? null : nullable(form, "placeholder"),
     helper: nullable(form, "helper"),
-    show_if_previous_yes:
-      typeRaw !== "section" && form.get("show_if_previous_yes") === "on",
+    ...condition,
   });
   revalidatePath(`/forms/${formId}/edit`);
 }
@@ -199,6 +260,7 @@ export async function updateFormField(form: FormData) {
           .map((o) => o.trim())
           .filter(Boolean)
       : null;
+  const condition = await conditionValues(form, formId, typeRaw, id);
 
   await supabase
     .from("form_fields")
@@ -209,8 +271,7 @@ export async function updateFormField(form: FormData) {
       required: typeRaw !== "section" && form.get("required") === "on",
       placeholder: typeRaw === "section" ? null : nullable(form, "placeholder"),
       helper: nullable(form, "helper"),
-      show_if_previous_yes:
-        typeRaw !== "section" && form.get("show_if_previous_yes") === "on",
+      ...condition,
     })
     .eq("id", id);
   revalidatePath(`/forms/${formId}/edit`);
@@ -251,6 +312,9 @@ export async function duplicateFormField(form: FormData) {
     placeholder: source.placeholder,
     helper: source.helper,
     show_if_previous_yes: source.show_if_previous_yes,
+    condition_field_id: source.condition_field_id,
+    condition_operator: source.condition_operator,
+    condition_value: source.condition_value,
   });
   revalidatePath(`/forms/${formId}/edit`);
 }
@@ -272,7 +336,7 @@ export async function reorderFormFields(
 
   const { data: existing, error: readError } = await supabase
     .from("form_fields")
-    .select("id")
+    .select("id, condition_field_id")
     .eq("form_id", formId);
   if (readError) return { ok: false, error: readError.message };
 
@@ -291,6 +355,32 @@ export async function reorderFormFields(
   );
   const updateError = results.find((result) => result.error)?.error;
   if (updateError) return { ok: false, error: updateError.message };
+
+  const positions = new Map(orderedIds.map((id, position) => [id, position]));
+  const invalidConditions = (existing ?? []).filter((field) => {
+    if (!field.condition_field_id) return false;
+    const sourcePosition = positions.get(field.condition_field_id);
+    const fieldPosition = positions.get(field.id);
+    return (
+      sourcePosition === undefined ||
+      fieldPosition === undefined ||
+      sourcePosition >= fieldPosition
+    );
+  });
+  const conditionResults = await Promise.all(
+    invalidConditions.map((field) =>
+      supabase
+        .from("form_fields")
+        .update({
+          condition_field_id: null,
+          condition_operator: null,
+          condition_value: null,
+        })
+        .eq("id", field.id),
+    ),
+  );
+  const conditionError = conditionResults.find((result) => result.error)?.error;
+  if (conditionError) return { ok: false, error: conditionError.message };
 
   revalidatePath(`/forms/${formId}/edit`);
   return { ok: true };
@@ -320,14 +410,13 @@ export async function submitFormResponse(
     .eq("form_id", formId)
     .order("position", { ascending: true });
 
+  const typedFields = (fields ?? []) as FormField[];
   const data: Record<string, unknown> = {};
-  let previousAnswer: unknown;
-  for (const f of fields ?? []) {
+  for (const f of typedFields) {
     if (!isAnswerableField(f)) continue;
-    const isVisible = !f.show_if_previous_yes || isYes(previousAnswer);
+    const isVisible = isFormFieldVisible(f, typedFields, data);
     if (!isVisible) {
       data[f.field_key] = null;
-      previousAnswer = null;
       continue;
     }
     const raw = form.get(f.field_key);
@@ -355,7 +444,6 @@ export async function submitFormResponse(
       return { ok: false, error: `"${f.label}" is required.` };
     }
     data[f.field_key] = value;
-    previousAnswer = value;
   }
 
   const responseId = randomUUID();

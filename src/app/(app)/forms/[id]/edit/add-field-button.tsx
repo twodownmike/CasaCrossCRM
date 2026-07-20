@@ -4,14 +4,15 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sheet } from "@/components/sheet";
 import { Icon } from "@/components/icons";
+import type { FormField } from "@/lib/types";
 import { FieldForm } from "./field-list";
 
 export function AddFieldButton({
   formId,
-  previousQuestionLabel,
+  availableConditionFields,
 }: {
   formId: string;
-  previousQuestionLabel?: string;
+  availableConditionFields: FormField[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -23,7 +24,7 @@ export function AddFieldButton({
       <Sheet open={open} onClose={() => setOpen(false)} title="Add field">
         <FieldForm
           formId={formId}
-          previousQuestionLabel={previousQuestionLabel}
+          availableConditionFields={availableConditionFields}
           onSaved={() => {
             setOpen(false);
             router.refresh();

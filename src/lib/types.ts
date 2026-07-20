@@ -237,7 +237,16 @@ export type FormField = {
   placeholder: string | null;
   helper: string | null;
   show_if_previous_yes: boolean;
+  condition_field_id: string | null;
+  condition_operator: FormConditionOperator | null;
+  condition_value: string | null;
 };
+
+export type FormConditionOperator =
+  | "equals"
+  | "not_equals"
+  | "contains"
+  | "not_empty";
 
 export type FormResponse = {
   id: string;

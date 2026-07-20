@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { submitFormResponse } from "@/app/forms-actions";
+import { isFormFieldVisible } from "@/lib/form-conditions";
 import { normalizeFormFieldOptions } from "@/lib/form-fields";
 import type { FormField } from "@/lib/types";
 
@@ -34,8 +35,11 @@ export function PublicFormRenderer({
   const [stepIndex, setStepIndex] = useState(0);
   const [draftReady, setDraftReady] = useState(false);
   const steps = useMemo(() => buildFormSteps(fields), [fields]);
-  const currentStepIndex = Math.min(stepIndex, Math.max(steps.length - 1, 0));
-  const currentStep = steps[currentStepIndex];
+  const reviewStepIndex = steps.length;
+  const currentStepIndex = Math.min(stepIndex, reviewStepIndex);
+  const isReviewStep = currentStepIndex === reviewStepIndex;
+  const currentStep = isReviewStep ? undefined : steps[currentStepIndex];
+  const totalSteps = steps.length + 1;
   const storageKey = `casa-cross-form-draft:${assignmentToken || formId}`;
 
   useEffect(() => {
@@ -138,7 +142,7 @@ export function PublicFormRenderer({
       return (
         field.type === "multiselect" &&
         field.required &&
-        isFieldVisible(field, fields, latestAnswers) &&
+        isFormFieldVisible(field, fields, latestAnswers) &&
         (!Array.isArray(value) || value.length === 0)
       );
     });
@@ -167,9 +171,9 @@ export function PublicFormRenderer({
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
-    const latestAnswers = captureCurrentStepAnswers();
-    if (!validateCurrentStep(latestAnswers)) return;
-    if (currentStepIndex < steps.length - 1) {
+    const latestAnswers = isReviewStep ? answers : captureCurrentStepAnswers();
+    if (!isReviewStep && !validateCurrentStep(latestAnswers)) return;
+    if (!isReviewStep) {
       goToStep(currentStepIndex + 1, latestAnswers);
       return;
     }
@@ -201,7 +205,7 @@ export function PublicFormRenderer({
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLFormElement>) {
-    if (e.key !== "Enter" || currentStepIndex >= steps.length - 1) return;
+    if (e.key !== "Enter" || isReviewStep) return;
     const target = e.target as HTMLElement;
     if (
       target.tagName === "TEXTAREA" ||
@@ -224,12 +228,11 @@ export function PublicFormRenderer({
     );
   }
 
-  if (!draftReady || !currentStep) {
+  if (!draftReady || (!currentStep && !isReviewStep)) {
     return <div style={{ minHeight: 180 }} aria-hidden="true" />;
   }
 
-  const isLastStep = currentStepIndex === steps.length - 1;
-  const progress = ((currentStepIndex + 1) / steps.length) * 100;
+  const progress = ((currentStepIndex + 1) / totalSteps) * 100;
 
   return (
     <form
@@ -240,11 +243,11 @@ export function PublicFormRenderer({
       className="form-grid public-stepped-form"
     >
       <div ref={progressRef} className="public-form-progress">
-        {steps.length > 1 && (
+        {totalSteps > 1 && (
           <>
             <div className="public-form-progress-meta">
               <span>
-                Step {currentStepIndex + 1} of {steps.length}
+                Step {currentStepIndex + 1} of {totalSteps}
               </span>
               <span>{Math.round(progress)}%</span>
             </div>
@@ -253,31 +256,45 @@ export function PublicFormRenderer({
               role="progressbar"
               aria-label="Form progress"
               aria-valuemin={1}
-              aria-valuemax={steps.length}
+              aria-valuemax={totalSteps}
               aria-valuenow={currentStepIndex + 1}
             >
               <span style={{ width: `${progress}%` }} />
             </div>
           </>
         )}
-        {currentStep.named && (
+        {isReviewStep ? (
+          <div className="public-form-step-heading">
+            <h2>Review your answers</h2>
+            <p>Check everything before sending your response.</p>
+          </div>
+        ) : currentStep?.named ? (
           <div className="public-form-step-heading">
             <h2>{currentStep.title}</h2>
             {currentStep.description && <p>{currentStep.description}</p>}
           </div>
-        )}
+        ) : null}
       </div>
 
-      <div className="form-grid" key={currentStep.id}>
-        {currentStep.fields.map((field) => (
-          <FieldInput
-            key={field.id}
-            field={field}
-            visible={isFieldVisible(field, fields, answers)}
-            savedValue={answers[field.field_key]}
-          />
-        ))}
-      </div>
+      {isReviewStep ? (
+        <FormReview
+          steps={steps}
+          fields={fields}
+          answers={answers}
+          onEdit={(index) => goToStep(index)}
+        />
+      ) : (
+        <div className="form-grid" key={currentStep!.id}>
+          {currentStep!.fields.map((field) => (
+            <FieldInput
+              key={field.id}
+              field={field}
+              visible={isFormFieldVisible(field, fields, answers)}
+              savedValue={answers[field.field_key]}
+            />
+          ))}
+        </div>
+      )}
       {error && (
         <div className="notice warn" role="alert">
           {error}
@@ -294,7 +311,7 @@ export function PublicFormRenderer({
             Back
           </button>
         )}
-        {isLastStep ? (
+        {isReviewStep ? (
           <button className="btn primary" type="submit" disabled={pending}>
             {pending ? "Sending…" : "Submit"}
           </button>
@@ -336,28 +353,57 @@ function buildFormSteps(fields: FormField[]): FormStep[] {
   return steps.length > 0 ? steps : [{ ...current, fields: [] }];
 }
 
-function isFieldVisible(
-  field: FormField,
-  fields: FormField[],
-  answers: Record<string, unknown>,
-) {
-  if (!field.show_if_previous_yes) return true;
-  const index = fields.findIndex((candidate) => candidate.id === field.id);
-  const previousField = fields
-    .slice(0, index)
-    .reverse()
-    .find((candidate) => candidate.type !== "section");
-  return !previousField || isYesAnswer(answers[previousField.field_key]);
+function FormReview({
+  steps,
+  fields,
+  answers,
+  onEdit,
+}: {
+  steps: FormStep[];
+  fields: FormField[];
+  answers: Record<string, unknown>;
+  onEdit: (stepIndex: number) => void;
+}) {
+  return (
+    <div className="public-form-review">
+      {steps.map((step, index) => {
+        const visibleFields = step.fields.filter((field) =>
+          isFormFieldVisible(field, fields, answers),
+        );
+        if (visibleFields.length === 0) return null;
+        return (
+          <section className="public-form-review-section" key={step.id}>
+            <div className="public-form-review-heading">
+              <h3>{step.title}</h3>
+              <button
+                className="cancel-link"
+                type="button"
+                onClick={() => onEdit(index)}
+              >
+                Edit
+              </button>
+            </div>
+            <dl>
+              {visibleFields.map((field) => (
+                <div key={field.id}>
+                  <dt>{field.label}</dt>
+                  <dd>{displayAnswer(answers[field.field_key])}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        );
+      })}
+    </div>
+  );
 }
 
-function isYesAnswer(value: unknown) {
-  if (value === true) return true;
-  if (Array.isArray(value)) {
-    return value.some(
-      (item) => typeof item === "string" && item.trim().toLowerCase() === "yes",
-    );
-  }
-  return typeof value === "string" && value.trim().toLowerCase() === "yes";
+function displayAnswer(value: unknown) {
+  if (Array.isArray(value))
+    return value.length > 0 ? value.join(", ") : "Not answered";
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (typeof value === "string" && value.trim()) return value;
+  return "Not answered";
 }
 
 function FieldInput({

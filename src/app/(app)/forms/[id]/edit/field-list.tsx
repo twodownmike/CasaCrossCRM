@@ -14,9 +14,17 @@ import {
 } from "@/app/forms-actions";
 import {
   FIELD_TYPE_LABELS,
+  type FormConditionOperator,
   type FormField,
   type FormFieldType,
 } from "@/lib/types";
+
+const CONDITION_OPERATOR_LABELS: Record<FormConditionOperator, string> = {
+  equals: "is",
+  not_equals: "is not",
+  contains: "includes",
+  not_empty: "has an answer",
+};
 
 export function FieldList({
   formId,
@@ -97,12 +105,9 @@ export function FieldList({
             setDropTarget(null);
           }}
           onMoveToEdge={(edge) => moveToEdge(f.id, edge)}
-          previousQuestionLabel={
-            orderedFields
-              .slice(0, i)
-              .reverse()
-              .find((candidate) => candidate.type !== "section")?.label
-          }
+          availableConditionFields={orderedFields
+            .slice(0, i)
+            .filter((candidate) => candidate.type !== "section")}
         />
       ))}
     </div>
@@ -122,7 +127,7 @@ function FieldRow({
   onDrop,
   onDragEnd,
   onMoveToEdge,
-  previousQuestionLabel,
+  availableConditionFields,
 }: {
   field: FormField;
   formId: string;
@@ -136,10 +141,13 @@ function FieldRow({
   onDrop: (after: boolean) => void;
   onDragEnd: () => void;
   onMoveToEdge: (edge: "top" | "bottom") => void;
-  previousQuestionLabel?: string;
+  availableConditionFields: FormField[];
 }) {
   const router = useRouter();
   const isSection = field.type === "section";
+  const conditionSource = availableConditionFields.find(
+    (candidate) => candidate.id === field.condition_field_id,
+  );
   const [editOpen, setEditOpen] = useState(false);
   const [pending, start] = useTransition();
 
@@ -244,7 +252,7 @@ function FieldRow({
               required
             </span>
           )}
-          {field.show_if_previous_yes && (
+          {(field.condition_field_id || field.show_if_previous_yes) && (
             <span className="muted" style={{ fontSize: 11 }}>
               conditional
             </span>
@@ -258,9 +266,12 @@ function FieldRow({
         {(field.type === "select" || field.type === "multiselect") && (
           <OptionCount options={field.options} />
         )}
-        {field.show_if_previous_yes && previousQuestionLabel && (
+        {conditionSource && field.condition_operator && (
           <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 4 }}>
-            Shown when “{previousQuestionLabel}” is Yes
+            Shown when “{conditionSource.label}”{" "}
+            {CONDITION_OPERATOR_LABELS[field.condition_operator]}
+            {field.condition_operator !== "not_empty" &&
+              ` “${field.condition_value || ""}”`}
           </div>
         )}
       </div>
@@ -323,7 +334,7 @@ function FieldRow({
         <FieldForm
           formId={formId}
           field={field}
-          previousQuestionLabel={previousQuestionLabel}
+          availableConditionFields={availableConditionFields}
           onSaved={() => {
             setEditOpen(false);
             router.refresh();
@@ -543,19 +554,30 @@ function PreviewHelper({ children }: { children: React.ReactNode }) {
 export function FieldForm({
   formId,
   field,
-  previousQuestionLabel,
+  availableConditionFields,
   onSaved,
 }: {
   formId: string;
   field?: FormField;
-  previousQuestionLabel?: string;
+  availableConditionFields: FormField[];
   onSaved: () => void;
 }) {
   const [label, setLabel] = useState(field?.label || "");
   const [type, setType] = useState<FormFieldType>(field?.type || "text");
   const [required, setRequired] = useState<boolean>(field?.required || false);
-  const [showIfPreviousYes, setShowIfPreviousYes] = useState(
-    field?.show_if_previous_yes || false,
+  const legacyConditionSource = field?.show_if_previous_yes
+    ? availableConditionFields[availableConditionFields.length - 1]
+    : undefined;
+  const [conditionEnabled, setConditionEnabled] = useState(
+    Boolean(field?.condition_field_id || legacyConditionSource),
+  );
+  const [conditionFieldId, setConditionFieldId] = useState(
+    field?.condition_field_id || legacyConditionSource?.id || "",
+  );
+  const [conditionOperator, setConditionOperator] =
+    useState<FormConditionOperator>(field?.condition_operator || "equals");
+  const [conditionValue, setConditionValue] = useState(
+    field?.condition_value || (legacyConditionSource ? "Yes" : ""),
   );
   const [placeholder, setPlaceholder] = useState(field?.placeholder || "");
   const [helper, setHelper] = useState(field?.helper || "");
@@ -563,6 +585,9 @@ export function FieldForm({
     normalizeFormFieldOptions(field?.options).join("\n"),
   );
   const [pending, start] = useTransition();
+  const conditionSource = availableConditionFields.find(
+    (candidate) => candidate.id === conditionFieldId,
+  );
 
   function save(e: React.FormEvent) {
     e.preventDefault();
@@ -573,8 +598,12 @@ export function FieldForm({
     f.set("label", label);
     f.set("type", type);
     if (type !== "section" && required) f.set("required", "on");
-    if (type !== "section" && previousQuestionLabel && showIfPreviousYes) {
-      f.set("show_if_previous_yes", "on");
+    if (type !== "section" && conditionEnabled && conditionFieldId) {
+      f.set("condition_field_id", conditionFieldId);
+      f.set("condition_operator", conditionOperator);
+      if (conditionOperator !== "not_empty") {
+        f.set("condition_value", conditionValue);
+      }
     }
     f.set("placeholder", placeholder);
     f.set("helper", helper);
@@ -675,43 +704,121 @@ export function FieldForm({
         </label>
       )}
       {type !== "section" && (
-        <label
+        <div
           style={{
-            display: "flex",
-            alignItems: "flex-start",
-            gap: 10,
             padding: 12,
             border: "1px solid var(--hair)",
             borderRadius: "var(--r-2)",
             background: "var(--paper)",
-            cursor: previousQuestionLabel ? "pointer" : "not-allowed",
-            opacity: previousQuestionLabel ? 1 : 0.55,
+            opacity: availableConditionFields.length > 0 ? 1 : 0.55,
           }}
         >
-          <input
-            type="checkbox"
-            checked={showIfPreviousYes}
-            disabled={!previousQuestionLabel}
-            onChange={(e) => setShowIfPreviousYes(e.target.checked)}
-          />
-          <span>
-            <span style={{ display: "block", fontSize: 14, fontWeight: 500 }}>
-              Show only after a Yes answer
-            </span>
-            <span
-              style={{
-                display: "block",
-                fontSize: 11.5,
-                color: "var(--ink-3)",
-                marginTop: 3,
+          <label
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 10,
+              cursor:
+                availableConditionFields.length > 0 ? "pointer" : "not-allowed",
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={conditionEnabled}
+              disabled={availableConditionFields.length === 0}
+              onChange={(e) => {
+                setConditionEnabled(e.target.checked);
+                if (e.target.checked && !conditionFieldId) {
+                  const source =
+                    availableConditionFields[
+                      availableConditionFields.length - 1
+                    ];
+                  setConditionFieldId(source?.id || "");
+                  setConditionValue(
+                    source?.type === "checkbox"
+                      ? "Yes"
+                      : normalizeFormFieldOptions(source?.options)[0] || "",
+                  );
+                }
               }}
-            >
-              {previousQuestionLabel
-                ? `Uses the previous question: “${previousQuestionLabel}”`
-                : "Add an answerable question before this field."}
+            />
+            <span>
+              <span style={{ display: "block", fontSize: 14, fontWeight: 500 }}>
+                Show this field conditionally
+              </span>
+              <span
+                style={{
+                  display: "block",
+                  fontSize: 11.5,
+                  color: "var(--ink-3)",
+                  marginTop: 3,
+                }}
+              >
+                {availableConditionFields.length > 0
+                  ? "Choose an earlier answer that controls this field."
+                  : "Add an answerable question before this field."}
+              </span>
             </span>
-          </span>
-        </label>
+          </label>
+
+          {conditionEnabled && availableConditionFields.length > 0 && (
+            <div className="form-grid" style={{ marginTop: 14 }}>
+              <div>
+                <label className="form-label">Question</label>
+                <select
+                  className="input"
+                  value={conditionFieldId}
+                  onChange={(e) => {
+                    const source = availableConditionFields.find(
+                      (candidate) => candidate.id === e.target.value,
+                    );
+                    setConditionFieldId(e.target.value);
+                    setConditionValue(
+                      source?.type === "checkbox"
+                        ? "Yes"
+                        : normalizeFormFieldOptions(source?.options)[0] || "",
+                    );
+                  }}
+                >
+                  {availableConditionFields.map((candidate) => (
+                    <option key={candidate.id} value={candidate.id}>
+                      {candidate.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="form-label">Rule</label>
+                <select
+                  className="input"
+                  value={conditionOperator}
+                  onChange={(e) =>
+                    setConditionOperator(
+                      e.target.value as FormConditionOperator,
+                    )
+                  }
+                >
+                  {(
+                    Object.entries(CONDITION_OPERATOR_LABELS) as Array<
+                      [FormConditionOperator, string]
+                    >
+                  ).map(([operator, operatorLabel]) => (
+                    <option key={operator} value={operator}>
+                      {operatorLabel}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {conditionOperator !== "not_empty" && (
+                <ConditionValueInput
+                  source={conditionSource}
+                  value={conditionValue}
+                  onChange={setConditionValue}
+                />
+              )}
+            </div>
+          )}
+        </div>
       )}
       <div className="sheet-footer">
         <button className="btn primary block" type="submit" disabled={pending}>
@@ -719,6 +826,48 @@ export function FieldForm({
         </button>
       </div>
     </form>
+  );
+}
+
+function ConditionValueInput({
+  source,
+  value,
+  onChange,
+}: {
+  source?: FormField;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const options =
+    source?.type === "checkbox"
+      ? ["Yes", "No"]
+      : normalizeFormFieldOptions(source?.options);
+  return (
+    <div>
+      <label className="form-label">Value</label>
+      {options.length > 0 ? (
+        <select
+          className="input"
+          required
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        >
+          {options.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <input
+          className="input"
+          required
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Answer to match"
+        />
+      )}
+    </div>
   );
 }
 

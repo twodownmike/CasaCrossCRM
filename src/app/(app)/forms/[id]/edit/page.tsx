@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Icon } from "@/components/icons";
+import type { FormField } from "@/lib/types";
 import { FormMetaEditor } from "./form-meta-editor";
 import { FieldList, FormPreview } from "./field-list";
 import { AddFieldButton } from "./add-field-button";
@@ -87,10 +88,10 @@ export default async function FormEditorPage({
       <div style={{ padding: "var(--s-5)" }}>
         <AddFieldButton
           formId={f.id}
-          previousQuestionLabel={
-            [...(fields ?? [])]
-              .reverse()
-              .find((field) => field.type !== "section")?.label
+          availableConditionFields={
+            (fields ?? []).filter(
+              (field) => field.type !== "section",
+            ) as FormField[]
           }
         />
       </div>

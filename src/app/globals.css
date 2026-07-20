@@ -1066,6 +1066,54 @@ a { color: inherit; text-decoration: none; }
   font-size: 13px;
   line-height: 1.5;
 }
+.public-form-review {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.public-form-review-section {
+  padding-top: 18px;
+  border-top: 1px solid var(--hair);
+}
+.public-form-review-section:first-child { padding-top: 0; border-top: 0; }
+.public-form-review-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+.public-form-review-heading h3 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 18px;
+  font-weight: 500;
+}
+.public-form-review-heading .cancel-link {
+  flex-shrink: 0;
+  color: var(--terracotta);
+}
+.public-form-review-section dl { margin: 0; }
+.public-form-review-section dl > div {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 14px;
+  padding: 9px 0;
+  border-top: 1px solid var(--hair-2);
+}
+.public-form-review-section dt {
+  color: var(--ink-3);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.public-form-review-section dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.45;
+}
 .public-form-actions {
   position: sticky;
   bottom: 0;
@@ -1083,6 +1131,12 @@ a { color: inherit; text-decoration: none; }
 .public-form-actions .btn {
   width: 100%;
   min-width: 0;
+}
+@media (max-width: 520px) {
+  .public-form-review-section dl > div {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
 }
 .form-label {
   font-size: 11px;
