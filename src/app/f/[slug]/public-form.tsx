@@ -29,7 +29,6 @@ export function PublicFormRenderer({
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
-  const returnToReviewRef = useRef(false);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
@@ -175,12 +174,7 @@ export function PublicFormRenderer({
     const latestAnswers = isReviewStep ? answers : captureCurrentStepAnswers();
     if (!isReviewStep && !validateCurrentStep(latestAnswers)) return;
     if (!isReviewStep) {
-      if (returnToReviewRef.current) {
-        returnToReviewRef.current = false;
-        goToStep(reviewStepIndex, latestAnswers);
-      } else {
-        goToStep(currentStepIndex + 1, latestAnswers);
-      }
+      goToStep(currentStepIndex + 1, latestAnswers);
       return;
     }
     const missingField = fields.find(
@@ -195,7 +189,6 @@ export function PublicFormRenderer({
         step.fields.some((field) => field.id === missingField.id),
       );
       setError(`“${missingField.label}” is required.`);
-      returnToReviewRef.current = true;
       goToStep(Math.max(missingStepIndex, 0), latestAnswers);
       return;
     }
@@ -303,10 +296,7 @@ export function PublicFormRenderer({
           steps={steps}
           fields={fields}
           answers={answers}
-          onEdit={(index) => {
-            returnToReviewRef.current = true;
-            goToStep(index);
-          }}
+          onEdit={(index) => goToStep(index)}
         />
       ) : (
         <div className="form-grid" key={currentStep!.id}>
@@ -331,10 +321,7 @@ export function PublicFormRenderer({
             className="btn"
             type="button"
             disabled={pending}
-            onClick={() => {
-              returnToReviewRef.current = false;
-              goToStep(currentStepIndex - 1);
-            }}
+            onClick={() => goToStep(currentStepIndex - 1)}
           >
             Back
           </button>
