@@ -8,7 +8,9 @@ import {
 } from "@/app/forms-actions";
 import { isFormFieldVisible } from "@/lib/form-conditions";
 import { normalizeFormFieldOptions } from "@/lib/form-fields";
+import { parseFormUploadValue, type FormUploadValue } from "@/lib/form-uploads";
 import type { FormField } from "@/lib/types";
+import { FileUploadInput } from "./file-upload-input";
 
 type FormStep = {
   id: string;
@@ -34,9 +36,15 @@ export function PublicFormRenderer({
   const progressRef = useRef<HTMLDivElement>(null);
   const analyticsSessionRef = useRef<string | null>(null);
   const startTrackedRef = useRef(false);
+  const [analyticsSessionId, setAnalyticsSessionId] = useState<string | null>(
+    null,
+  );
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
+  const [pendingUploadIds, setPendingUploadIds] = useState<Set<string>>(
+    new Set(),
+  );
   const [stepIndex, setStepIndex] = useState(0);
   const [draftReady, setDraftReady] = useState(false);
   const steps = useMemo(() => buildFormSteps(fields), [fields]);
@@ -81,8 +89,37 @@ export function PublicFormRenderer({
       window.sessionStorage.setItem(sessionKey, sessionId);
     }
     analyticsSessionRef.current = sessionId;
-    void recordFormAnalyticsEvent(formId, "view", sessionId);
+    setAnalyticsSessionId(sessionId);
+    const params = new URLSearchParams(window.location.search);
+    let referrerHost = "";
+    try {
+      const referrer = document.referrer ? new URL(document.referrer) : null;
+      if (referrer && referrer.hostname !== window.location.hostname) {
+        referrerHost = referrer.hostname;
+      }
+    } catch {
+      referrerHost = "";
+    }
+    void recordFormAnalyticsEvent(formId, "view", sessionId, {
+      source: params.get("utm_source") || undefined,
+      medium: params.get("utm_medium") || undefined,
+      campaign: params.get("utm_campaign") || undefined,
+      referrerHost: referrerHost || undefined,
+    });
   }, [formId]);
+
+  useEffect(() => {
+    if (!draftReady || !analyticsSessionId) return;
+    void recordFormAnalyticsEvent(formId, "step", analyticsSessionId, {
+      stepIndex: currentStepIndex,
+    });
+  }, [analyticsSessionId, currentStepIndex, draftReady, formId]);
+
+  function trackStart() {
+    if (startTrackedRef.current || !analyticsSessionRef.current) return;
+    startTrackedRef.current = true;
+    void recordFormAnalyticsEvent(formId, "start", analyticsSessionRef.current);
+  }
 
   function persistAnswers(
     nextAnswers: Record<string, unknown>,
@@ -107,6 +144,25 @@ export function PublicFormRenderer({
     persistAnswers(nextAnswers);
   }
 
+  function setFieldAnswer(fieldKey: string, value: FormUploadValue | null) {
+    trackStart();
+    setError(null);
+    setAnswers((current) => {
+      const nextAnswers = { ...current, [fieldKey]: value };
+      persistAnswers(nextAnswers);
+      return nextAnswers;
+    });
+  }
+
+  function setUploadPending(fieldId: string, isPending: boolean) {
+    setPendingUploadIds((current) => {
+      const next = new Set(current);
+      if (isPending) next.add(fieldId);
+      else next.delete(fieldId);
+      return next;
+    });
+  }
+
   function updateAnswers(e: React.FormEvent<HTMLFormElement>) {
     const target = e.target as
       | HTMLInputElement
@@ -117,14 +173,7 @@ export function PublicFormRenderer({
       (candidate) => candidate.field_key === target.name,
     );
     if (!field) return;
-    if (!startTrackedRef.current && analyticsSessionRef.current) {
-      startTrackedRef.current = true;
-      void recordFormAnalyticsEvent(
-        formId,
-        "start",
-        analyticsSessionRef.current,
-      );
-    }
+    trackStart();
     setError(null);
     const formData = new FormData(e.currentTarget);
     const value =
@@ -150,6 +199,10 @@ export function PublicFormRenderer({
         nextAnswers[field.field_key] = formData.getAll(field.field_key);
       } else if (field.type === "checkbox") {
         nextAnswers[field.field_key] = formData.has(field.field_key);
+      } else if (field.type === "file") {
+        nextAnswers[field.field_key] = parseFormUploadValue(
+          formData.get(field.field_key),
+        );
       } else {
         const value = formData.get(field.field_key);
         nextAnswers[field.field_key] = typeof value === "string" ? value : "";
@@ -161,17 +214,17 @@ export function PublicFormRenderer({
 
   function validateCurrentStep(latestAnswers: Record<string, unknown>) {
     if (!formRef.current?.reportValidity()) return false;
-    const missingMultiSelect = currentStep?.fields.find((field) => {
+    const missingSpecialField = currentStep?.fields.find((field) => {
       const value = latestAnswers[field.field_key];
       return (
-        field.type === "multiselect" &&
+        (field.type === "multiselect" || field.type === "file") &&
         field.required &&
         isFormFieldVisible(field, fields, latestAnswers) &&
-        (!Array.isArray(value) || value.length === 0)
+        isMissingAnswer(value)
       );
     });
-    if (missingMultiSelect) {
-      setError(`“${missingMultiSelect.label}” is required.`);
+    if (missingSpecialField) {
+      setError(`“${missingSpecialField.label}” is required.`);
       return false;
     }
     setError(null);
@@ -195,6 +248,10 @@ export function PublicFormRenderer({
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+    if (pendingUploadIds.size > 0) {
+      setError("Wait for the file upload to finish.");
+      return;
+    }
     const latestAnswers = isReviewStep ? answers : captureCurrentStepAnswers();
     if (!isReviewStep && !validateCurrentStep(latestAnswers)) return;
     if (!isReviewStep) {
@@ -226,11 +283,17 @@ export function PublicFormRenderer({
         });
       } else if (field.type === "checkbox") {
         if (value === true) f.set(field.field_key, "on");
+      } else if (field.type === "file") {
+        const upload = parseFormUploadValue(value);
+        if (upload) f.set(field.field_key, JSON.stringify(upload));
       } else if (typeof value === "string") {
         f.set(field.field_key, value);
       }
     }
     f.set("form_id", formId);
+    if (analyticsSessionId) {
+      f.set("analytics_session_id", analyticsSessionId);
+    }
     if (assignmentToken) f.set("assignment_token", assignmentToken);
     start(async () => {
       const result = await submitFormResponse(f);
@@ -330,6 +393,11 @@ export function PublicFormRenderer({
               field={field}
               visible={isFormFieldVisible(field, fields, answers)}
               savedValue={answers[field.field_key]}
+              formId={formId}
+              onValueChange={(value) => setFieldAnswer(field.field_key, value)}
+              onPendingChange={(isPending) =>
+                setUploadPending(field.id, isPending)
+              }
             />
           ))}
         </div>
@@ -344,18 +412,26 @@ export function PublicFormRenderer({
           <button
             className="btn"
             type="button"
-            disabled={pending}
+            disabled={pending || pendingUploadIds.size > 0}
             onClick={() => goToStep(currentStepIndex - 1)}
           >
             Back
           </button>
         )}
         {isReviewStep ? (
-          <button className="btn primary" type="submit" disabled={pending}>
+          <button
+            className="btn primary"
+            type="submit"
+            disabled={pending || pendingUploadIds.size > 0}
+          >
             {pending ? "Sending…" : "Submit"}
           </button>
         ) : (
-          <button className="btn primary" type="submit" disabled={pending}>
+          <button
+            className="btn primary"
+            type="submit"
+            disabled={pending || pendingUploadIds.size > 0}
+          >
             Continue
           </button>
         )}
@@ -438,6 +514,8 @@ function FormReview({
 }
 
 function displayAnswer(value: unknown) {
+  const upload = parseFormUploadValue(value);
+  if (upload) return `Attached: ${upload.name}`;
   if (Array.isArray(value))
     return value.length > 0 ? value.join(", ") : "Not answered";
   if (typeof value === "boolean") return value ? "Yes" : "No";
@@ -456,15 +534,32 @@ function FieldInput({
   field,
   visible,
   savedValue,
+  formId,
+  onValueChange,
+  onPendingChange,
 }: {
   field: FormField;
   visible: boolean;
   savedValue: unknown;
+  formId: string;
+  onValueChange: (value: FormUploadValue | null) => void;
+  onPendingChange: (pending: boolean) => void;
 }) {
   if (!visible) return null;
 
   const required = field.required || undefined;
   const inputId = `field-${field.id}`;
+  if (field.type === "file") {
+    return (
+      <FileUploadInput
+        formId={formId}
+        field={field}
+        savedValue={savedValue}
+        onValueChange={onValueChange}
+        onPendingChange={onPendingChange}
+      />
+    );
+  }
   if (field.type === "textarea") {
     return (
       <div>

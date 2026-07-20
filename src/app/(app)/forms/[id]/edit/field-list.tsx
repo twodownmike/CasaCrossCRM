@@ -488,6 +488,24 @@ function PreviewField({ field }: { field: FormField }) {
     );
   }
 
+  if (field.type === "file") {
+    return (
+      <div>
+        {label}
+        <div className="form-upload-control">
+          <span className="btn">Choose file</span>
+        </div>
+        {field.helper ? (
+          <PreviewHelper>{field.helper}</PreviewHelper>
+        ) : (
+          <PreviewHelper>
+            JPG, PNG, WebP, HEIC, or PDF. Maximum 10 MB.
+          </PreviewHelper>
+        )}
+      </div>
+    );
+  }
+
   if (field.type === "checkbox") {
     return (
       <label
@@ -657,7 +675,7 @@ export function FieldForm({
           />
         </div>
       )}
-      {type !== "checkbox" && type !== "section" && (
+      {type !== "checkbox" && type !== "file" && type !== "section" && (
         <div>
           <label className="form-label">Placeholder</label>
           <input

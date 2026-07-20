@@ -212,6 +212,7 @@ export type FormFieldType =
   | "select"
   | "multiselect"
   | "checkbox"
+  | "file"
   | "section";
 
 export type FormRow = {
@@ -263,6 +264,8 @@ export type FormResponse = {
   assigned_to: string | null;
   internal_notes: string | null;
   tags: string[];
+  analytics_session_id: string | null;
+  completion_seconds: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -293,6 +296,7 @@ export const FIELD_TYPE_LABELS: Record<FormFieldType, string> = {
   select: "Dropdown",
   multiselect: "Multi-select dropdown",
   checkbox: "Checkbox",
+  file: "File upload",
   section: "Section",
 };
 

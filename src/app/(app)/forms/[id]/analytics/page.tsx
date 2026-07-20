@@ -5,17 +5,37 @@ import { Icon } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 
+type RangeKey = "7" | "30" | "90" | "all";
 type AnalyticsEvent = {
-  event_type: "view" | "start";
+  event_type: "view" | "start" | "step";
+  session_id: string;
+  step_index: number | null;
+  source: string | null;
+  medium: string | null;
+  campaign: string | null;
+  referrer_host: string | null;
   created_at: string;
 };
-
 type ResponseRecord = {
   status: string;
   data: Record<string, unknown>;
+  analytics_session_id: string | null;
+  completion_seconds: number | null;
   created_at: string;
 };
+type AnalyticsField = {
+  id: string;
+  field_key: string;
+  label: string;
+  type: string;
+};
 
+const RANGES: Array<{ value: RangeKey; label: string }> = [
+  { value: "7", label: "7 days" },
+  { value: "30", label: "30 days" },
+  { value: "90", label: "90 days" },
+  { value: "all", label: "All time" },
+];
 const WORKFLOW_LABELS: Record<string, string> = {
   new: "New",
   reviewing: "In review",
@@ -26,9 +46,14 @@ const WORKFLOW_LABELS: Record<string, string> = {
 
 export default async function FormAnalytics({
   params,
+  searchParams,
 }: {
   params: { id: string };
+  searchParams?: { range?: string };
 }) {
+  const range = RANGES.some((item) => item.value === searchParams?.range)
+    ? (searchParams?.range as RangeKey)
+    : "30";
   const supabase = createClient();
   const [
     { data: form },
@@ -43,58 +68,68 @@ export default async function FormAnalytics({
       .maybeSingle(),
     supabase
       .from("form_fields")
-      .select("id, field_key, label, type, options")
+      .select("id, field_key, label, type")
       .eq("form_id", params.id)
       .order("position", { ascending: true }),
     supabase
       .from("form_responses")
-      .select("status, data, created_at")
+      .select(
+        "status, data, analytics_session_id, completion_seconds, created_at",
+      )
       .eq("form_id", params.id)
       .order("created_at", { ascending: true }),
     supabase
       .from("form_analytics_events")
-      .select("event_type, created_at")
+      .select(
+        "event_type, session_id, step_index, source, medium, campaign, referrer_host, created_at",
+      )
       .eq("form_id", params.id)
       .order("created_at", { ascending: true }),
   ]);
   if (!form) notFound();
 
-  const responseRows = (responses ?? []) as ResponseRecord[];
-  const eventRows = (events ?? []) as AnalyticsEvent[];
-  const thirtyDaysAgo = startOfDay(addDays(new Date(), -29));
-  const firstTrackedAt = eventRows[0]
-    ? new Date(eventRows[0].created_at)
-    : new Date();
-  const measurementStart =
-    firstTrackedAt > thirtyDaysAgo ? firstTrackedAt : thirtyDaysAgo;
-  const recentResponses = responseRows.filter(
-    (response) => new Date(response.created_at) >= measurementStart,
+  const fieldRows = (fields ?? []) as AnalyticsField[];
+  const cutoff =
+    range === "all"
+      ? null
+      : startOfDay(addDays(new Date(), -Number(range) + 1));
+  const responseRows = ((responses ?? []) as ResponseRecord[]).filter(
+    (response) => !cutoff || new Date(response.created_at) >= cutoff,
   );
-  const recentEvents = eventRows.filter(
-    (event) => new Date(event.created_at) >= thirtyDaysAgo,
+  const eventRows = ((events ?? []) as AnalyticsEvent[]).filter(
+    (event) => !cutoff || new Date(event.created_at) >= cutoff,
   );
-  const views = recentEvents.filter(
-    (event) => event.event_type === "view",
-  ).length;
-  const starts = recentEvents.filter(
-    (event) => event.event_type === "start",
-  ).length;
-  const submissions = recentResponses.length;
-  const conversion = views > 0 ? Math.min((submissions / views) * 100, 100) : 0;
-  const completion =
-    starts > 0 ? Math.min((submissions / starts) * 100, 100) : 0;
-  const daily = buildDailySeries(eventRows, responseRows, 14);
+  const views = eventRows.filter((event) => event.event_type === "view");
+  const starts = eventRows.filter((event) => event.event_type === "start");
+  const trackedSubmissions = responseRows.filter(
+    (response) => response.analytics_session_id,
+  );
+  const conversion = percentNumber(trackedSubmissions.length, views.length);
+  const completion = percentNumber(trackedSubmissions.length, starts.length);
+  const completionTimes = trackedSubmissions
+    .map((response) => response.completion_seconds)
+    .filter(
+      (value): value is number => typeof value === "number" && value >= 0,
+    );
+  const averageCompletion = completionTimes.length
+    ? completionTimes.reduce((sum, value) => sum + value, 0) /
+      completionTimes.length
+    : null;
+  const chartDays = range === "7" ? 7 : 30;
+  const daily = buildDailySeries(eventRows, responseRows, chartDays);
   const maxDaily = Math.max(
     1,
     ...daily.flatMap((day) => [day.views, day.starts, day.submissions]),
   );
+  const funnel = buildFunnel(fieldRows, eventRows, trackedSubmissions);
+  const sources = buildSources(views);
   const workflow = Object.entries(WORKFLOW_LABELS).map(([key, label]) => ({
     key,
     label,
     count: responseRows.filter((response) => (response.status || "new") === key)
       .length,
   }));
-  const insights = (fields ?? [])
+  const insights = fieldRows
     .filter((field) =>
       ["select", "multiselect", "checkbox"].includes(field.type),
     )
@@ -126,40 +161,98 @@ export default async function FormAnalytics({
         </Link>
       </header>
 
-      <div className="page-head">
-        <div className="eyebrow">{form.title}</div>
-        <h1>Form performance</h1>
-        <div className="sub">
-          Last 30 days, measured from the start of analytics tracking
+      <div className="page-head analytics-page-head">
+        <div>
+          <div className="eyebrow">{form.title}</div>
+          <h1>Form performance</h1>
+          <div className="sub">Anonymous, session-based funnel analytics</div>
         </div>
+        <a
+          className="btn"
+          href={`/forms/${form.id}/analytics.csv?range=${range}`}
+          download
+        >
+          Export CSV
+        </a>
       </div>
 
-      <div className="form-analytics-stats">
+      <nav className="analytics-range-tabs" aria-label="Analytics date range">
+        {RANGES.map((item) => (
+          <Link
+            key={item.value}
+            href={`/forms/${form.id}/analytics?range=${item.value}`}
+            className={range === item.value ? "active" : undefined}
+          >
+            {item.label}
+          </Link>
+        ))}
+      </nav>
+
+      <div className="form-analytics-stats deeper">
         <Metric
           label="Unique views"
-          value={views}
-          detail="deduplicated by browser session"
+          value={views.length}
+          detail="browser sessions"
         />
         <Metric
           label="Started"
-          value={starts}
-          detail={`${percent(starts, views)} of viewers`}
+          value={starts.length}
+          detail={`${percent(starts.length, views.length)} of viewers`}
         />
         <Metric
           label="Submitted"
-          value={submissions}
-          detail={`${responseRows.length} all time`}
+          value={responseRows.length}
+          detail={`${trackedSubmissions.length} funnel-tracked`}
         />
         <Metric
           label="View conversion"
           value={`${Math.round(conversion)}%`}
           detail={`${Math.round(completion)}% of starts completed`}
         />
+        <Metric
+          label="Average time"
+          value={formatDuration(averageCompletion)}
+          detail="start to submission"
+        />
+        <Metric
+          label="Abandoned"
+          value={Math.max(starts.length - trackedSubmissions.length, 0)}
+          detail="started without submitting"
+        />
       </div>
 
       <section className="analytics-section">
         <div className="section-label analytics-section-label">
-          <h2>Last 14 days</h2>
+          <h2>Completion funnel</h2>
+        </div>
+        <div className="form-funnel">
+          {funnel.map((stage, index) => {
+            const previous =
+              index === 0 ? stage.count : funnel[index - 1].count;
+            const drop = Math.max(previous - stage.count, 0);
+            return (
+              <div className="form-funnel-row" key={`${stage.label}-${index}`}>
+                <span>{stage.label}</span>
+                <i>
+                  <b
+                    style={{
+                      width: `${percentNumber(stage.count, Math.max(funnel[0]?.count || 0, 1))}%`,
+                    }}
+                  />
+                </i>
+                <strong>{stage.count}</strong>
+                <small>
+                  {index === 0 ? "100%" : drop > 0 ? `${drop} dropped` : "—"}
+                </small>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="analytics-section">
+        <div className="section-label analytics-section-label">
+          <h2>Last {chartDays} days</h2>
           <div className="analytics-legend" aria-label="Chart legend">
             <span>
               <i className="views" /> Views
@@ -173,9 +266,9 @@ export default async function FormAnalytics({
           </div>
         </div>
         <div
-          className="analytics-chart"
+          className={`analytics-chart days-${chartDays}`}
           role="img"
-          aria-label="Views, starts, and submissions over the last 14 days"
+          aria-label={`Views, starts, and submissions over the last ${chartDays} days`}
         >
           {daily.map((day) => (
             <div className="analytics-day" key={day.key}>
@@ -202,32 +295,61 @@ export default async function FormAnalytics({
         </div>
       </section>
 
-      <section className="analytics-section">
-        <div className="section-label analytics-section-label">
-          <h2>Intake pipeline</h2>
-          <Link href={`/forms/${form.id}/responses`} className="more">
-            Manage ›
-          </Link>
+      <section className="analytics-section analytics-two-column">
+        <div>
+          <div className="section-label analytics-section-label">
+            <h2>Traffic sources</h2>
+          </div>
+          <div className="source-breakdown">
+            {sources.length === 0 ? (
+              <div className="empty">
+                <h3>No source data yet</h3>
+                <div>New form visits will appear here.</div>
+              </div>
+            ) : (
+              sources.slice(0, 8).map((source) => (
+                <div className="source-breakdown-row" key={source.label}>
+                  <span>{source.label}</span>
+                  <i>
+                    <b
+                      style={{
+                        width: `${percentNumber(source.count, views.length)}%`,
+                      }}
+                    />
+                  </i>
+                  <strong>{source.count}</strong>
+                </div>
+              ))
+            )}
+          </div>
         </div>
-        <div className="workflow-breakdown">
-          {workflow.map((stage) => (
-            <Link
-              key={stage.key}
-              href={`/forms/${form.id}/responses?status=${stage.key}`}
-              className="workflow-breakdown-row"
-            >
-              <span>{stage.label}</span>
-              <i>
-                <b
-                  className={`form-response-${stage.key}`}
-                  style={{
-                    width: `${percentNumber(stage.count, responseRows.length)}%`,
-                  }}
-                />
-              </i>
-              <strong>{stage.count}</strong>
+        <div>
+          <div className="section-label analytics-section-label">
+            <h2>Intake pipeline</h2>
+            <Link href={`/forms/${form.id}/responses`} className="more">
+              Manage ›
             </Link>
-          ))}
+          </div>
+          <div className="workflow-breakdown">
+            {workflow.map((stage) => (
+              <Link
+                key={stage.key}
+                href={`/forms/${form.id}/responses?status=${stage.key}`}
+                className="workflow-breakdown-row"
+              >
+                <span>{stage.label}</span>
+                <i>
+                  <b
+                    className={`form-response-${stage.key}`}
+                    style={{
+                      width: `${percentNumber(stage.count, responseRows.length)}%`,
+                    }}
+                  />
+                </i>
+                <strong>{stage.count}</strong>
+              </Link>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -300,6 +422,15 @@ function percentNumber(value: number, total: number) {
   return total > 0 ? Math.min((value / total) * 100, 100) : 0;
 }
 
+function formatDuration(seconds: number | null) {
+  if (seconds === null) return "—";
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.round((seconds % 3600) / 60);
+  return `${hours}h ${minutes}m`;
+}
+
 function addDays(date: Date, amount: number) {
   const next = new Date(date);
   next.setDate(next.getDate() + amount);
@@ -343,6 +474,59 @@ function buildDailySeries(
       ).length,
     };
   });
+}
+
+function buildFunnel(
+  fields: AnalyticsField[],
+  events: AnalyticsEvent[],
+  responses: ResponseRecord[],
+) {
+  const labels: string[] = [];
+  let currentLabel = "Details";
+  let currentFieldCount = 0;
+  for (const field of fields) {
+    if (field.type === "section") {
+      if (currentFieldCount > 0) labels.push(currentLabel);
+      currentLabel = field.label;
+      currentFieldCount = 0;
+    } else {
+      currentFieldCount += 1;
+    }
+  }
+  if (currentFieldCount > 0) labels.push(currentLabel);
+  labels.push("Review");
+  const stepEvents = events.filter((event) => event.event_type === "step");
+  const stages = labels.map((label, stepIndex) => ({
+    label,
+    count: new Set(
+      stepEvents
+        .filter((event) => event.step_index === stepIndex)
+        .map((event) => event.session_id),
+    ).size,
+  }));
+  stages.push({
+    label: "Submitted",
+    count: new Set(
+      responses
+        .map((response) => response.analytics_session_id)
+        .filter((value): value is string => Boolean(value)),
+    ).size,
+  });
+  return stages;
+}
+
+function buildSources(views: AnalyticsEvent[]) {
+  const counts = new Map<string, number>();
+  for (const view of views) {
+    const channel = view.source || view.referrer_host || "Direct";
+    const medium = view.medium ? ` / ${view.medium}` : "";
+    const campaign = view.campaign ? ` · ${view.campaign}` : "";
+    const label = `${channel}${medium}${campaign}`;
+    counts.set(label, (counts.get(label) || 0) + 1);
+  }
+  return Array.from(counts, ([label, count]) => ({ label, count })).sort(
+    (a, b) => b.count - a.count || a.label.localeCompare(b.label),
+  );
 }
 
 function countAnswers(responses: ResponseRecord[], fieldKey: string) {

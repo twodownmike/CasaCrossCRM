@@ -6,6 +6,11 @@ import { randomBytes, randomUUID } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { sendEmail, sendNotificationEmail, escapeHtml } from "@/lib/notify";
 import { isFormFieldVisible } from "@/lib/form-conditions";
+import {
+  FORM_UPLOAD_MAX_BYTES,
+  isAllowedFormUpload,
+  parseFormUploadValue,
+} from "@/lib/form-uploads";
 import type {
   FormConditionOperator,
   FormField,
@@ -50,6 +55,7 @@ const VALID_TYPES: FormFieldType[] = [
   "select",
   "multiselect",
   "checkbox",
+  "file",
   "section",
 ];
 
@@ -82,6 +88,8 @@ function displayFormValue(value: unknown) {
   if (value === null || value === undefined || value === "") return "—";
   if (typeof value === "boolean") return value ? "Yes" : "No";
   if (Array.isArray(value)) return value.length > 0 ? value.join(", ") : "—";
+  const upload = parseFormUploadValue(value);
+  if (upload) return `Attached: ${upload.name}`;
   return String(value);
 }
 
@@ -99,17 +107,50 @@ function findRespondentEmail(
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
 }
 
+function formUploadPaths(responses: Array<{ data: unknown }>) {
+  const paths = new Set<string>();
+  for (const response of responses) {
+    if (!response.data || typeof response.data !== "object") continue;
+    for (const value of Object.values(response.data)) {
+      const upload = parseFormUploadValue(value);
+      if (upload) paths.add(upload.path);
+    }
+  }
+  return Array.from(paths);
+}
+
+async function removeFormUploads(
+  supabase: ReturnType<typeof createClient>,
+  paths: string[],
+) {
+  if (paths.length === 0) return;
+  const { error } = await supabase.storage.from("form-uploads").remove(paths);
+  if (error) console.error("removeFormUploads failed", error);
+}
+
 export async function recordFormAnalyticsEvent(
   formId: string,
-  eventType: "view" | "start",
+  eventType: "view" | "start" | "step",
   sessionId: string,
+  details?: {
+    stepIndex?: number;
+    source?: string;
+    medium?: string;
+    campaign?: string;
+    referrerHost?: string;
+  },
 ) {
   if (!isUuid(formId) || !isUuid(sessionId)) return;
   const supabase = createClient();
-  const { error } = await supabase.rpc("record_form_analytics_event", {
+  const { error } = await supabase.rpc("record_form_analytics_event_v2", {
     form_id_value: formId,
     event_type_value: eventType,
     session_id_value: sessionId,
+    step_index_value: details?.stepIndex ?? null,
+    source_value: details?.source || null,
+    medium_value: details?.medium || null,
+    campaign_value: details?.campaign || null,
+    referrer_host_value: details?.referrerHost || null,
   });
   if (error) console.error("recordFormAnalyticsEvent failed", error);
 }
@@ -160,7 +201,13 @@ export async function deleteForm(form: FormData) {
   const supabase = createClient();
   const id = s(form, "id");
   if (!id) return;
-  await supabase.from("forms").delete().eq("id", id);
+  const { data: responses } = await supabase
+    .from("form_responses")
+    .select("data")
+    .eq("form_id", id);
+  const { error } = await supabase.from("forms").delete().eq("id", id);
+  if (error) throw error;
+  await removeFormUploads(supabase, formUploadPaths(responses ?? []));
   revalidatePath("/forms");
   redirect("/forms");
 }
@@ -467,6 +514,16 @@ export async function submitFormResponse(
     let value: unknown;
     if (f.type === "checkbox") {
       value = raw === "on" || raw === "true";
+    } else if (f.type === "file") {
+      const upload = parseFormUploadValue(raw);
+      value =
+        upload &&
+        upload.path.startsWith(`${formId}/${f.id}/`) &&
+        upload.size > 0 &&
+        upload.size <= FORM_UPLOAD_MAX_BYTES &&
+        isAllowedFormUpload(upload)
+          ? upload
+          : null;
     } else if (f.type === "multiselect") {
       value = form
         .getAll(f.field_key)
@@ -491,9 +548,15 @@ export async function submitFormResponse(
   }
 
   const responseId = randomUUID();
-  const { error } = await supabase
-    .from("form_responses")
-    .insert({ id: responseId, form_id: formId, data });
+  const analyticsSessionId = s(form, "analytics_session_id");
+  const { error } = await supabase.from("form_responses").insert({
+    id: responseId,
+    form_id: formId,
+    data,
+    analytics_session_id: isUuid(analyticsSessionId)
+      ? analyticsSessionId
+      : null,
+  });
   if (error) {
     console.error("submitFormResponse failed", error);
     return { ok: false, error: error.message };
@@ -739,7 +802,17 @@ export async function deleteFormResponse(form: FormData) {
   const id = s(form, "id");
   const formId = s(form, "form_id");
   if (!id) return;
-  await supabase.from("form_responses").delete().eq("id", id);
+  const { data: response } = await supabase
+    .from("form_responses")
+    .select("data")
+    .eq("id", id)
+    .maybeSingle();
+  const { error } = await supabase.from("form_responses").delete().eq("id", id);
+  if (error) throw error;
+  await removeFormUploads(
+    supabase,
+    formUploadPaths(response ? [response] : []),
+  );
   if (formId) {
     revalidatePath(`/forms/${formId}`);
     revalidatePath(`/forms/${formId}/responses`);

@@ -6,6 +6,7 @@ import { fmtDateFull, relTime } from "@/lib/format";
 import { ResponseRow } from "./response-row";
 import { ResponseWorkflow } from "./response-workflow";
 import type { FormResponseStatus } from "@/lib/types";
+import { parseFormUploadValue } from "@/lib/form-uploads";
 
 export const dynamic = "force-dynamic";
 
@@ -164,6 +165,7 @@ export default async function FormResponses({
                     const v = (r.data as Record<string, unknown>)[
                       field.field_key
                     ];
+                    const upload = parseFormUploadValue(v);
                     const display =
                       v === null || v === undefined || v === ""
                         ? "—"
@@ -197,7 +199,18 @@ export default async function FormResponses({
                             wordBreak: "break-word",
                           }}
                         >
-                          {display}
+                          {upload ? (
+                            <a
+                              href={`/forms/${f.id}/responses/${r.id}/files/${encodeURIComponent(field.field_key)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="form-upload-download"
+                            >
+                              {upload.name}
+                            </a>
+                          ) : (
+                            display
+                          )}
                         </dd>
                       </div>
                     );
