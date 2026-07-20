@@ -199,6 +199,22 @@ export function PublicFormRenderer({
     });
   }
 
+  function handleKeyDown(e: React.KeyboardEvent<HTMLFormElement>) {
+    if (e.key !== "Enter" || currentStepIndex >= steps.length - 1) return;
+    const target = e.target as HTMLElement;
+    if (
+      target.tagName === "TEXTAREA" ||
+      target.tagName === "SELECT" ||
+      target.tagName === "BUTTON" ||
+      target.closest("details") ||
+      (target instanceof HTMLInputElement && target.type === "checkbox")
+    ) {
+      return;
+    }
+    e.preventDefault();
+    formRef.current?.requestSubmit();
+  }
+
   if (fields.length === 0) {
     return (
       <div className="muted" style={{ fontSize: 13, marginTop: 18 }}>
@@ -219,6 +235,7 @@ export function PublicFormRenderer({
       ref={formRef}
       onSubmit={submit}
       onChange={updateAnswers}
+      onKeyDown={handleKeyDown}
       className="form-grid public-stepped-form"
     >
       <div ref={progressRef} className="public-form-progress">
