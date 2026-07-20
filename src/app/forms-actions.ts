@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { randomBytes } from "crypto";
+import { randomBytes, randomUUID } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { sendEmail, sendNotificationEmail, escapeHtml } from "@/lib/notify";
 import type { FormFieldType } from "@/lib/types";
@@ -358,22 +358,21 @@ export async function submitFormResponse(
     previousAnswer = value;
   }
 
-  const { data: inserted, error } = await supabase
+  const responseId = randomUUID();
+  const { error } = await supabase
     .from("form_responses")
-    .insert({ form_id: formId, data })
-    .select("id")
-    .single();
+    .insert({ id: responseId, form_id: formId, data });
   if (error) {
     console.error("submitFormResponse failed", error);
     return { ok: false, error: error.message };
   }
 
-  if (assignmentToken && inserted?.id) {
+  if (assignmentToken) {
     const { error: assignmentError } = await supabase.rpc(
       "complete_form_assignment",
       {
         assignment_token: assignmentToken,
-        response_id_value: inserted.id,
+        response_id_value: responseId,
       },
     );
     if (assignmentError) {
