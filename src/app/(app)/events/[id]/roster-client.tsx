@@ -9,10 +9,7 @@ import { Sheet } from "@/components/sheet";
 import { Icon } from "@/components/icons";
 import { fmtMoney } from "@/lib/format";
 import { ROLE_META, ROLE_ORDER, type RoleKind } from "@/lib/types";
-import {
-  bulkMarkPaid,
-  bulkRemoveParticipants,
-} from "@/app/actions";
+import { bulkMarkPaid, bulkRemoveParticipants } from "@/app/actions";
 import { bulkSendContracts } from "@/app/contracts-actions";
 import { grantPortalAccess } from "@/app/portal-actions";
 import { bulkSendForms } from "@/app/forms-actions";
@@ -35,6 +32,9 @@ type RosterPart = {
     specialty: string | null;
   };
   portal: "active" | "setup" | "invited" | "expired" | "none";
+  contract_required: boolean;
+  payment_required: boolean;
+  portal_required: boolean;
 };
 
 export function RosterClient({
@@ -98,7 +98,9 @@ export function RosterClient({
   }
   function selectAllUnsentContract() {
     setSelectedIds(
-      new Set(participants.filter((p) => p.contract === "unsent").map((p) => p.id)),
+      new Set(
+        participants.filter((p) => p.contract === "unsent").map((p) => p.id),
+      ),
     );
   }
   function selectAll() {
@@ -199,11 +201,7 @@ export function RosterClient({
               </button>
             </>
           ) : (
-            <button
-              type="button"
-              className="btn sm"
-              onClick={toggleSelectMode}
-            >
+            <button type="button" className="btn sm" onClick={toggleSelectMode}>
               <Icon.check /> Select
             </button>
           )}
@@ -418,6 +416,14 @@ function Row({
           </span>
           <PortalStatus status={part.portal} />
         </div>
+        <div className="roster-requirements">
+          {part.contract_required && <span>Contract required</span>}
+          {part.payment_required && <span>Payment required</span>}
+          {part.portal_required && <span>Portal required</span>}
+          {!part.contract_required &&
+            !part.payment_required &&
+            !part.portal_required && <span>No readiness requirements</span>}
+        </div>
       </div>
       {!selecting && part.portal !== "active" && part.person.email && (
         <form action={grantPortalAccess} onClick={(e) => e.stopPropagation()}>
@@ -457,7 +463,10 @@ function Row({
       style={{ alignItems: "flex-start", paddingTop: 14, paddingBottom: 14 }}
     >
       {inner}
-      <Link className="btn sm" href={`/events/${eventId}/participants/${part.id}`}>
+      <Link
+        className="btn sm"
+        href={`/events/${eventId}/participants/${part.id}`}
+      >
         Edit
       </Link>
     </div>
@@ -577,8 +586,8 @@ function BulkContractForm({
           Copy all links
         </button>
         <p className="muted" style={{ fontSize: 12, lineHeight: 1.5 }}>
-          Send each link to the matching participant. Their booking statuses
-          are now <strong>Sent</strong>.
+          Send each link to the matching participant. Their booking statuses are
+          now <strong>Sent</strong>.
         </p>
         <div className="sheet-footer">
           <button className="btn primary block" type="button" onClick={onDone}>

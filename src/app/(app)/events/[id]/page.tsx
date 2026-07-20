@@ -20,6 +20,7 @@ import { AddEventNoteForm } from "./add-event-note-form";
 import { PacketPrintButton } from "./packet-print-button";
 import { createClient as createSupabase } from "@/lib/supabase/server";
 import { PortalThreadList } from "./portal-thread-list";
+import { EventReadiness, type ReadinessCheck } from "./event-readiness";
 
 async function loadTemplates(): Promise<Array<{ id: string; name: string }>> {
   const supabase = createSupabase();
@@ -76,7 +77,13 @@ export default async function EventDetail({
   const availablePeople = allPeople.filter((p) => !usedIds.has(p.id));
   const participantPersonIds = e.participants.map((p) => p.person_id);
   const supabase = createSupabase();
-  const [{ data: portalUsers }, { data: portalInvites }] =
+  const participantIds = e.participants.map((p) => p.id);
+  const [
+    { data: portalUsers },
+    { data: portalInvites },
+    { data: eventContracts },
+    { data: formAssignments },
+  ] =
     participantPersonIds.length > 0
       ? await Promise.all([
           supabase
@@ -89,8 +96,17 @@ export default async function EventDetail({
             .select("person_id, accepted_at, expires_at, created_at")
             .in("person_id", participantPersonIds)
             .order("created_at", { ascending: false }),
+          supabase
+            .from("contracts")
+            .select("participant_id, status, opened_at, created_at")
+            .in("participant_id", participantIds)
+            .order("created_at", { ascending: false }),
+          supabase
+            .from("form_assignments")
+            .select("participant_id, completed_at")
+            .eq("event_id", e.id),
         ])
-      : [{ data: [] }, { data: [] }];
+      : [{ data: [] }, { data: [] }, { data: [] }, { data: [] }];
   const portalUsersByPerson = new Map(
     (portalUsers ?? []).map((row) => [row.person_id, row]),
   );
@@ -107,6 +123,83 @@ export default async function EventDetail({
       latestInviteByPerson.set(invite.person_id, invite);
     }
   });
+  const latestContractByParticipant = new Map<
+    string,
+    { status: string; opened_at: string | null }
+  >();
+  (eventContracts ?? []).forEach((contract) => {
+    if (!latestContractByParticipant.has(contract.participant_id)) {
+      latestContractByParticipant.set(contract.participant_id, contract);
+    }
+  });
+  const portalIsReady = (personId: string) =>
+    Boolean(portalUsersByPerson.get(personId)?.setup_completed_at);
+  const requiredContracts = e.participants.filter((p) => p.contract_required);
+  const requiredPayments = e.participants.filter((p) => p.payment_required);
+  const requiredPortals = e.participants.filter((p) => p.portal_required);
+  const workflowContacts = e.participants.filter(
+    (p) => p.contract_required || p.portal_required,
+  );
+  const assignments = formAssignments ?? [];
+  const readinessChecks: ReadinessCheck[] = [
+    {
+      key: "contacts",
+      label: "Contact details",
+      complete: workflowContacts.filter((p) => Boolean(p.person.email)).length,
+      total: workflowContacts.length,
+      href: `/events/${e.id}?tab=roster`,
+      detail: "Email available for required workflows",
+    },
+    {
+      key: "contracts",
+      label: "Contracts",
+      complete: requiredContracts.filter(
+        (p) =>
+          latestContractByParticipant.get(p.id)?.status === "signed" ||
+          p.contract === "signed",
+      ).length,
+      total: requiredContracts.length,
+      href: `/events/${e.id}?tab=roster`,
+      detail: "Required agreements signed",
+    },
+    {
+      key: "forms",
+      label: "Assigned forms",
+      complete: assignments.filter((assignment) => assignment.completed_at)
+        .length,
+      total: assignments.length,
+      href: `/events/${e.id}?tab=roster`,
+      detail: "Assigned questionnaires completed",
+    },
+    {
+      key: "payments",
+      label: "Payments",
+      complete: requiredPayments.filter((p) => Number(p.paid) >= Number(p.rate))
+        .length,
+      total: requiredPayments.length,
+      href: `/events/${e.id}?tab=money`,
+      detail: "Required balances collected",
+    },
+    {
+      key: "portal",
+      label: "Portal setup",
+      complete: requiredPortals.filter((p) => portalIsReady(p.person_id))
+        .length,
+      total: requiredPortals.length,
+      href: `/events/${e.id}?tab=portal`,
+      detail: "Required participants activated",
+    },
+    {
+      key: "tasks",
+      label: "Checklist",
+      complete: e.tasks.filter((task) => task.done).length,
+      total: e.tasks.length || 1,
+      href: `/events/${e.id}?tab=tasks`,
+      detail: e.tasks.length
+        ? "Event tasks completed"
+        : "Add the standard checklist",
+    },
+  ];
 
   return (
     <div className="fade-in">
@@ -187,6 +280,11 @@ export default async function EventDetail({
 
       {tab === "overview" && (
         <div className="fade-in" style={{ padding: "var(--s-5)" }}>
+          <EventReadiness
+            eventId={e.id}
+            stage={e.stage}
+            checks={readinessChecks}
+          />
           {e.description && (
             <p
               style={{
@@ -341,6 +439,9 @@ export default async function EventDetail({
                 }
                 return "invited";
               })(),
+              contract_required: p.contract_required,
+              payment_required: p.payment_required,
+              portal_required: p.portal_required,
             }))}
             templates={await loadTemplates()}
             forms={await loadForms()}
@@ -539,7 +640,6 @@ export default async function EventDetail({
     </div>
   );
 }
-
 import { createTask } from "@/app/actions";
 import { Icon as I } from "@/components/icons";
 
@@ -938,6 +1038,11 @@ function NewTaskForm({ eventId }: { eventId: string }) {
         />
         <input name="due" type="date" className="input" style={{ flex: 0.7 }} />
       </div>
+      <select name="priority" className="input" defaultValue="normal">
+        <option value="low">Low priority</option>
+        <option value="normal">Normal priority</option>
+        <option value="high">High priority</option>
+      </select>
       <button className="btn" type="submit">
         <I.plus /> Add task
       </button>

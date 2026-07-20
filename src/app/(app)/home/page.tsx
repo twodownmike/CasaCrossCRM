@@ -41,6 +41,7 @@ export default async function Home() {
     icon: "mail" | "doc" | "dollar" | "check" | "calendar";
     priority: number;
     due?: string;
+    bucket: "overdue" | "today" | "upcoming" | "waiting";
   };
   const actions: Action[] = [];
 
@@ -89,6 +90,8 @@ export default async function Home() {
       tone: s.status === "pending" ? "warm" : "gold",
       icon: "mail",
       priority: priority + Math.min(age, 10),
+      bucket:
+        s.status === "invited" ? "waiting" : age >= 7 ? "overdue" : "today",
     });
   });
 
@@ -135,20 +138,31 @@ export default async function Home() {
       tone: "warm",
       icon: "mail",
       priority: 96,
+      bucket: "today",
     });
   });
 
   events.forEach((e) => {
     if (e.status === "wrapped") return;
     const daysToEvent = daysUntil(e.date);
+    if (daysToEvent < 0 && e.stage !== "complete") {
+      actions.push({
+        kind: "event",
+        href: `/events/${e.id}`,
+        title: `Complete ${e.name}`,
+        detail: "Event date has passed · reconcile and close out",
+        tone: "warm",
+        icon: "calendar",
+        priority: 99,
+        due: e.date,
+        bucket: "overdue",
+      });
+    }
     if (daysToEvent >= 0 && daysToEvent <= 7) {
       actions.push({
         kind: "event",
         href: `/events/${e.id}`,
-        title:
-          daysToEvent === 0
-            ? `${e.name} is today`
-            : `Prep ${e.name}`,
+        title: daysToEvent === 0 ? `${e.name} is today` : `Prep ${e.name}`,
         detail:
           daysToEvent === 0
             ? "Check roster, tasks, and messages"
@@ -157,10 +171,11 @@ export default async function Home() {
         icon: "calendar",
         priority: 76 - daysToEvent,
         due: e.date,
+        bucket: daysToEvent === 0 ? "today" : "upcoming",
       });
     }
     e.participants.forEach((p) => {
-      if (p.contract === "unsent") {
+      if (p.contract_required && p.contract === "unsent") {
         actions.push({
           kind: "contract",
           href: `/events/${e.id}/participants/${p.id}`,
@@ -169,9 +184,27 @@ export default async function Home() {
           tone: "warm",
           icon: "doc",
           priority: 74,
+          bucket: "today",
         });
       } else if (
-        p.status === "due" &&
+        p.contract_required &&
+        (p.contract === "sent" || p.contract === "opened")
+      ) {
+        actions.push({
+          kind: "contract",
+          href: `/events/${e.id}/participants/${p.id}`,
+          title: `Awaiting ${p.person.name}'s signature`,
+          detail: `${e.name} · ${p.contract === "opened" ? "opened" : "sent"}`,
+          tone: "gold",
+          icon: "doc",
+          priority: p.contract === "opened" ? 61 : 54,
+          bucket: "waiting",
+        });
+      }
+      if (
+        p.payment_required &&
+        (p.status === "due" || p.status === "partial") &&
+        Number(p.paid) < Number(p.rate) &&
         p.due_date &&
         daysUntil(p.due_date) < 7
       ) {
@@ -188,6 +221,7 @@ export default async function Home() {
           icon: "dollar",
           priority: daysToDue < 0 ? 92 : 70 - daysToDue,
           due: p.due_date,
+          bucket: daysToDue < 0 ? "overdue" : "waiting",
         });
       }
     });
@@ -203,17 +237,29 @@ export default async function Home() {
     if (e && (d === null || d <= 14)) {
       actions.push({
         kind: "task",
-        href: `/events/${e.id}`,
+        href: `/events/${e.id}?tab=tasks`,
         title: t.title,
         detail: `${e.name}${t.due ? ` · ${daysUntilLabel(t.due) || fmtDate(t.due, { short: true })}` : ""}`,
         tone: d !== null && d < 0 ? "warm" : "sage",
         icon: "check",
         priority: d === null ? 48 : d < 0 ? 90 : 68 - d,
         due: t.due ?? undefined,
+        bucket:
+          d !== null && d < 0
+            ? "overdue"
+            : d === 0 || d === null
+              ? "today"
+              : "upcoming",
       });
     }
   });
   actions.sort((a, b) => b.priority - a.priority);
+  const actionGroups = [
+    { key: "overdue", label: "Overdue", tone: "warm" },
+    { key: "today", label: "Today", tone: "slate" },
+    { key: "upcoming", label: "Upcoming", tone: "sage" },
+    { key: "waiting", label: "Waiting", tone: "gold" },
+  ] as const;
 
   const leadCount = submissions.length;
   const tasksDueCount = actions.filter((a) => a.kind === "task").length;
@@ -292,57 +338,75 @@ export default async function Home() {
               {actions.length}
             </span>
           </div>
-          <div style={{ padding: "0 var(--s-5)" }}>
-            <div className="card elev">
-              {actions.slice(0, 7).map((a, i) => {
-                const ActionIcon = iconFor[a.icon];
-                return (
-                  <Link key={`${a.kind}-${i}`} className="card-row" href={a.href}>
-                    <span
-                      style={{
-                        width: 34,
-                        height: 34,
-                        borderRadius: "50%",
-                        ...toneStyle[a.tone],
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        flexShrink: 0,
-                      }}
-                    >
-                      <ActionIcon />
-                    </span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div
-                        style={{
-                          fontSize: 14,
-                          fontWeight: 500,
-                          color: "var(--ink)",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {a.title}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: 12,
-                          color: "var(--ink-3)",
-                          marginTop: 2,
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {a.detail}
-                      </div>
-                    </div>
-                    <Icon.chev style={{ color: "var(--ink-4)" }} />
-                  </Link>
-                );
-              })}
-            </div>
+          <div className="action-groups">
+            {actionGroups.map((group) => {
+              const groupActions = actions
+                .filter((action) => action.bucket === group.key)
+                .slice(0, 5);
+              if (groupActions.length === 0) return null;
+              return (
+                <section key={group.key} className="action-group">
+                  <div className="action-group-head">
+                    <span>{group.label}</span>
+                    <span>{groupActions.length}</span>
+                  </div>
+                  <div className="card elev">
+                    {groupActions.map((a) => {
+                      const ActionIcon = iconFor[a.icon];
+                      return (
+                        <Link
+                          key={`${group.key}-${a.kind}-${a.href}-${a.title}`}
+                          className="card-row"
+                          href={a.href}
+                        >
+                          <span
+                            style={{
+                              width: 34,
+                              height: 34,
+                              borderRadius: "50%",
+                              ...toneStyle[a.tone],
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              flexShrink: 0,
+                            }}
+                          >
+                            <ActionIcon />
+                          </span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div
+                              style={{
+                                fontSize: 14,
+                                fontWeight: 500,
+                                color: "var(--ink)",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {a.title}
+                            </div>
+                            <div
+                              style={{
+                                fontSize: 12,
+                                color: "var(--ink-3)",
+                                marginTop: 2,
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {a.detail}
+                            </div>
+                          </div>
+                          <Icon.chev style={{ color: "var(--ink-4)" }} />
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </section>
+              );
+            })}
           </div>
         </>
       )}

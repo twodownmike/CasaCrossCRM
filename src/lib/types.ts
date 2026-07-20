@@ -8,6 +8,12 @@ export type RoleKind =
   | "sponsor";
 
 export type EventStatus = "confirmed" | "planning" | "pending" | "wrapped";
+export type EventStage =
+  | "planning"
+  | "booking"
+  | "finalizing"
+  | "ready"
+  | "complete";
 export type PayStatus = "paid" | "partial" | "due" | "comp";
 export type ContractStatus = "signed" | "opened" | "sent" | "unsent" | "na";
 
@@ -48,7 +54,7 @@ export type EventRow = {
   venue_id: string | null;
   location: string | null;
   status: EventStatus;
-  stage: string | null;
+  stage: EventStage;
   capacity: number | null;
   tags: string[] | null;
 };
@@ -64,6 +70,9 @@ export type Participant = {
   status: PayStatus;
   contract: ContractStatus;
   due_date: string | null;
+  contract_required: boolean;
+  payment_required: boolean;
+  portal_required: boolean;
 };
 
 export type Task = {
@@ -72,6 +81,9 @@ export type Task = {
   title: string;
   done: boolean;
   due: string | null;
+  priority: "low" | "normal" | "high";
+  source: "manual" | "checklist" | "system";
+  template_key: string | null;
 };
 
 export type Activity = {

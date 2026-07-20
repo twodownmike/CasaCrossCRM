@@ -14,7 +14,13 @@ const COVERS = [
   "rose",
   "tuscany",
 ];
-const STATUSES = ["planning", "confirmed", "pending", "wrapped"] as const;
+const STAGES = [
+  ["planning", "Planning"],
+  ["booking", "Booking"],
+  ["finalizing", "Finalizing"],
+  ["ready", "Ready"],
+  ["complete", "Complete"],
+] as const;
 
 export function EventForm({ event }: { event?: EventRow }) {
   const editing = !!event;
@@ -72,15 +78,15 @@ export function EventForm({ event }: { event?: EventRow }) {
       </div>
       <div className="form-row">
         <div>
-          <label className="form-label">Status</label>
+          <label className="form-label">Workflow stage</label>
           <select
-            name="status"
+            name="stage"
             className="input"
-            defaultValue={event?.status || "planning"}
+            defaultValue={event?.stage || "planning"}
           >
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {s[0].toUpperCase() + s.slice(1)}
+            {STAGES.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
               </option>
             ))}
           </select>
@@ -131,7 +137,10 @@ export function EventForm({ event }: { event?: EventRow }) {
           defaultValue={event?.description || ""}
           placeholder="Team-only planning notes, budget context, sensitive logistics..."
         />
-        <p className="muted" style={{ fontSize: 11, marginTop: 6, lineHeight: 1.4 }}>
+        <p
+          className="muted"
+          style={{ fontSize: 11, marginTop: 6, lineHeight: 1.4 }}
+        >
           This stays inside the CRM and is not shown in the client portal.
         </p>
       </div>
@@ -143,7 +152,10 @@ export function EventForm({ event }: { event?: EventRow }) {
           defaultValue={event?.portal_brief || ""}
           placeholder="Client-safe details: parking, arrival instructions, what to bring..."
         />
-        <p className="muted" style={{ fontSize: 11, marginTop: 6, lineHeight: 1.4 }}>
+        <p
+          className="muted"
+          style={{ fontSize: 11, marginTop: 6, lineHeight: 1.4 }}
+        >
           This is the only event brief shown to portal users.
         </p>
       </div>
@@ -193,9 +205,7 @@ export function EventForm({ event }: { event?: EventRow }) {
         {editing ? "Save changes" : "Create event"}
       </button>
 
-      {editing && (
-        <DeleteEventButton id={event!.id} />
-      )}
+      {editing && <DeleteEventButton id={event!.id} />}
 
       <Link
         href={editing ? `/events/${event!.id}` : "/events"}
@@ -210,7 +220,8 @@ export function EventForm({ event }: { event?: EventRow }) {
 
 function PublicLink({ slug }: { slug: string }) {
   const baseUrl =
-    process.env.NEXT_PUBLIC_PORTAL_URL || process.env.NEXT_PUBLIC_EVENTS_URL ||
+    process.env.NEXT_PUBLIC_PORTAL_URL ||
+    process.env.NEXT_PUBLIC_EVENTS_URL ||
     process.env.NEXT_PUBLIC_SITE_URL ||
     (typeof window !== "undefined" ? window.location.origin : "");
   const path = `/e/${slug}`;

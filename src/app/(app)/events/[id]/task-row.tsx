@@ -27,9 +27,7 @@ export function TaskRow({ task, eventId }: { task: Task; eventId: string }) {
           width: 22,
           height: 22,
           borderRadius: "50%",
-          border: done
-            ? "1.5px solid var(--sage)"
-            : "1.5px solid var(--ink-4)",
+          border: done ? "1.5px solid var(--sage)" : "1.5px solid var(--ink-4)",
           background: done ? "var(--sage)" : "transparent",
           color: "white",
           display: "inline-flex",
@@ -56,6 +54,10 @@ export function TaskRow({ task, eventId }: { task: Task; eventId: string }) {
             {daysUntilLabel(task.due) || fmtDate(task.due, { short: true })}
           </div>
         )}
+        <div className="task-meta">
+          {task.priority === "high" && <span>High priority</span>}
+          {task.source === "checklist" && <span>Checklist</span>}
+        </div>
       </div>
     </button>
   );

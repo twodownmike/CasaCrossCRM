@@ -36,7 +36,9 @@ export function EventCard({ event }: { event: EventCardData }) {
       }}
     >
       <div
-        className={event.cover_image_url ? "" : `cover-${event.cover || "modern"}`}
+        className={
+          event.cover_image_url ? "" : `cover-${event.cover || "modern"}`
+        }
         style={{
           height: 110,
           position: "relative",
@@ -65,7 +67,12 @@ export function EventCard({ event }: { event: EventCardData }) {
             justifyContent: "space-between",
           }}
         >
-          <StatusPill status={event.status} />
+          <span style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <StatusPill status={event.status} />
+            <span className="pill event-stage-pill">
+              {event.stage[0].toUpperCase() + event.stage.slice(1)}
+            </span>
+          </span>
           {dlabel && (
             <span
               className="pill"
@@ -138,10 +145,7 @@ export function EventCard({ event }: { event: EventCardData }) {
             people={event.participants.slice(0, 4).map((p) => p.person)}
           />
         </div>
-        <div
-          className="row between"
-          style={{ marginBottom: 6, fontSize: 12 }}
-        >
+        <div className="row between" style={{ marginBottom: 6, fontSize: 12 }}>
           <span className="muted">
             {fmtMoney(totals.paid)} of {fmtMoney(totals.rate)} paid
           </span>

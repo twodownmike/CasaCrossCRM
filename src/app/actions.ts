@@ -10,7 +10,7 @@ import { applicationEmail } from "@/emails/application";
 import { ROLE_META } from "@/lib/types";
 import type {
   ContractStatus,
-  EventStatus,
+  EventStage,
   PayStatus,
   RoleKind,
 } from "@/lib/types";
@@ -24,6 +24,25 @@ const ROLE_TINTS: Record<RoleKind, { tint: string; ink: string }> = {
   stylist: { tint: "var(--sage-tint)", ink: "var(--sage-deep)" },
   sponsor: { tint: "#ece8e0", ink: "#6e5e3a" },
 };
+
+const EVENT_STAGES: EventStage[] = [
+  "planning",
+  "booking",
+  "finalizing",
+  "ready",
+  "complete",
+];
+
+function eventStage(form: FormData): EventStage {
+  const value = s(form, "stage") as EventStage;
+  return EVENT_STAGES.includes(value) ? value : "planning";
+}
+
+function statusForStage(stage: EventStage) {
+  if (stage === "complete") return "wrapped";
+  if (stage === "planning") return "planning";
+  return "confirmed";
+}
 
 function s(form: FormData, key: string) {
   const v = form.get(key);
@@ -165,6 +184,7 @@ export async function createEvent(form: FormData) {
     .split(",")
     .map((t) => t.trim())
     .filter(Boolean);
+  const stage = eventStage(form);
 
   const { data, error } = await supabase
     .from("events")
@@ -178,7 +198,8 @@ export async function createEvent(form: FormData) {
       cover: s(form, "cover") || "modern",
       cover_image_url: nullable(form, "cover_image_url"),
       location: nullable(form, "location"),
-      status: (s(form, "status") || "planning") as EventStatus,
+      status: statusForStage(stage),
+      stage,
       capacity: num(form, "capacity") || 12,
       tags,
       is_public: form.get("is_public") === "on",
@@ -199,6 +220,7 @@ export async function updateEvent(form: FormData) {
     .split(",")
     .map((t) => t.trim())
     .filter(Boolean);
+  const stage = eventStage(form);
 
   const { error } = await supabase
     .from("events")
@@ -212,7 +234,8 @@ export async function updateEvent(form: FormData) {
       cover: s(form, "cover") || "modern",
       cover_image_url: nullable(form, "cover_image_url"),
       location: nullable(form, "location"),
-      status: (s(form, "status") || "planning") as EventStatus,
+      status: statusForStage(stage),
+      stage,
       capacity: num(form, "capacity") || 12,
       tags,
       is_public: form.get("is_public") === "on",
@@ -231,6 +254,22 @@ export async function deleteEvent(form: FormData) {
   await supabase.from("events").delete().eq("id", id);
   revalidatePath("/events");
   redirect("/events");
+}
+
+export async function updateEventStage(form: FormData) {
+  const supabase = createClient();
+  const id = s(form, "id");
+  if (!id) return;
+  const stage = eventStage(form);
+  const updates: Record<string, unknown> = {
+    stage,
+    status: statusForStage(stage),
+  };
+  const { error } = await supabase.from("events").update(updates).eq("id", id);
+  if (error) throw error;
+  revalidatePath(`/events/${id}`);
+  revalidatePath("/events");
+  revalidatePath("/home");
 }
 
 // ─── Participants ───
@@ -256,6 +295,9 @@ export async function addParticipant(
       status: rate === 0 ? "comp" : "due",
       contract: "unsent",
       due_date: nullable(form, "due_date"),
+      contract_required: true,
+      payment_required: rate > 0,
+      portal_required: false,
     },
     { onConflict: "event_id,person_id" },
   );
@@ -315,6 +357,9 @@ export async function bulkAddParticipants(
       status: rate === 0 ? "comp" : "due",
       contract: "unsent",
       due_date: dueDate,
+      contract_required: true,
+      payment_required: rate > 0,
+      portal_required: false,
     })),
     { onConflict: "event_id,person_id" },
   );
@@ -340,6 +385,9 @@ export async function updateParticipant(form: FormData) {
   const due = form.get("due_date");
   const role = form.get("role");
   const roleNote = form.get("role_note");
+  const contractRequired = form.get("contract_required");
+  const paymentRequired = form.get("payment_required");
+  const portalRequired = form.get("portal_required");
 
   let rateValue: number | undefined;
   let paidValue: number | undefined;
@@ -355,10 +403,12 @@ export async function updateParticipant(form: FormData) {
   if (typeof contract === "string")
     updates.contract = contract as ContractStatus;
   if (typeof due === "string") updates.due_date = due === "" ? null : due;
-  if (typeof role === "string" && role !== "")
-    updates.role = role as RoleKind;
+  if (typeof role === "string" && role !== "") updates.role = role as RoleKind;
   if (typeof roleNote === "string")
     updates.role_note = roleNote === "" ? null : roleNote;
+  updates.contract_required = contractRequired === "on";
+  updates.payment_required = paymentRequired === "on";
+  updates.portal_required = portalRequired === "on";
 
   // If rate becomes $0, this is a comp booking — force status + paid to match.
   if (rateValue === 0) {
@@ -465,8 +515,96 @@ export async function createTask(form: FormData) {
     title,
     due: nullable(form, "due"),
     done: false,
+    priority: s(form, "priority") || "normal",
+    source: "manual",
   });
   if (eventId) revalidatePath(`/events/${eventId}`);
+  revalidatePath("/home");
+}
+
+const STANDARD_CHECKLIST = [
+  {
+    key: "confirm-details",
+    title: "Confirm venue and event details",
+    days: -30,
+    priority: "high",
+  },
+  {
+    key: "finalize-roster",
+    title: "Finalize participant roster",
+    days: -21,
+    priority: "high",
+  },
+  {
+    key: "send-contracts",
+    title: "Send outstanding contracts",
+    days: -14,
+    priority: "high",
+  },
+  {
+    key: "collect-forms",
+    title: "Collect required participant forms",
+    days: -7,
+    priority: "high",
+  },
+  {
+    key: "confirm-payments",
+    title: "Confirm participant payments",
+    days: -3,
+    priority: "high",
+  },
+  {
+    key: "send-brief",
+    title: "Send final event brief and arrival details",
+    days: -2,
+    priority: "high",
+  },
+  {
+    key: "event-check-in",
+    title: "Run event-day roster check-in",
+    days: 0,
+    priority: "normal",
+  },
+  {
+    key: "reconcile-wrap",
+    title: "Reconcile expenses and complete event",
+    days: 1,
+    priority: "normal",
+  },
+] as const;
+
+function relativeDate(date: string, days: number) {
+  const value = new Date(`${date}T12:00:00Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+}
+
+export async function generateEventChecklist(form: FormData) {
+  const supabase = createClient();
+  const eventId = s(form, "event_id");
+  if (!eventId) return;
+  const { data: event, error: eventError } = await supabase
+    .from("events")
+    .select("date")
+    .eq("id", eventId)
+    .single();
+  if (eventError || !event) throw eventError || new Error("Event not found.");
+
+  const rows = STANDARD_CHECKLIST.map((item) => ({
+    event_id: eventId,
+    title: item.title,
+    due: relativeDate(event.date, item.days),
+    done: false,
+    priority: item.priority,
+    source: "checklist",
+    template_key: item.key,
+  }));
+  const { error } = await supabase.from("tasks").upsert(rows, {
+    onConflict: "event_id,template_key",
+    ignoreDuplicates: true,
+  });
+  if (error) throw error;
+  revalidatePath(`/events/${eventId}`);
   revalidatePath("/home");
 }
 
@@ -606,14 +744,21 @@ export async function submitApplication(
   const fields = [
     { label: "Role", value: roleLabel },
     { label: "Name", value: payload.name },
-    payload.legal_name ? { label: "Legal name", value: payload.legal_name } : null,
+    payload.legal_name
+      ? { label: "Legal name", value: payload.legal_name }
+      : null,
     payload.email ? { label: "Email", value: payload.email } : null,
     payload.phone ? { label: "Phone", value: payload.phone } : null,
     payload.instagram ? { label: "Instagram", value: payload.instagram } : null,
     payload.location ? { label: "Location", value: payload.location } : null,
     payload.specialty ? { label: "Specialty", value: payload.specialty } : null,
-    payload.portfolio_url ? { label: "Portfolio", value: payload.portfolio_url } : null,
-    { label: "Future projects", value: payload.future_projects_opt_in ? "Yes" : "No" },
+    payload.portfolio_url
+      ? { label: "Portfolio", value: payload.portfolio_url }
+      : null,
+    {
+      label: "Future projects",
+      value: payload.future_projects_opt_in ? "Yes" : "No",
+    },
   ].filter((f): f is { label: string; value: string } => f !== null);
 
   await sendNotificationEmail({
@@ -630,7 +775,10 @@ export async function submitApplication(
   return { ok: true };
 }
 
-const ROLE_TINTS_FOR_SUBMISSION: Record<RoleKind, { tint: string; ink: string }> = {
+const ROLE_TINTS_FOR_SUBMISSION: Record<
+  RoleKind,
+  { tint: string; ink: string }
+> = {
   photographer: { tint: "var(--slate-tint)", ink: "var(--slate)" },
   model: { tint: "var(--rose-tint)", ink: "#a04e60" },
   vendor: { tint: "var(--gold-tint)", ink: "#8a6c2e" },

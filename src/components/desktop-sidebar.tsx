@@ -81,6 +81,24 @@ export function DesktopSidebar({
       ],
     },
     {
+      heading: "Operations",
+      items: [
+        {
+          href: "/contracts",
+          match: /^\/contracts/,
+          label: "Contracts",
+          icon: "doc",
+        },
+        { href: "/forms", match: /^\/forms/, label: "Forms", icon: "check" },
+        {
+          href: "/reports",
+          match: /^\/reports/,
+          label: "Reports",
+          icon: "chart",
+        },
+      ],
+    },
+    {
       heading: "Settings",
       items: [
         { href: "/admin", match: /^\/admin/, label: "Admin", icon: "gear" },
@@ -88,8 +106,7 @@ export function DesktopSidebar({
     },
   ];
 
-  const userName =
-    user?.name || user?.email?.split("@")[0] || "Casa Cross";
+  const userName = user?.name || user?.email?.split("@")[0] || "Casa Cross";
   const initials = deriveInitials(userName);
 
   return (
@@ -137,11 +154,7 @@ export function DesktopSidebar({
                 ? { backgroundImage: `url(${e.cover_image_url})` }
                 : undefined;
               return (
-                <Link
-                  key={e.id}
-                  className="ds-pinned"
-                  href={`/events/${e.id}`}
-                >
+                <Link key={e.id} className="ds-pinned" href={`/events/${e.id}`}>
                   <div className={swatchClass} style={swatchStyle} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="pname">{e.name}</div>
@@ -178,9 +191,7 @@ export function DesktopSidebar({
           </span>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="name">{userName}</div>
-            <div className="role">
-              {user?.email || "Signed in"}
-            </div>
+            <div className="role">{user?.email || "Signed in"}</div>
           </div>
         </Link>
       </div>

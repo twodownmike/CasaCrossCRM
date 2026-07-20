@@ -1,11 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {
-  updateParticipant,
-  removeParticipant,
-  markPaid,
-} from "@/app/actions";
+import { updateParticipant, removeParticipant, markPaid } from "@/app/actions";
 import type { Participant } from "@/lib/types";
 import { ROLE_META, ROLE_ORDER } from "@/lib/types";
 
@@ -29,11 +25,7 @@ export function ParticipantForm({
 
         <div>
           <label className="form-label">Role on this event</label>
-          <select
-            name="role"
-            className="input"
-            defaultValue={participant.role}
-          >
+          <select name="role" className="input" defaultValue={participant.role}>
             {ROLE_ORDER.map((r) => (
               <option key={r} value={r}>
                 {ROLE_META[r].label}
@@ -131,6 +123,29 @@ export function ParticipantForm({
             defaultValue={participant.due_date || ""}
           />
         </div>
+        <div>
+          <div className="form-label">Readiness requirements</div>
+          <div className="requirement-options">
+            <RequirementToggle
+              name="contract_required"
+              label="Signed contract"
+              detail="Count this booking as incomplete until a contract is signed."
+              checked={participant.contract_required}
+            />
+            <RequirementToggle
+              name="payment_required"
+              label="Full payment"
+              detail="Count any remaining balance against event readiness."
+              checked={participant.payment_required}
+            />
+            <RequirementToggle
+              name="portal_required"
+              label="Portal setup"
+              detail="Require this person to finish portal setup before the event."
+              checked={participant.portal_required}
+            />
+          </div>
+        </div>
         <button className="btn primary block" type="submit">
           Save changes
         </button>
@@ -170,5 +185,27 @@ export function ParticipantForm({
         Cancel
       </Link>
     </div>
+  );
+}
+
+function RequirementToggle({
+  name,
+  label,
+  detail,
+  checked,
+}: {
+  name: string;
+  label: string;
+  detail: string;
+  checked: boolean;
+}) {
+  return (
+    <label className="requirement-toggle">
+      <input type="checkbox" name={name} defaultChecked={checked} />
+      <span>
+        <strong>{label}</strong>
+        <small>{detail}</small>
+      </span>
+    </label>
   );
 }
