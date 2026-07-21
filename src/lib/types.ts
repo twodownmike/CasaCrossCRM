@@ -268,6 +268,8 @@ export type FormResponseStatus =
   | "qualified"
   | "closed";
 
+export type IntakePriority = "low" | "normal" | "high" | "urgent";
+
 export type FormResponse = {
   id: string;
   form_id: string;
@@ -276,6 +278,10 @@ export type FormResponse = {
   assigned_to: string | null;
   internal_notes: string | null;
   tags: string[];
+  follow_up_at: string | null;
+  priority: IntakePriority;
+  source: string;
+  outcome: string | null;
   analytics_session_id: string | null;
   completion_seconds: number | null;
   created_at: string;
@@ -339,7 +345,13 @@ export type Submission = {
   reviewed_by: string | null;
   reviewed_at: string | null;
   converted_person_id: string | null;
+  owner_id: string | null;
+  follow_up_at: string | null;
+  priority: IntakePriority;
+  source: string;
+  outcome: string | null;
   created_at: string;
+  updated_at: string;
 };
 
 export const ROLE_META: Record<RoleKind, { label: string; plural: string }> = {

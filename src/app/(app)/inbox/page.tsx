@@ -59,6 +59,13 @@ export default async function InboxPage({
       s.status !== "archived" &&
       ageInDays(s.created_at) >= 7,
   ).length;
+  const dueFollowUpCount = submissions.filter(
+    (s) =>
+      s.status !== "approved" &&
+      s.status !== "archived" &&
+      s.follow_up_at &&
+      new Date(s.follow_up_at).getTime() <= today.getTime(),
+  ).length;
   const missingContactCount = submissions.filter(
     (s) =>
       s.status !== "approved" &&
@@ -135,9 +142,11 @@ export default async function InboxPage({
             </div>
             <div className="stat">
               <div className="label">Follow-up</div>
-              <div className="val tabnums">{staleCount}</div>
+              <div className="val tabnums">{dueFollowUpCount || staleCount}</div>
               <div className="delta">
-                {missingContactCount > 0
+                {dueFollowUpCount > 0
+                  ? `${dueFollowUpCount} scheduled ${dueFollowUpCount === 1 ? "follow-up" : "follow-ups"} due`
+                  : missingContactCount > 0
                   ? `${missingContactCount} missing contact`
                   : "7+ days active"}
               </div>

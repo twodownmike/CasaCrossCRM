@@ -5,7 +5,7 @@ import { Icon } from "@/components/icons";
 import { fmtDateFull, relTime } from "@/lib/format";
 import { ResponseRow } from "./response-row";
 import { ResponseWorkflow } from "./response-workflow";
-import type { FormResponseStatus } from "@/lib/types";
+import type { FormResponseStatus, IntakePriority } from "@/lib/types";
 import { parseFormUploadValue } from "@/lib/form-uploads";
 
 export const dynamic = "force-dynamic";
@@ -225,6 +225,10 @@ export default async function FormResponses({
                   initialAssignedTo={r.assigned_to || null}
                   initialNotes={r.internal_notes || null}
                   initialTags={r.tags || []}
+                  initialFollowUpAt={r.follow_up_at || null}
+                  initialPriority={(r.priority || "normal") as IntakePriority}
+                  initialSource={r.source || "Shared form"}
+                  initialOutcome={r.outcome || null}
                   team={team ?? []}
                 />
                 <div className="response-delete-row">

@@ -6,6 +6,8 @@ import { RolePill } from "@/components/pill";
 import { relTime } from "@/lib/format";
 import { approveSubmission, archiveSubmission } from "@/app/actions";
 import { StageSelector } from "../stage-selector";
+import { SubmissionWorkflow } from "./submission-workflow";
+import type { IntakePriority } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -15,11 +17,10 @@ export default async function SubmissionDetail({
   params: { id: string };
 }) {
   const supabase = createClient();
-  const { data: sub } = await supabase
-    .from("submissions")
-    .select("*")
-    .eq("id", params.id)
-    .maybeSingle();
+  const [{ data: sub }, { data: team }] = await Promise.all([
+    supabase.from("submissions").select("*").eq("id", params.id).maybeSingle(),
+    supabase.rpc("list_team_members"),
+  ]);
   if (!sub) notFound();
 
   const isActive = sub.status !== "approved" && sub.status !== "archived";
@@ -181,6 +182,23 @@ export default async function SubmissionDetail({
           </div>
         </div>
       )}
+
+      <div style={{ padding: "20px var(--s-5) 0" }}>
+        <div className="section-label" style={{ marginTop: 0 }}>
+          <h2>Intake details</h2>
+        </div>
+        <div className="card elev" style={{ padding: 16 }}>
+          <SubmissionWorkflow
+            submissionId={sub.id}
+            initialOwnerId={sub.owner_id || null}
+            initialFollowUpAt={sub.follow_up_at || null}
+            initialPriority={(sub.priority || "normal") as IntakePriority}
+            initialSource={sub.source || "Website application"}
+            initialOutcome={sub.outcome || null}
+            team={team ?? []}
+          />
+        </div>
+      </div>
 
       <div
         style={{

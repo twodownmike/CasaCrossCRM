@@ -15,6 +15,7 @@ import type {
   FormConditionOperator,
   FormField,
   FormFieldType,
+  IntakePriority,
   FormResponseStatus,
 } from "@/lib/types";
 
@@ -72,6 +73,13 @@ const VALID_RESPONSE_STATUSES: FormResponseStatus[] = [
   "follow_up",
   "qualified",
   "closed",
+];
+
+const VALID_INTAKE_PRIORITIES: IntakePriority[] = [
+  "low",
+  "normal",
+  "high",
+  "urgent",
 ];
 
 function isUuid(value: string) {
@@ -649,7 +657,13 @@ export async function updateFormResponseWorkflow(
   const formId = s(form, "form_id");
   const status = s(form, "status") as FormResponseStatus;
   const assignedTo = nullable(form, "assigned_to");
-  if (!id || !formId || !VALID_RESPONSE_STATUSES.includes(status)) {
+  const priority = s(form, "priority") as IntakePriority;
+  if (
+    !id ||
+    !formId ||
+    !VALID_RESPONSE_STATUSES.includes(status) ||
+    !VALID_INTAKE_PRIORITIES.includes(priority)
+  ) {
     return { ok: false, error: "Invalid workflow update." };
   }
   if (assignedTo && !isUuid(assignedTo)) {
@@ -676,6 +690,10 @@ export async function updateFormResponseWorkflow(
       assigned_to: assignedTo,
       internal_notes: nullable(form, "internal_notes"),
       tags,
+      follow_up_at: nullable(form, "follow_up_at"),
+      priority,
+      source: s(form, "source") || "Shared form",
+      outcome: nullable(form, "outcome"),
     })
     .eq("id", id)
     .eq("form_id", formId)

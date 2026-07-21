@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getPerson } from "@/lib/queries";
+import { getPerson, getPersonActivity } from "@/lib/queries";
 import { fmtMoney, fmtDate, relTime } from "@/lib/format";
 import { Avatar } from "@/components/avatar";
 import { StatusPill, RolePill } from "@/components/pill";
@@ -14,6 +14,7 @@ import {
   revokePortalAccess,
 } from "@/app/portal-actions";
 import { CopyInviteLink } from "./copy-invite-link";
+import { ActivityTimeline } from "./activity-timeline";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,10 @@ export default async function PersonDetail({
   params: { id: string };
   searchParams: { tab?: string };
 }) {
-  const data = await getPerson(params.id);
+  const [data, activity] = await Promise.all([
+    getPerson(params.id),
+    getPersonActivity(params.id),
+  ]);
   if (!data) notFound();
   const { person: p, events, notes } = data;
   const tab = searchParams.tab || "about";
@@ -126,6 +130,12 @@ export default async function PersonDetail({
       </div>
 
       <PersonTabs personId={p.id} active={tab} eventCount={events.length} />
+
+      {tab === "activity" && (
+        <div className="fade-in" style={{ padding: "var(--s-5)" }}>
+          <ActivityTimeline items={activity} />
+        </div>
+      )}
 
       {tab === "about" && (
         <div className="fade-in" style={{ padding: "var(--s-5)" }}>

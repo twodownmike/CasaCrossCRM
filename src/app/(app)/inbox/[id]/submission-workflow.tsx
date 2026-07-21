@@ -2,21 +2,16 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { updateFormResponseWorkflow } from "@/app/forms-actions";
-import type { FormResponseStatus, IntakePriority } from "@/lib/types";
+import { updateSubmissionWorkflow } from "@/app/actions";
+import type { IntakePriority } from "@/lib/types";
 
-const STATUS_OPTIONS: Array<{
-  value: FormResponseStatus;
-  label: string;
-}> = [
-  { value: "new", label: "New" },
-  { value: "reviewing", label: "In review" },
-  { value: "follow_up", label: "Follow-up" },
-  { value: "qualified", label: "Qualified" },
-  { value: "closed", label: "Closed" },
-];
+type TeamMember = {
+  user_id: string;
+  email: string;
+  display_name: string | null;
+};
 
-const PRIORITY_OPTIONS: Array<{ value: IntakePriority; label: string }> = [
+const PRIORITIES: Array<{ value: IntakePriority; label: string }> = [
   { value: "low", label: "Low" },
   { value: "normal", label: "Normal" },
   { value: "high", label: "High" },
@@ -30,31 +25,17 @@ function localDateTime(value: string | null) {
   return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 }
 
-type TeamMember = {
-  user_id: string;
-  email: string;
-  display_name: string | null;
-};
-
-export function ResponseWorkflow({
-  responseId,
-  formId,
-  initialStatus,
-  initialAssignedTo,
-  initialNotes,
-  initialTags,
+export function SubmissionWorkflow({
+  submissionId,
+  initialOwnerId,
   initialFollowUpAt,
   initialPriority,
   initialSource,
   initialOutcome,
   team,
 }: {
-  responseId: string;
-  formId: string;
-  initialStatus: FormResponseStatus;
-  initialAssignedTo: string | null;
-  initialNotes: string | null;
-  initialTags: string[];
+  submissionId: string;
+  initialOwnerId: string | null;
   initialFollowUpAt: string | null;
   initialPriority: IntakePriority;
   initialSource: string;
@@ -62,10 +43,7 @@ export function ResponseWorkflow({
   team: TeamMember[];
 }) {
   const router = useRouter();
-  const [status, setStatus] = useState(initialStatus);
-  const [assignedTo, setAssignedTo] = useState(initialAssignedTo || "");
-  const [notes, setNotes] = useState(initialNotes || "");
-  const [tags, setTags] = useState(initialTags.join(", "));
+  const [ownerId, setOwnerId] = useState(initialOwnerId || "");
   const [followUpAt, setFollowUpAt] = useState(
     localDateTime(initialFollowUpAt),
   );
@@ -77,12 +55,8 @@ export function ResponseWorkflow({
 
   function save() {
     const data = new FormData();
-    data.set("id", responseId);
-    data.set("form_id", formId);
-    data.set("status", status);
-    data.set("assigned_to", assignedTo);
-    data.set("internal_notes", notes);
-    data.set("tags", tags);
+    data.set("id", submissionId);
+    data.set("owner_id", ownerId);
     data.set(
       "follow_up_at",
       followUpAt ? new Date(followUpAt).toISOString() : "",
@@ -92,7 +66,7 @@ export function ResponseWorkflow({
     data.set("outcome", outcome);
     setMessage(null);
     startTransition(async () => {
-      const result = await updateFormResponseWorkflow(data);
+      const result = await updateSubmissionWorkflow(data);
       if (!result.ok) {
         setMessage(result.error);
         return;
@@ -106,27 +80,11 @@ export function ResponseWorkflow({
     <div className="response-workflow">
       <div className="response-workflow-grid">
         <label>
-          <span>Status</span>
-          <select
-            className="input"
-            value={status}
-            onChange={(event) =>
-              setStatus(event.target.value as FormResponseStatus)
-            }
-          >
-            {STATUS_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
           <span>Owner</span>
           <select
             className="input"
-            value={assignedTo}
-            onChange={(event) => setAssignedTo(event.target.value)}
+            value={ownerId}
+            onChange={(event) => setOwnerId(event.target.value)}
           >
             <option value="">Unassigned</option>
             {team.map((member) => (
@@ -145,7 +103,7 @@ export function ResponseWorkflow({
               setPriority(event.target.value as IntakePriority)
             }
           >
-            {PRIORITY_OPTIONS.map((option) => (
+            {PRIORITIES.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
@@ -161,51 +119,39 @@ export function ResponseWorkflow({
             onChange={(event) => setFollowUpAt(event.target.value)}
           />
         </label>
-      </div>
-      <div className="response-workflow-grid">
         <label>
           <span>Source</span>
           <input
             className="input"
             value={source}
             onChange={(event) => setSource(event.target.value)}
-            placeholder="Shared form, referral, event…"
-          />
-        </label>
-        <label>
-          <span>Outcome</span>
-          <input
-            className="input"
-            value={outcome}
-            onChange={(event) => setOutcome(event.target.value)}
-            placeholder="Qualified, booked, declined…"
+            list="intake-sources"
           />
         </label>
       </div>
       <label>
-        <span>Tags</span>
+        <span>Outcome</span>
         <input
           className="input"
-          value={tags}
-          onChange={(event) => setTags(event.target.value)}
-          placeholder="model, follow-up, priority"
+          value={outcome}
+          onChange={(event) => setOutcome(event.target.value)}
+          placeholder="Decision, result, or next step"
         />
       </label>
-      <label>
-        <span>Internal notes</span>
-        <textarea
-          className="input textarea"
-          value={notes}
-          onChange={(event) => setNotes(event.target.value)}
-          placeholder="Visible only to the Casa Cross team"
-        />
-      </label>
+      <datalist id="intake-sources">
+        <option value="Website application" />
+        <option value="Shared form" />
+        <option value="Referral" />
+        <option value="Instagram" />
+        <option value="Repeat client" />
+        <option value="Event" />
+      </datalist>
       <div className="response-workflow-actions">
         <span role="status" className={message === "Saved" ? "saved" : "error"}>
           {message}
         </span>
         <button className="btn" type="button" onClick={save} disabled={pending}>
-          {pending ? "Saving…" : "Save workflow"}
+          {pending ? "Saving…" : "Save intake details"}
         </button>
       </div>
     </div>

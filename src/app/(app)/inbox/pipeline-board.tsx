@@ -59,6 +59,12 @@ export function PipelineBoard({ initialSubs }: { initialSubs: Submission[] }) {
         const cards = subs
           .filter((s) => s.status === stage.key)
           .sort((a, b) => {
+            const priorityRank = { urgent: 3, high: 2, normal: 1, low: 0 };
+            const priorityDelta = priorityRank[b.priority] - priorityRank[a.priority];
+            if (priorityDelta !== 0) return priorityDelta;
+            if (a.follow_up_at && b.follow_up_at) return a.follow_up_at.localeCompare(b.follow_up_at);
+            if (a.follow_up_at) return -1;
+            if (b.follow_up_at) return 1;
             const aMissing = !a.email && !a.phone ? 1 : 0;
             const bMissing = !b.email && !b.phone ? 1 : 0;
             if (aMissing !== bMissing) return bMissing - aMissing;
@@ -176,6 +182,8 @@ function PipelineRow({
   const needsContact = !sub.email && !sub.phone;
   const followUp =
     sub.status !== "approved" && sub.status !== "archived" && age >= 7;
+  const followUpDate = sub.follow_up_at ? new Date(sub.follow_up_at) : null;
+  const followUpDue = followUpDate && followUpDate.getTime() <= Date.now();
 
   return (
     <div
@@ -242,6 +250,17 @@ function PipelineRow({
           }}
         >
           <span>{relTime(sub.created_at)}</span>
+          {(sub.priority === "high" || sub.priority === "urgent") && (
+            <span className="pill warn" style={{ fontSize: 10.5, padding: "2px 7px" }}>
+              <span className="dot" />
+              {sub.priority === "urgent" ? "Urgent" : "High priority"}
+            </span>
+          )}
+          {followUpDate && (
+            <span className={`pill ${followUpDue ? "warn" : ""}`} style={{ fontSize: 10.5, padding: "2px 7px" }}>
+              Follow up {followUpDue ? "now" : followUpDate.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+            </span>
+          )}
           {sub.location && sub.specialty && <span>· {sub.location}</span>}
           {followUp && (
             <span

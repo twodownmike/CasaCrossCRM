@@ -11,9 +11,12 @@ import { ROLE_META } from "@/lib/types";
 import type {
   ContractStatus,
   EventStage,
+  IntakePriority,
   PayStatus,
   RoleKind,
 } from "@/lib/types";
+
+const INTAKE_PRIORITIES: IntakePriority[] = ["low", "normal", "high", "urgent"];
 
 const ROLE_TINTS: Record<RoleKind, { tint: string; ink: string }> = {
   photographer: { tint: "var(--slate-tint)", ink: "var(--slate)" },
@@ -688,6 +691,50 @@ export async function moveSubmission(form: FormData) {
   revalidatePath("/inbox");
 }
 
+export async function updateSubmissionWorkflow(
+  form: FormData,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Sign in to update this application." };
+
+  const id = s(form, "id");
+  const ownerId = nullable(form, "owner_id");
+  const priority = s(form, "priority") as IntakePriority;
+  if (!id || !INTAKE_PRIORITIES.includes(priority)) {
+    return { ok: false, error: "Invalid workflow update." };
+  }
+  if (ownerId) {
+    const { data: owner } = await supabase
+      .from("team_members")
+      .select("user_id")
+      .eq("user_id", ownerId)
+      .maybeSingle();
+    if (!owner) return { ok: false, error: "Choose a current team member." };
+  }
+
+  const { data: updated, error } = await supabase
+    .from("submissions")
+    .update({
+      owner_id: ownerId,
+      follow_up_at: nullable(form, "follow_up_at"),
+      priority,
+      source: s(form, "source") || "Website application",
+      outcome: nullable(form, "outcome"),
+    })
+    .eq("id", id)
+    .select("id")
+    .maybeSingle();
+  if (error) return { ok: false, error: error.message };
+  if (!updated) return { ok: false, error: "Application not found." };
+
+  revalidatePath("/inbox");
+  revalidatePath(`/inbox/${id}`);
+  return { ok: true };
+}
+
 export async function submitApplication(
   form: FormData,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
@@ -843,6 +890,8 @@ export async function approveSubmission(form: FormData) {
       reviewed_by: user.id,
       reviewed_at: new Date().toISOString(),
       converted_person_id: person!.id,
+      owner_id: sub.owner_id || user.id,
+      outcome: sub.outcome || "Approved",
     })
     .eq("id", id);
 
@@ -859,12 +908,19 @@ export async function archiveSubmission(form: FormData) {
   if (!user) redirect("/login");
   const id = s(form, "id");
   if (!id) return;
+  const { data: submission } = await supabase
+    .from("submissions")
+    .select("owner_id, outcome")
+    .eq("id", id)
+    .maybeSingle();
   await supabase
     .from("submissions")
     .update({
       status: "archived",
       reviewed_by: user.id,
       reviewed_at: new Date().toISOString(),
+      owner_id: submission?.owner_id || user.id,
+      outcome: submission?.outcome || "Declined",
     })
     .eq("id", id);
   revalidatePath("/inbox");

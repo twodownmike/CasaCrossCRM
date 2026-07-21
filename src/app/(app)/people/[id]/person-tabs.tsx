@@ -13,6 +13,7 @@ export function PersonTabs({
 }) {
   const tabs: Array<[string, string]> = [
     ["about", "About"],
+    ["activity", "Activity"],
     ["events", `Events (${eventCount})`],
     ["money", "Money"],
     ["notes", "Notes"],
