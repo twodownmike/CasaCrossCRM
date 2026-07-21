@@ -244,6 +244,7 @@ export default async function EventDetail({
       </div>
 
       <div
+        className="event-meta"
         style={{
           padding: "var(--s-5)",
           display: "flex",

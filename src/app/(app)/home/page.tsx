@@ -69,29 +69,68 @@ export default async function Home() {
         : Promise.resolve({ data: [] as { event_id: string; person_id: string; read_at: string }[] }),
     ]);
   const submissions = (submissionRows ?? []) as Submission[];
+  const crmDateKey = (date: Date) =>
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Denver",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(date);
+  const todayKey = crmDateKey(new Date());
   submissions.forEach((s) => {
     const age = Math.max(
       0,
       Math.floor((Date.now() - new Date(s.created_at).getTime()) / 86_400_000),
     );
     const name = s.preferred_name || s.name;
-    const priority =
+    const stagePriority =
       s.status === "pending" ? 95 : s.status === "reviewing" ? 82 : 64;
+    const priorityBoost =
+      s.priority === "urgent"
+        ? 24
+        : s.priority === "high"
+          ? 12
+          : s.priority === "low"
+            ? -8
+            : 0;
+    const followUpAt = s.follow_up_at ? new Date(s.follow_up_at) : null;
+    const followUpDateKey = followUpAt ? crmDateKey(followUpAt) : null;
+    const followUpBucket = followUpAt
+      ? followUpDateKey! < todayKey
+        ? "overdue"
+        : followUpDateKey === todayKey
+          ? "today"
+          : "upcoming"
+      : null;
     actions.push({
       kind: "lead",
       href: `/inbox/${s.id}`,
       title:
-        s.status === "pending"
-          ? `Review ${name}`
-          : s.status === "reviewing"
-            ? `Decide on ${name}`
-            : `Follow up with ${name}`,
-      detail: `${s.role} application · ${age === 0 ? "new today" : `${age}d old`}`,
+        followUpAt
+          ? `Follow up with ${name}`
+          : s.status === "pending"
+            ? `Review ${name}`
+            : s.status === "reviewing"
+              ? `Decide on ${name}`
+              : `Follow up with ${name}`,
+      detail: followUpAt
+        ? `${s.role} application · ${followUpAt.toLocaleString(undefined, { timeZone: "America/Denver", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`
+        : `${s.role} application · ${age === 0 ? "new today" : `${age}d old`}`,
       tone: s.status === "pending" ? "warm" : "gold",
       icon: "mail",
-      priority: priority + Math.min(age, 10),
+      priority:
+        stagePriority +
+        priorityBoost +
+        Math.min(age, 10) +
+        (followUpBucket === "overdue" ? 20 : 0),
+      due: s.follow_up_at || undefined,
       bucket:
-        s.status === "invited" ? "waiting" : age >= 7 ? "overdue" : "today",
+        followUpBucket ||
+        (s.status === "invited"
+          ? "waiting"
+          : age >= 7
+            ? "overdue"
+            : "today"),
     });
   });
 
@@ -292,31 +331,34 @@ export default async function Home() {
         </div>
       </div>
 
-      <div className="stat-grid">
-        <div className="stat">
-          <div className="label">Outstanding</div>
-          <div className="val tabnums">{fmtMoney(fin.owed)}</div>
-          <div className="delta down">{fmtMoney(fin.overdue)} overdue</div>
+      <div className="home-priority-layout">
+        <div className="home-stats-wrap">
+          <div className="stat-grid">
+            <div className="stat">
+              <div className="label">Outstanding</div>
+              <div className="val tabnums">{fmtMoney(fin.owed)}</div>
+              <div className="delta down">{fmtMoney(fin.overdue)} overdue</div>
+            </div>
+            <div className="stat">
+              <div className="label">Collected</div>
+              <div className="val tabnums">{fmtMoney(fin.paid)}</div>
+              <div className="delta up">across {events.length} events</div>
+            </div>
+            <div className="stat">
+              <div className="label">Active leads</div>
+              <div className="val tabnums">{leadCount}</div>
+              <div className="delta down">in booking pipeline</div>
+            </div>
+            <div className="stat">
+              <div className="label">Open tasks</div>
+              <div className="val tabnums">{tasksDueCount}</div>
+              <div className="delta">due or unscheduled</div>
+            </div>
+          </div>
         </div>
-        <div className="stat">
-          <div className="label">Collected</div>
-          <div className="val tabnums">{fmtMoney(fin.paid)}</div>
-          <div className="delta up">across {events.length} events</div>
-        </div>
-        <div className="stat">
-          <div className="label">Active leads</div>
-          <div className="val tabnums">{leadCount}</div>
-          <div className="delta down">in booking pipeline</div>
-        </div>
-        <div className="stat">
-          <div className="label">Open tasks</div>
-          <div className="val tabnums">{tasksDueCount}</div>
-          <div className="delta">due or unscheduled</div>
-        </div>
-      </div>
 
-      {next && (
-        <>
+        {next && (
+          <div className="home-next-wrap">
           <div className="section-label">
             <h2>Up next</h2>
             <Link className="more" href="/events">
@@ -326,11 +368,11 @@ export default async function Home() {
           <div style={{ padding: "0 var(--s-5)" }}>
             <EventCard event={next} />
           </div>
-        </>
-      )}
+          </div>
+        )}
 
-      {actions.length > 0 && (
-        <>
+        {actions.length > 0 && (
+          <div className="home-actions-wrap">
           <div className="section-label">
             <h2>Action queue</h2>
             <span className="pill warn">
@@ -408,8 +450,9 @@ export default async function Home() {
               );
             })}
           </div>
-        </>
-      )}
+          </div>
+        )}
+      </div>
 
       <div className="section-label">
         <h2>Recent people</h2>
