@@ -39,7 +39,8 @@ export default async function AppLayout({
     supabase
       .from("events")
       .select("*", { count: "exact", head: true })
-      .neq("status", "wrapped"),
+      .neq("status", "wrapped")
+      .neq("stage", "complete"),
     supabase.from("people").select("*", { count: "exact", head: true }),
     supabase
       .from("portal_messages")
@@ -60,6 +61,7 @@ export default async function AppLayout({
       .from("events")
       .select("id, name, date, cover, cover_image_url")
       .neq("status", "wrapped")
+      .neq("stage", "complete")
       .gte("date", today)
       .order("date", { ascending: true })
       .limit(3),

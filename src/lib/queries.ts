@@ -481,7 +481,7 @@ export function aggregateFinances(events: EventWithParticipants[]) {
     paid = 0,
     overdue = 0;
   events.forEach((e) => {
-    if (e.status === "wrapped") {
+    if (e.status === "wrapped" || e.stage === "complete") {
       paid += e.participants.reduce((s, p) => s + Number(p.paid), 0);
       return;
     }

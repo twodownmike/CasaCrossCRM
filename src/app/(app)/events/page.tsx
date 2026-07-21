@@ -16,8 +16,13 @@ export default async function EventsPage({
 
   let list = events;
   if (filter === "upcoming")
-    list = events.filter((e) => e.status !== "wrapped");
-  if (filter === "wrapped") list = events.filter((e) => e.status === "wrapped");
+    list = events.filter(
+      (e) => e.status !== "wrapped" && e.stage !== "complete",
+    );
+  if (filter === "wrapped")
+    list = events.filter(
+      (e) => e.status === "wrapped" || e.stage === "complete",
+    );
 
   return (
     <div className="fade-in">
@@ -29,7 +34,11 @@ export default async function EventsPage({
           </h1>
           <div className="sub">
             {events.length} total ·{" "}
-            {events.filter((e) => e.status !== "wrapped").length} active
+            {
+              events.filter(
+                (e) => e.status !== "wrapped" && e.stage !== "complete",
+              ).length
+            } active
           </div>
         </div>
         <div className="page-head-actions">

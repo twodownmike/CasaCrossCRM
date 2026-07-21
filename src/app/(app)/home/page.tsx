@@ -25,7 +25,9 @@ export default async function Home() {
 
   const events = await listEvents();
 
-  const upcoming = events.filter((e) => e.status !== "wrapped");
+  const isCompleteEvent = (event: (typeof events)[number]) =>
+    event.status === "wrapped" || event.stage === "complete";
+  const upcoming = events.filter((event) => !isCompleteEvent(event));
   const next = upcoming[0];
   const fin = aggregateFinances(events);
 
@@ -166,6 +168,7 @@ export default async function Home() {
   });
   latestUnreadByThread.forEach((thread) => {
     const event = events.find((e) => e.id === thread.event_id);
+    if (!event || isCompleteEvent(event)) return;
     actions.push({
       kind: "lead",
       href: `/events/${thread.event_id}?tab=portal`,
@@ -179,7 +182,7 @@ export default async function Home() {
   });
 
   events.forEach((e) => {
-    if (e.status === "wrapped") return;
+    if (isCompleteEvent(e)) return;
     const daysToEvent = daysUntil(e.date);
     if (daysToEvent < 0 && e.stage !== "complete") {
       actions.push({
@@ -270,7 +273,7 @@ export default async function Home() {
   (openTasks ?? []).forEach((t) => {
     const e = events.find((ev) => ev.id === t.event_id);
     const d = t.due ? daysUntil(t.due) : null;
-    if (e && (d === null || d <= 14)) {
+    if (e && !isCompleteEvent(e) && (d === null || d <= 14)) {
       actions.push({
         kind: "task",
         href: `/events/${e.id}?tab=tasks`,
