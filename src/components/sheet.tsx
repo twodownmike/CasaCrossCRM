@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { Icon } from "./icons";
 
 const CLOSE_MS = 280;
@@ -43,7 +44,7 @@ export function Sheet({
 
   if (!mounted) return null;
 
-  return (
+  return createPortal(
     <>
       <div
         className={`sheet-backdrop ${showing ? "open" : ""}`}
@@ -65,6 +66,7 @@ export function Sheet({
         </div>
         <div className="body">{children}</div>
       </div>
-    </>
+    </>,
+    document.body,
   );
 }
