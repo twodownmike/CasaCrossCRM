@@ -9,7 +9,6 @@ export default async function AdminHub() {
   const [
     { count: contractTemplates },
     { count: contractsTotal },
-    { count: forms },
     { count: portalActive },
     { count: portalPending },
     { data: settings },
@@ -18,7 +17,6 @@ export default async function AdminHub() {
       .from("contract_templates")
       .select("*", { count: "exact", head: true }),
     supabase.from("contracts").select("*", { count: "exact", head: true }),
-    supabase.from("forms").select("*", { count: "exact", head: true }),
     supabase
       .from("portal_users")
       .select("*", { count: "exact", head: true })
@@ -81,13 +79,6 @@ export default async function AdminHub() {
       title: "Contract templates",
       sub: "Reusable boilerplate with merge fields and PDFs.",
       count: `${contractTemplates ?? 0} saved`,
-    },
-    {
-      href: "/forms",
-      icon: "doc",
-      title: "Custom forms",
-      sub: "Build any intake form, share the link.",
-      count: `${forms ?? 0} live`,
     },
     {
       href: "/reports",

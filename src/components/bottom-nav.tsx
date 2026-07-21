@@ -15,6 +15,7 @@ const TABS: Array<{
   { href: "/events", match: /^\/events/, label: "Events", icon: "spark" },
   { href: "/calendar", match: /^\/calendar/, label: "Calendar", icon: "calendar" },
   { href: "/people", match: /^\/people/, label: "People", icon: "people" },
+  { href: "/forms", match: /^\/forms/, label: "Forms", icon: "check" },
   {
     href: "/inbox",
     match: /^\/(inbox|messages)/,
