@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Icon } from "@/components/icons";
 import type { FormField } from "@/lib/types";
 import { FormMetaEditor } from "./form-meta-editor";
-import { FieldList, FormPreview } from "./field-list";
+import { FieldList, FormPreviewButton } from "./field-list";
 import { AddFieldButton } from "./add-field-button";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +26,7 @@ export default async function FormEditorPage({
   if (!f) notFound();
 
   return (
-    <div className="fade-in">
+    <div className="fade-in form-builder-page">
       <header className="app-header">
         <Link className="icon-btn" href={`/forms/${f.id}`}>
           <Icon.back />
@@ -51,15 +51,42 @@ export default async function FormEditorPage({
       </div>
 
       <div style={{ padding: "0 var(--s-5)" }}>
-        <FormMetaEditor
-          id={f.id}
+        <details className="form-builder-meta">
+          <summary>
+            <span>
+              <strong>Form details</strong>
+              <small>Title, introduction, and thank-you message</small>
+            </span>
+            <Icon.chev />
+          </summary>
+          <div className="form-builder-meta-body">
+            <FormMetaEditor
+              id={f.id}
+              title={f.title}
+              description={f.description}
+              thankYou={f.thank_you_message}
+            />
+          </div>
+        </details>
+      </div>
+
+      <div className="form-builder-toolbar">
+        <AddFieldButton
+          formId={f.id}
+          availableConditionFields={
+            (fields ?? []).filter(
+              (field) => field.type !== "section",
+            ) as FormField[]
+          }
+        />
+        <FormPreviewButton
           title={f.title}
           description={f.description}
-          thankYou={f.thank_you_message}
+          fields={fields ?? []}
         />
       </div>
 
-      <div className="section-label" style={{ marginTop: 28 }}>
+      <div className="section-label form-builder-fields-label">
         <h2>Fields</h2>
         <span className="muted" style={{ fontSize: 12 }}>
           {(fields ?? []).length}
@@ -85,28 +112,7 @@ export default async function FormEditorPage({
         )}
       </div>
 
-      <div style={{ padding: "var(--s-5)" }}>
-        <AddFieldButton
-          formId={f.id}
-          availableConditionFields={
-            (fields ?? []).filter(
-              (field) => field.type !== "section",
-            ) as FormField[]
-          }
-        />
-      </div>
-
-      <div className="section-label">
-        <h2>Preview</h2>
-      </div>
-
-      <div style={{ padding: "0 var(--s-5) var(--s-7)" }}>
-        <FormPreview
-          title={f.title}
-          description={f.description}
-          fields={fields ?? []}
-        />
-      </div>
+      <div style={{ height: 28 }} />
     </div>
   );
 }

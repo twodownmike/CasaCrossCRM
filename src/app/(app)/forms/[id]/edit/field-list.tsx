@@ -70,6 +70,17 @@ export function FieldList({
     saveOrder(edge === "top" ? [field, ...remaining] : [...remaining, field]);
   }
 
+  function moveToIndex(fieldId: string, targetIndex: number) {
+    const field = orderedFields.find((candidate) => candidate.id === fieldId);
+    if (!field) return;
+    const remaining = orderedFields.filter(
+      (candidate) => candidate.id !== fieldId,
+    );
+    const nextFields = [...remaining];
+    nextFields.splice(Math.max(0, Math.min(targetIndex, remaining.length)), 0, field);
+    saveOrder(nextFields);
+  }
+
   function dropField(targetId: string, after: boolean) {
     if (!draggingId || draggingId === targetId) return;
     const dragged = orderedFields.find((field) => field.id === draggingId);
@@ -92,6 +103,8 @@ export function FieldList({
           key={f.id}
           field={f}
           formId={formId}
+          position={i}
+          allFields={orderedFields}
           isFirst={i === 0}
           isLast={i === orderedFields.length - 1}
           reorderPending={reorderPending}
@@ -105,6 +118,7 @@ export function FieldList({
             setDropTarget(null);
           }}
           onMoveToEdge={(edge) => moveToEdge(f.id, edge)}
+          onMoveToIndex={(targetIndex) => moveToIndex(f.id, targetIndex)}
           availableConditionFields={orderedFields
             .slice(0, i)
             .filter((candidate) => candidate.type !== "section")}
@@ -117,6 +131,8 @@ export function FieldList({
 function FieldRow({
   field,
   formId,
+  position,
+  allFields,
   isFirst,
   isLast,
   reorderPending,
@@ -127,10 +143,13 @@ function FieldRow({
   onDrop,
   onDragEnd,
   onMoveToEdge,
+  onMoveToIndex,
   availableConditionFields,
 }: {
   field: FormField;
   formId: string;
+  position: number;
+  allFields: FormField[];
   isFirst: boolean;
   isLast: boolean;
   reorderPending: boolean;
@@ -141,6 +160,7 @@ function FieldRow({
   onDrop: (after: boolean) => void;
   onDragEnd: () => void;
   onMoveToEdge: (edge: "top" | "bottom") => void;
+  onMoveToIndex: (targetIndex: number) => void;
   availableConditionFields: FormField[];
 }) {
   const router = useRouter();
@@ -149,6 +169,7 @@ function FieldRow({
     (candidate) => candidate.id === field.condition_field_id,
   );
   const [editOpen, setEditOpen] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
   const [pending, start] = useTransition();
 
   function remove() {
@@ -199,7 +220,7 @@ function FieldRow({
       }}
     >
       <button
-        className="icon-btn"
+        className="icon-btn form-field-drag"
         type="button"
         draggable={!reorderPending}
         aria-label={`Drag to reorder ${isSection ? "section" : "field"} ${field.label}`}
@@ -219,6 +240,9 @@ function FieldRow({
       >
         <Icon.grip />
       </button>
+      <span className="form-field-position" aria-hidden>
+        {position + 1}
+      </span>
       <span
         className="pill form-field-type-pill"
         style={{
@@ -229,7 +253,12 @@ function FieldRow({
       >
         {FIELD_TYPE_LABELS[field.type]}
       </span>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <button
+        className="form-field-main"
+        type="button"
+        onClick={() => setEditOpen(true)}
+        aria-label={`Edit ${isSection ? "section" : "field"} ${field.label}`}
+      >
         <div
           style={{
             fontSize: isSection ? 18 : 14,
@@ -258,6 +287,11 @@ function FieldRow({
             </span>
           )}
         </div>
+        {!isSection && (
+          <div className="form-field-mobile-type">
+            {FIELD_TYPE_LABELS[field.type]}
+          </div>
+        )}
         {field.helper && (
           <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 2 }}>
             {field.helper}
@@ -274,7 +308,7 @@ function FieldRow({
               ` “${field.condition_value || ""}”`}
           </div>
         )}
-      </div>
+      </button>
       <div className="form-field-actions">
         <button
           className="icon-btn"
@@ -325,6 +359,14 @@ function FieldRow({
           <Icon.close />
         </button>
       </div>
+      <button
+        className="icon-btn form-field-mobile-menu"
+        type="button"
+        aria-label={`Manage ${isSection ? "section" : "field"} ${field.label}`}
+        onClick={() => setActionsOpen(true)}
+      >
+        <Icon.more />
+      </button>
 
       <Sheet
         open={editOpen}
@@ -341,7 +383,92 @@ function FieldRow({
           }}
         />
       </Sheet>
+
+      <Sheet
+        open={actionsOpen}
+        onClose={() => setActionsOpen(false)}
+        title={field.label}
+      >
+        <div className="form-field-mobile-actions">
+          <label>
+            <span className="form-label">Position in form</span>
+            <select
+              className="input"
+              value={position}
+              disabled={reorderPending}
+              onChange={(event) => {
+                onMoveToIndex(Number(event.target.value));
+                setActionsOpen(false);
+              }}
+            >
+              {allFields.map((candidate, index) => (
+                <option key={candidate.id} value={index}>
+                  {index + 1}. {candidate.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            className="card-row"
+            type="button"
+            onClick={() => {
+              setActionsOpen(false);
+              setEditOpen(true);
+            }}
+          >
+            <Icon.doc />
+            <span>Edit {isSection ? "section" : "question"}</span>
+            <Icon.chev />
+          </button>
+          <button
+            className="card-row"
+            type="button"
+            onClick={() => {
+              duplicate();
+              setActionsOpen(false);
+            }}
+            disabled={pending}
+          >
+            <Icon.plus />
+            <span>Duplicate</span>
+            <Icon.chev />
+          </button>
+          <button
+            className="card-row danger"
+            type="button"
+            onClick={() => {
+              setActionsOpen(false);
+              remove();
+            }}
+          >
+            <Icon.close />
+            <span>Delete</span>
+          </button>
+        </div>
+      </Sheet>
     </div>
+  );
+}
+
+export function FormPreviewButton({
+  title,
+  description,
+  fields,
+}: {
+  title: string;
+  description: string | null;
+  fields: FormField[];
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button className="btn" type="button" onClick={() => setOpen(true)}>
+        <Icon.search /> Preview
+      </button>
+      <Sheet open={open} onClose={() => setOpen(false)} title="Form preview">
+        <FormPreview title={title} description={description} fields={fields} />
+      </Sheet>
+    </>
   );
 }
 
@@ -572,16 +699,18 @@ function PreviewHelper({ children }: { children: React.ReactNode }) {
 export function FieldForm({
   formId,
   field,
+  initialType = "text",
   availableConditionFields,
   onSaved,
 }: {
   formId: string;
   field?: FormField;
+  initialType?: FormFieldType;
   availableConditionFields: FormField[];
   onSaved: () => void;
 }) {
   const [label, setLabel] = useState(field?.label || "");
-  const [type, setType] = useState<FormFieldType>(field?.type || "text");
+  const [type, setType] = useState<FormFieldType>(field?.type || initialType);
   const [required, setRequired] = useState<boolean>(field?.required || false);
   const legacyConditionSource = field?.show_if_previous_yes
     ? availableConditionFields[availableConditionFields.length - 1]
@@ -599,6 +728,15 @@ export function FieldForm({
   );
   const [placeholder, setPlaceholder] = useState(field?.placeholder || "");
   const [helper, setHelper] = useState(field?.helper || "");
+  const [advancedOpen, setAdvancedOpen] = useState(
+    Boolean(
+      field &&
+        (field.placeholder ||
+          field.helper ||
+          field.condition_field_id ||
+          field.show_if_previous_yes),
+    ),
+  );
   const [options, setOptions] = useState(
     normalizeFormFieldOptions(field?.options).join("\n"),
   );
@@ -606,6 +744,20 @@ export function FieldForm({
   const conditionSource = availableConditionFields.find(
     (candidate) => candidate.id === conditionFieldId,
   );
+  const labelPlaceholder: Partial<Record<FormFieldType, string>> = {
+    text: "Full name",
+    email: "Email address",
+    phone: "Phone number",
+    url: "Website",
+    number: "Number of guests",
+    date: "Event date",
+    textarea: "Tell us more",
+    select: "Choose one",
+    multiselect: "Select all that apply",
+    checkbox: "I agree",
+    file: "Upload a reference image",
+    section: "Personal details",
+  };
 
   function save(e: React.FormEvent) {
     e.preventDefault();
@@ -637,7 +789,7 @@ export function FieldForm({
     <form onSubmit={save} className="form-grid" style={{ paddingTop: 8 }}>
       <div>
         <label className="form-label">
-          {type === "section" ? "Section title" : "Label"}
+          {type === "section" ? "Section title" : "Question or label"}
         </label>
         <input
           required
@@ -645,7 +797,7 @@ export function FieldForm({
           className="input"
           value={label}
           onChange={(e) => setLabel(e.target.value)}
-          placeholder={type === "section" ? "Contact details" : "Phone number"}
+          placeholder={labelPlaceholder[type]}
         />
       </div>
       <div>
@@ -675,44 +827,19 @@ export function FieldForm({
           />
         </div>
       )}
-      {type !== "checkbox" && type !== "file" && type !== "section" && (
+      {type === "section" && (
         <div>
-          <label className="form-label">Placeholder</label>
+          <label className="form-label">Section description</label>
           <input
             className="input"
-            value={placeholder}
-            onChange={(e) => setPlaceholder(e.target.value)}
+            value={helper}
+            onChange={(e) => setHelper(e.target.value)}
+            placeholder="Optional introduction for this section"
           />
         </div>
       )}
-      <div>
-        <label className="form-label">
-          {type === "section" ? "Section description" : "Helper text"}
-        </label>
-        <input
-          className="input"
-          value={helper}
-          onChange={(e) => setHelper(e.target.value)}
-          placeholder={
-            type === "section"
-              ? "Optional introduction for this section"
-              : "Small note shown under the field"
-          }
-        />
-      </div>
       {type !== "section" && (
-        <label
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: 12,
-            border: "1px solid var(--hair)",
-            borderRadius: "var(--r-2)",
-            background: "var(--paper)",
-            cursor: "pointer",
-          }}
-        >
+        <label className="form-setting-toggle">
           <input
             type="checkbox"
             checked={required}
@@ -722,125 +849,143 @@ export function FieldForm({
         </label>
       )}
       {type !== "section" && (
-        <div
-          style={{
-            padding: 12,
-            border: "1px solid var(--hair)",
-            borderRadius: "var(--r-2)",
-            background: "var(--paper)",
-            opacity: availableConditionFields.length > 0 ? 1 : 0.55,
-          }}
+        <details
+          className="form-field-advanced"
+          open={advancedOpen}
+          onToggle={(event) => setAdvancedOpen(event.currentTarget.open)}
         >
-          <label
-            style={{
-              display: "flex",
-              alignItems: "flex-start",
-              gap: 10,
-              cursor:
-                availableConditionFields.length > 0 ? "pointer" : "not-allowed",
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={conditionEnabled}
-              disabled={availableConditionFields.length === 0}
-              onChange={(e) => {
-                setConditionEnabled(e.target.checked);
-                if (e.target.checked && !conditionFieldId) {
-                  const source =
-                    availableConditionFields[
-                      availableConditionFields.length - 1
-                    ];
-                  setConditionFieldId(source?.id || "");
-                  setConditionValue(
-                    source?.type === "checkbox"
-                      ? "Yes"
-                      : normalizeFormFieldOptions(source?.options)[0] || "",
-                  );
-                }
-              }}
-            />
+          <summary>
             <span>
-              <span style={{ display: "block", fontSize: 14, fontWeight: 500 }}>
-                Show this field conditionally
-              </span>
-              <span
-                style={{
-                  display: "block",
-                  fontSize: 11.5,
-                  color: "var(--ink-3)",
-                  marginTop: 3,
-                }}
-              >
-                {availableConditionFields.length > 0
-                  ? "Choose an earlier answer that controls this field."
-                  : "Add an answerable question before this field."}
-              </span>
+              <strong>Description &amp; logic</strong>
+              <small>Placeholder, helper text, and conditional rules</small>
             </span>
-          </label>
-
-          {conditionEnabled && availableConditionFields.length > 0 && (
-            <div className="form-grid" style={{ marginTop: 14 }}>
+            <Icon.chev />
+          </summary>
+          <div className="form-field-advanced-body form-grid">
+            {type !== "checkbox" && type !== "file" && (
               <div>
-                <label className="form-label">Question</label>
-                <select
+                <label className="form-label">Placeholder</label>
+                <input
                   className="input"
-                  value={conditionFieldId}
-                  onChange={(e) => {
-                    const source = availableConditionFields.find(
-                      (candidate) => candidate.id === e.target.value,
-                    );
-                    setConditionFieldId(e.target.value);
-                    setConditionValue(
-                      source?.type === "checkbox"
-                        ? "Yes"
-                        : normalizeFormFieldOptions(source?.options)[0] || "",
-                    );
-                  }}
-                >
-                  {availableConditionFields.map((candidate) => (
-                    <option key={candidate.id} value={candidate.id}>
-                      {candidate.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="form-label">Rule</label>
-                <select
-                  className="input"
-                  value={conditionOperator}
-                  onChange={(e) =>
-                    setConditionOperator(
-                      e.target.value as FormConditionOperator,
-                    )
-                  }
-                >
-                  {(
-                    Object.entries(CONDITION_OPERATOR_LABELS) as Array<
-                      [FormConditionOperator, string]
-                    >
-                  ).map(([operator, operatorLabel]) => (
-                    <option key={operator} value={operator}>
-                      {operatorLabel}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {conditionOperator !== "not_empty" && (
-                <ConditionValueInput
-                  source={conditionSource}
-                  value={conditionValue}
-                  onChange={setConditionValue}
+                  value={placeholder}
+                  onChange={(e) => setPlaceholder(e.target.value)}
+                  placeholder="Example answer shown inside the field"
                 />
+              </div>
+            )}
+            <div>
+              <label className="form-label">Helper text</label>
+              <input
+                className="input"
+                value={helper}
+                onChange={(e) => setHelper(e.target.value)}
+                placeholder="Small note shown under the field"
+              />
+            </div>
+            <div
+              className="form-condition-setting"
+              data-disabled={availableConditionFields.length === 0}
+            >
+              <label>
+                <input
+                  type="checkbox"
+                  checked={conditionEnabled}
+                  disabled={availableConditionFields.length === 0}
+                  onChange={(e) => {
+                    setConditionEnabled(e.target.checked);
+                    if (e.target.checked && !conditionFieldId) {
+                      const source =
+                        availableConditionFields[
+                          availableConditionFields.length - 1
+                        ];
+                      setConditionFieldId(source?.id || "");
+                      setConditionValue(
+                        source?.type === "checkbox"
+                          ? "Yes"
+                          : normalizeFormFieldOptions(source?.options)[0] || "",
+                      );
+                    }
+                  }}
+                />
+                <span>
+                  <strong>Only show when…</strong>
+                  <small>
+                    {availableConditionFields.length > 0
+                      ? "Use an earlier answer to control this question."
+                      : "Add an answerable question before this one first."}
+                  </small>
+                </span>
+              </label>
+
+              {conditionEnabled && availableConditionFields.length > 0 && (
+                <div className="form-grid form-condition-rule">
+                  <div>
+                    <label className="form-label">Question</label>
+                    <select
+                      className="input"
+                      value={conditionFieldId}
+                      onChange={(e) => {
+                        const source = availableConditionFields.find(
+                          (candidate) => candidate.id === e.target.value,
+                        );
+                        setConditionFieldId(e.target.value);
+                        setConditionValue(
+                          source?.type === "checkbox"
+                            ? "Yes"
+                            : normalizeFormFieldOptions(source?.options)[0] ||
+                                "",
+                        );
+                      }}
+                    >
+                      {availableConditionFields.map((candidate) => (
+                        <option key={candidate.id} value={candidate.id}>
+                          {candidate.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="form-label">Rule</label>
+                    <select
+                      className="input"
+                      value={conditionOperator}
+                      onChange={(e) =>
+                        setConditionOperator(
+                          e.target.value as FormConditionOperator,
+                        )
+                      }
+                    >
+                      {(
+                        Object.entries(CONDITION_OPERATOR_LABELS) as Array<
+                          [FormConditionOperator, string]
+                        >
+                      ).map(([operator, operatorLabel]) => (
+                        <option key={operator} value={operator}>
+                          {operatorLabel}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {conditionOperator !== "not_empty" && (
+                    <ConditionValueInput
+                      source={conditionSource}
+                      value={conditionValue}
+                      onChange={setConditionValue}
+                    />
+                  )}
+                </div>
               )}
             </div>
-          )}
-        </div>
+          </div>
+        </details>
       )}
       <div className="sheet-footer">
         <button className="btn primary block" type="submit" disabled={pending}>
-          {pending ? "Saving…" : field ? "Save field" : "Add field"}
+          {pending
+            ? "Saving…"
+            : field
+              ? `Save ${type === "section" ? "section" : "question"}`
+              : `Add ${type === "section" ? "section" : "question"}`}
         </button>
       </div>
     </form>
