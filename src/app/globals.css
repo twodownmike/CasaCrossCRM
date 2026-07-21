@@ -961,6 +961,9 @@ a { color: inherit; text-decoration: none; }
 @media (max-width: 599px) {
   button, a, input, select, textarea { touch-action: manipulation; }
 
+  .home-overview > summary { padding-right: 54px; }
+  .home-overview-total { display: none; }
+
   /* 16px prevents Safari from zooming the viewport when a field receives focus. */
   .input,
   .search input,

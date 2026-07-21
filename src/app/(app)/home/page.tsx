@@ -346,7 +346,6 @@ export default async function Home() {
         <section className="home-focus">
           <div className="section-label">
             <h2>Focus</h2>
-            {actionable.length > 0 && <span>{actionable.length}</span>}
           </div>
           <div className="home-section-body">
             {focusActions.length > 0 ? (
@@ -364,7 +363,7 @@ export default async function Home() {
             {moreActions.length > 0 && (
               <details className="home-more-items">
                 <summary>
-                  <span>More to do</span>
+                  <span>View remaining</span>
                   <span>{moreActions.length}</span>
                   <Icon.chev />
                 </summary>
