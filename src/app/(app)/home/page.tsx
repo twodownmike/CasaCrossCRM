@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { listEvents, listPeople, aggregateFinances } from "@/lib/queries";
+import { listEvents, aggregateFinances } from "@/lib/queries";
 import { createClient } from "@/lib/supabase/server";
 import {
   fmtMoney,
@@ -8,9 +8,6 @@ import {
   daysUntilLabel,
   eyebrowToday,
 } from "@/lib/format";
-import { EventCard } from "@/components/event-card";
-import { Avatar } from "@/components/avatar";
-import { RolePill } from "@/components/pill";
 import { Icon } from "@/components/icons";
 import type { Submission } from "@/lib/types";
 
@@ -26,7 +23,7 @@ export default async function Home() {
     user?.email?.split("@")[0] ||
     "friend";
 
-  const [events, people] = await Promise.all([listEvents(), listPeople()]);
+  const events = await listEvents();
 
   const upcoming = events.filter((e) => e.status !== "wrapped");
   const next = upcoming[0];
@@ -293,15 +290,12 @@ export default async function Home() {
     }
   });
   actions.sort((a, b) => b.priority - a.priority);
-  const actionGroups = [
-    { key: "overdue", label: "Overdue", tone: "warm" },
-    { key: "today", label: "Today", tone: "slate" },
-    { key: "upcoming", label: "Upcoming", tone: "sage" },
-    { key: "waiting", label: "Waiting", tone: "gold" },
-  ] as const;
-
   const leadCount = submissions.length;
   const tasksDueCount = actions.filter((a) => a.kind === "task").length;
+  const actionable = actions.filter((action) => action.bucket !== "waiting");
+  const focusActions = actionable.slice(0, 3);
+  const moreActions = actionable.slice(3);
+  const waitingActions = actions.filter((action) => action.bucket === "waiting");
   const iconFor = {
     mail: Icon.mail,
     doc: Icon.doc,
@@ -318,189 +312,118 @@ export default async function Home() {
     sage: { background: "var(--sage-tint)", color: "var(--sage)" },
     slate: { background: "var(--slate-tint)", color: "var(--slate)" },
   };
+  const actionRow = (action: Action, keyPrefix: string) => {
+    const ActionIcon = iconFor[action.icon];
+    return (
+      <Link
+        key={`${keyPrefix}-${action.kind}-${action.href}-${action.title}`}
+        className="card-row home-action-row"
+        href={action.href}
+      >
+        <span className="home-action-icon" style={toneStyle[action.tone]}>
+          <ActionIcon />
+        </span>
+        <span className="home-action-copy">
+          <strong>{action.title}</strong>
+          <small>{action.detail}</small>
+        </span>
+        <Icon.chev />
+      </Link>
+    );
+  };
 
   return (
-    <div className="fade-in">
-      <div className="page-head">
+    <div className="fade-in home-page">
+      <div className="page-head home-head">
         <div className="eyebrow">{eyebrowToday()}</div>
         <h1>
           Morning, <em>{firstName}</em>.
         </h1>
-        <div className="sub">
-          {upcoming.length} active events · {actions.length} need attention
-        </div>
+        <div className="sub">Here&apos;s what matters most today.</div>
       </div>
 
-      <div className="home-priority-layout">
-        <div className="home-stats-wrap">
-          <div className="stat-grid">
-            <div className="stat">
-              <div className="label">Outstanding</div>
-              <div className="val tabnums">{fmtMoney(fin.owed)}</div>
-              <div className="delta down">{fmtMoney(fin.overdue)} overdue</div>
-            </div>
-            <div className="stat">
-              <div className="label">Collected</div>
-              <div className="val tabnums">{fmtMoney(fin.paid)}</div>
-              <div className="delta up">across {events.length} events</div>
-            </div>
-            <div className="stat">
-              <div className="label">Active leads</div>
-              <div className="val tabnums">{leadCount}</div>
-              <div className="delta down">in booking pipeline</div>
-            </div>
-            <div className="stat">
-              <div className="label">Open tasks</div>
-              <div className="val tabnums">{tasksDueCount}</div>
-              <div className="delta">due or unscheduled</div>
-            </div>
+      <div className="home-dashboard-grid">
+        <section className="home-focus">
+          <div className="section-label">
+            <h2>Focus</h2>
+            {actionable.length > 0 && <span>{actionable.length}</span>}
           </div>
-        </div>
+          <div className="home-section-body">
+            {focusActions.length > 0 ? (
+              <div className="card elev">{focusActions.map((action) => actionRow(action, "focus"))}</div>
+            ) : (
+              <div className="home-caught-up">
+                <span><Icon.check /></span>
+                <div>
+                  <strong>You&apos;re caught up</strong>
+                  <small>No urgent follow-ups right now.</small>
+                </div>
+              </div>
+            )}
+
+            {moreActions.length > 0 && (
+              <details className="home-more-items">
+                <summary>
+                  <span>More to do</span>
+                  <span>{moreActions.length}</span>
+                  <Icon.chev />
+                </summary>
+                <div className="card">{moreActions.map((action) => actionRow(action, "more"))}</div>
+              </details>
+            )}
+
+            {waitingActions.length > 0 && (
+              <details className="home-more-items waiting">
+                <summary>
+                  <span>Waiting on others</span>
+                  <span>{waitingActions.length}</span>
+                  <Icon.chev />
+                </summary>
+                <div className="card">{waitingActions.map((action) => actionRow(action, "waiting"))}</div>
+              </details>
+            )}
+          </div>
+        </section>
 
         {next && (
-          <div className="home-next-wrap">
+          <section className="home-next">
           <div className="section-label">
             <h2>Up next</h2>
-            <Link className="more" href="/events">
-              All events ›
+            <Link className="more" href="/events">All events</Link>
+          </div>
+          <div className="home-section-body">
+            <Link href={`/events/${next.id}`} className="card elev home-next-card">
+              <span className="home-next-date">
+                <strong>{new Date(`${next.date}T12:00:00`).toLocaleDateString(undefined, { month: "short", timeZone: "America/Denver" })}</strong>
+                <span>{new Date(`${next.date}T12:00:00`).toLocaleDateString(undefined, { day: "numeric", timeZone: "America/Denver" })}</span>
+              </span>
+              <span className="home-next-copy">
+                <strong>{next.name}</strong>
+                <small>{[daysUntilLabel(next.date), next.location].filter(Boolean).join(" · ")}</small>
+              </span>
+              <Icon.chev />
             </Link>
           </div>
-          <div style={{ padding: "0 var(--s-5)" }}>
-            <EventCard event={next} />
-          </div>
-          </div>
-        )}
-
-        {actions.length > 0 && (
-          <div className="home-actions-wrap">
-          <div className="section-label">
-            <h2>Action queue</h2>
-            <span className="pill warn">
-              <span className="dot" />
-              {actions.length}
-            </span>
-          </div>
-          <div className="action-groups">
-            {actionGroups.map((group) => {
-              const groupActions = actions
-                .filter((action) => action.bucket === group.key)
-                .slice(0, 5);
-              if (groupActions.length === 0) return null;
-              return (
-                <section key={group.key} className="action-group">
-                  <div className="action-group-head">
-                    <span>{group.label}</span>
-                    <span>{groupActions.length}</span>
-                  </div>
-                  <div className="card elev">
-                    {groupActions.map((a) => {
-                      const ActionIcon = iconFor[a.icon];
-                      return (
-                        <Link
-                          key={`${group.key}-${a.kind}-${a.href}-${a.title}`}
-                          className="card-row"
-                          href={a.href}
-                        >
-                          <span
-                            style={{
-                              width: 34,
-                              height: 34,
-                              borderRadius: "50%",
-                              ...toneStyle[a.tone],
-                              display: "inline-flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              flexShrink: 0,
-                            }}
-                          >
-                            <ActionIcon />
-                          </span>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div
-                              style={{
-                                fontSize: 14,
-                                fontWeight: 500,
-                                color: "var(--ink)",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              {a.title}
-                            </div>
-                            <div
-                              style={{
-                                fontSize: 12,
-                                color: "var(--ink-3)",
-                                marginTop: 2,
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              {a.detail}
-                            </div>
-                          </div>
-                          <Icon.chev style={{ color: "var(--ink-4)" }} />
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </section>
-              );
-            })}
-          </div>
-          </div>
+          </section>
         )}
       </div>
 
-      <div className="section-label">
-        <h2>Recent people</h2>
-        <Link className="more" href="/people">
-          Roster ›
-        </Link>
-      </div>
-      <div
-        style={{
-          padding: "0 var(--s-5)",
-          display: "flex",
-          gap: 10,
-          overflowX: "auto",
-          paddingBottom: 4,
-        }}
-      >
-        {people.slice(0, 8).map((p) => (
-          <Link
-            key={p.id}
-            href={`/people/${p.id}`}
-            style={{
-              flexShrink: 0,
-              width: 100,
-              padding: 12,
-              background: "var(--paper)",
-              border: "1px solid var(--hair)",
-              borderRadius: "var(--r-3)",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
-            <Avatar person={p} size="lg" />
-            <div
-              style={{
-                fontSize: 12,
-                fontWeight: 500,
-                textAlign: "center",
-                lineHeight: 1.2,
-              }}
-            >
-              {p.name.split(" ")[0]}
-            </div>
-            <RolePill role={p.role} />
-          </Link>
-        ))}
-      </div>
+      <details className="home-overview">
+        <summary>
+          <span>
+            <strong>Studio overview</strong>
+            <small>{upcoming.length} active events</small>
+          </span>
+          <span className="home-overview-total">{fmtMoney(fin.owed)} outstanding</span>
+          <Icon.chev />
+        </summary>
+        <div className="home-overview-grid">
+          <div><span>Collected</span><strong>{fmtMoney(fin.paid)}</strong></div>
+          <div><span>Overdue</span><strong>{fmtMoney(fin.overdue)}</strong></div>
+          <div><span>Active leads</span><strong>{leadCount}</strong></div>
+          <div><span>Open tasks</span><strong>{tasksDueCount}</strong></div>
+        </div>
+      </details>
 
       <div style={{ height: 24 }} />
     </div>
