@@ -335,11 +335,13 @@ export default async function Home() {
   return (
     <div className="fade-in home-page">
       <div className="page-head home-head">
-        <div className="eyebrow">{eyebrowToday()}</div>
-        <h1>
-          Morning, <em>{firstName}</em>.
-        </h1>
-        <div className="sub">Here&apos;s what matters most today.</div>
+        <div className="page-head-text">
+          <div className="eyebrow">{eyebrowToday()}</div>
+          <h1>
+            Morning, <em>{firstName}</em>.
+          </h1>
+          <div className="sub">Here&apos;s what matters most today.</div>
+        </div>
       </div>
 
       <div className="home-dashboard-grid">
