@@ -392,18 +392,18 @@ export async function signOpenContract(
     return { ok: false, error: result?.error || "Could not sign contract." };
   }
 
-  // Notify the events inbox about the new signature.
-  const { data: contract } = await supabase
-    .from("contracts")
-    .select("id, title, event_id")
-    .eq("share_token", token)
-    .maybeSingle();
+  // Notify the events inbox about the new signature. The signer is anon,
+  // so read contract details through the public token RPC — a direct
+  // table select would come back empty under RLS and skip the email.
+  const { data: view } = await supabase.rpc("get_contract_by_token", {
+    token,
+  });
+  const contract = view as {
+    id: string;
+    title: string;
+    event_name: string;
+  } | null;
   if (contract) {
-    const { data: event } = await supabase
-      .from("events")
-      .select("name")
-      .eq("id", contract.event_id)
-      .maybeSingle();
     const siteUrl =
       process.env.NEXT_PUBLIC_CRM_URL ||
       process.env.NEXT_PUBLIC_SITE_URL ||
@@ -412,11 +412,11 @@ export async function signOpenContract(
       to:
         process.env.OPEN_CONTRACT_NOTIFICATION_EMAIL ||
         "events@casacross.org",
-      subject: `${signedName} signed ${contract.title} — ${event?.name ?? "your event"}`,
+      subject: `${signedName} signed ${contract.title} — ${contract.event_name}`,
       ...(await contractSignedEmail({
         signerName: signedName,
         contractTitle: contract.title,
-        eventName: event?.name ?? "your event",
+        eventName: contract.event_name,
         contractUrl: result.signature_id
           ? `${siteUrl}/contracts/${contract.id}/signatures/${result.signature_id}`
           : `${siteUrl}/contracts/${contract.id}`,
@@ -659,28 +659,28 @@ export async function signContract(
     return { ok: false, error: result?.error || "Could not sign contract." };
   }
 
-  // Notify the team that the contract was signed.
-  const { data: contract } = await supabase
-    .from("contracts")
-    .select("id, title, event_id")
-    .eq("share_token", token)
-    .maybeSingle();
+  // Notify the team that the contract was signed. The signer is usually
+  // anon, so read contract details through the public token RPC — a
+  // direct table select would come back empty under RLS and skip the email.
+  const { data: view } = await supabase.rpc("get_contract_by_token", {
+    token,
+  });
+  const contract = view as {
+    id: string;
+    title: string;
+    event_name: string;
+  } | null;
   if (contract) {
-    const { data: event } = await supabase
-      .from("events")
-      .select("name")
-      .eq("id", contract.event_id)
-      .maybeSingle();
     const siteUrl =
       process.env.NEXT_PUBLIC_CRM_URL ||
       process.env.NEXT_PUBLIC_SITE_URL ||
       "";
     await sendNotificationEmail({
-      subject: `${signedName} signed ${contract.title} — ${event?.name ?? "your event"}`,
+      subject: `${signedName} signed ${contract.title} — ${contract.event_name}`,
       ...(await contractSignedEmail({
         signerName: signedName,
         contractTitle: contract.title,
-        eventName: event?.name ?? "your event",
+        eventName: contract.event_name,
         contractUrl: `${siteUrl}/contracts/${contract.id}`,
       })),
     });
