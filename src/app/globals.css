@@ -2803,3 +2803,58 @@ select.input {
     grid-column: 1 / -1;
   }
 }
+
+/* ═══════════ Signed-document printing ═══════════ */
+/* Printing a signed contract should produce a clean paper document —
+   no app chrome, no phone frame, no cards. */
+@media print {
+  .app-header,
+  .bottom-nav,
+  .fab,
+  .ds-sidebar,
+  .ds-topbar,
+  .print-hide {
+    display: none !important;
+  }
+  #root {
+    display: block !important;
+    background: white !important;
+  }
+  .phone-frame {
+    display: block !important;
+    width: auto !important;
+    max-width: none !important;
+    height: auto !important;
+    max-height: none !important;
+    margin: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    background: white !important;
+  }
+  .phone-frame::before { display: none !important; }
+  .phone-frame > .scroll {
+    overflow: visible !important;
+    height: auto !important;
+    max-width: none !important;
+    padding: 0 !important;
+  }
+  .signed-doc {
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: white !important;
+  }
+  .signed-doc .sign-body {
+    font-size: 12.5px !important;
+  }
+  .signed-doc .sign-strip { break-inside: avoid; }
+  .signed-doc-signature { break-inside: avoid; }
+  .signed-doc .sign-image {
+    border: 1px solid #ddd6ca !important;
+    background: white !important;
+  }
+}

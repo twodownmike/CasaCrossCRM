@@ -385,12 +385,14 @@ export async function signOpenContract(
     console.error("sign_open_contract rpc failed", error);
     return { ok: false, error: error.message };
   }
-  const result = data as { ok: boolean; error?: string } | null;
+  const result = data as
+    | { ok: boolean; error?: string; signature_id?: string }
+    | null;
   if (!result?.ok) {
     return { ok: false, error: result?.error || "Could not sign contract." };
   }
 
-  // Notify the team about the new signature.
+  // Notify the events inbox about the new signature.
   const { data: contract } = await supabase
     .from("contracts")
     .select("id, title, event_id")
@@ -406,13 +408,18 @@ export async function signOpenContract(
       process.env.NEXT_PUBLIC_CRM_URL ||
       process.env.NEXT_PUBLIC_SITE_URL ||
       "";
-    await sendNotificationEmail({
+    await sendEmail({
+      to:
+        process.env.OPEN_CONTRACT_NOTIFICATION_EMAIL ||
+        "events@casacross.org",
       subject: `${signedName} signed ${contract.title} — ${event?.name ?? "your event"}`,
       ...(await contractSignedEmail({
         signerName: signedName,
         contractTitle: contract.title,
         eventName: event?.name ?? "your event",
-        contractUrl: `${siteUrl}/contracts/${contract.id}`,
+        contractUrl: result.signature_id
+          ? `${siteUrl}/contracts/${contract.id}/signatures/${result.signature_id}`
+          : `${siteUrl}/contracts/${contract.id}`,
       })),
     });
   }

@@ -55,14 +55,13 @@ export default async function SignedDocumentPage({
         <span />
       </header>
 
-      <div className="page-head">
+      <div className="page-head print-hide">
         <div className="page-head-text">
           <div className="eyebrow">Signed by</div>
           <h1>{sig.signed_name}</h1>
           <div className="sub">
             {c.title}
             {event ? ` · ${event.name}` : ""}
-            {event ? ` · ${fmtDateFull(event.date)}` : ""}
           </div>
         </div>
         <div className="page-head-actions">
@@ -71,36 +70,46 @@ export default async function SignedDocumentPage({
       </div>
 
       <div style={{ padding: "0 var(--s-5)" }}>
-        <div className="sign-block signed" style={{ marginBottom: 16 }}>
-          <div className="eyebrow">Signature</div>
-          <div className="sign-strip">
-            {sig.signature_url && (
-              <img
-                src={sig.signature_url}
-                alt={`Signature of ${sig.signed_name}`}
-                className="sign-image"
-              />
-            )}
-            <div>
-              <div className="sign-name">{sig.signed_name}</div>
-              <div className="sign-when">
-                {sig.signer_email ? `${sig.signer_email} · ` : ""}
-                {fmtDateFull(sig.signed_at.slice(0, 10))} (
-                {relTime(sig.signed_at)})
-              </div>
-              {sig.signer_ip && (
-                <div
-                  className="sign-when"
-                  style={{ marginTop: 4, color: "var(--ink-4)" }}
-                >
-                  IP {sig.signer_ip}
-                </div>
-              )}
+        <article className="card elev signed-doc" style={{ padding: 32, marginBottom: 24 }}>
+          <header
+            style={{
+              textAlign: "center",
+              paddingBottom: 20,
+              marginBottom: 24,
+              borderBottom: "1px solid var(--hair)",
+            }}
+          >
+            <div
+              className="eyebrow"
+              style={{ marginBottom: 8 }}
+            >
+              Casa Cross Events
             </div>
-          </div>
-        </div>
+            <h1
+              style={{
+                margin: 0,
+                fontFamily: "var(--serif-display)",
+                fontWeight: 400,
+                fontSize: 30,
+                letterSpacing: "-0.01em",
+              }}
+            >
+              {c.title}
+            </h1>
+            {event && (
+              <div
+                style={{
+                  marginTop: 8,
+                  fontSize: 13,
+                  color: "var(--ink-3)",
+                  fontFamily: "var(--serif)",
+                }}
+              >
+                {event.name} · {fmtDateFull(event.date)}
+              </div>
+            )}
+          </header>
 
-        <div className="card elev" style={{ padding: 22, marginBottom: 24 }}>
           {bodyMd.trim() !== "" && (
             <div
               className="sign-body"
@@ -109,7 +118,7 @@ export default async function SignedDocumentPage({
             />
           )}
           {c.pdf_url && (
-            <div style={{ marginTop: bodyMd.trim() !== "" ? 16 : 0 }}>
+            <div className="print-hide" style={{ marginTop: bodyMd.trim() !== "" ? 16 : 0 }}>
               <a
                 href={c.pdf_url}
                 target="_blank"
@@ -120,7 +129,58 @@ export default async function SignedDocumentPage({
               </a>
             </div>
           )}
-        </div>
+
+          <div
+            className="signed-doc-signature"
+            style={{
+              marginTop: 32,
+              paddingTop: 20,
+              borderTop: "1px solid var(--hair)",
+            }}
+          >
+            <div className="eyebrow" style={{ marginBottom: 12 }}>
+              Signed
+            </div>
+            <div className="sign-strip">
+              {sig.signature_url && (
+                <img
+                  src={sig.signature_url}
+                  alt={`Signature of ${sig.signed_name}`}
+                  className="sign-image"
+                  style={{ background: "white" }}
+                />
+              )}
+              <div>
+                <div className="sign-name">{sig.signed_name}</div>
+                <div className="sign-when">
+                  {sig.signer_email ? `${sig.signer_email} · ` : ""}
+                  {fmtDateFull(sig.signed_at.slice(0, 10))}{" "}
+                  <span className="print-hide">({relTime(sig.signed_at)})</span>
+                </div>
+                {sig.signer_ip && (
+                  <div
+                    className="sign-when"
+                    style={{ marginTop: 4, color: "var(--ink-4)" }}
+                  >
+                    IP {sig.signer_ip}
+                  </div>
+                )}
+              </div>
+            </div>
+            <p
+              style={{
+                marginTop: 18,
+                marginBottom: 0,
+                fontSize: 10.5,
+                lineHeight: 1.5,
+                color: "var(--ink-4)",
+              }}
+            >
+              Signed electronically via casacross.org. Document ID {sig.id} ·
+              Recorded {new Date(sig.signed_at).toISOString()}
+            </p>
+          </div>
+        </article>
       </div>
     </div>
   );
