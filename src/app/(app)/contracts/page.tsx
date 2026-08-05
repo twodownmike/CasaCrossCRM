@@ -19,8 +19,15 @@ export default async function ContractsPage() {
     new Set((contracts ?? []).map((c) => c.event_id)),
   );
   const contractPartIds = Array.from(
-    new Set((contracts ?? []).map((c) => c.participant_id)),
+    new Set(
+      (contracts ?? [])
+        .map((c) => c.participant_id)
+        .filter((id): id is string => !!id),
+    ),
   );
+  const openContractIds = (contracts ?? [])
+    .filter((c) => c.kind === "open")
+    .map((c) => c.id);
 
   // For the New Contract picker: every event + every active participant.
   const [
@@ -61,9 +68,25 @@ export default async function ContractsPage() {
   ]);
 
   const personIds = (rowParts ?? []).map((p) => p.person_id);
-  const { data: rowPeople } = personIds.length
-    ? await supabase.from("people").select("id, name").in("id", personIds)
-    : { data: [] as Array<{ id: string; name: string }> };
+  const [{ data: rowPeople }, { data: openSigs }] = await Promise.all([
+    personIds.length
+      ? supabase.from("people").select("id, name").in("id", personIds)
+      : Promise.resolve({ data: [] as Array<{ id: string; name: string }> }),
+    openContractIds.length
+      ? supabase
+          .from("contract_signatures")
+          .select("contract_id")
+          .in("contract_id", openContractIds)
+      : Promise.resolve({ data: [] as Array<{ contract_id: string }> }),
+  ]);
+
+  const signatureCount = new Map<string, number>();
+  for (const sig of openSigs ?? []) {
+    signatureCount.set(
+      sig.contract_id,
+      (signatureCount.get(sig.contract_id) ?? 0) + 1,
+    );
+  }
 
   const eventName = new Map(
     (rowEvents ?? []).map((e) => [e.id, e.name] as const),
@@ -121,6 +144,11 @@ export default async function ContractsPage() {
           </Link>
           <NewContractButton
             events={pickerEvents}
+            allEvents={(allEvents ?? []) as Array<{
+              id: string;
+              name: string;
+              date: string;
+            }>}
             templates={(templates ?? []) as Array<{ id: string; name: string }>}
           />
         </div>
@@ -172,10 +200,17 @@ export default async function ContractsPage() {
                   }}
                 >
                   <span style={{ fontSize: 14, fontWeight: 500 }}>
-                    {personByPart.get(c.participant_id) || "Unknown"}
+                    {c.kind === "open"
+                      ? "Shared link"
+                      : personByPart.get(c.participant_id) || "Unknown"}
                   </span>
                   <StatusPill
                     status={contractDisplayStatus(c)}
+                    label={
+                      c.kind === "open" && c.status === "sent"
+                        ? "Open"
+                        : undefined
+                    }
                   />
                 </div>
                 <div
@@ -186,6 +221,9 @@ export default async function ContractsPage() {
                   }}
                 >
                   {c.title} · {eventName.get(c.event_id) || "—"}
+                  {c.kind === "open"
+                    ? ` · ${signatureCount.get(c.id) ?? 0} signed`
+                    : ""}
                 </div>
                 <div
                   style={{

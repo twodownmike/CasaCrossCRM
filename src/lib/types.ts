@@ -137,6 +137,11 @@ export const EXPENSE_CATEGORIES = [
 
 export type ContractDocStatus = "draft" | "sent" | "signed" | "void";
 
+// 'individual' = classic per-participant contract with one signature slot.
+// 'open' = shared link tied to an event; anyone with the link signs and
+// each signature lands in contract_signatures.
+export type ContractKind = "individual" | "open";
+
 export type ContractTemplate = {
   id: string;
   name: string;
@@ -150,7 +155,8 @@ export type ContractTemplate = {
 export type Contract = {
   id: string;
   event_id: string;
-  participant_id: string;
+  participant_id: string | null;
+  kind: ContractKind;
   template_id: string | null;
   title: string;
   body_md: string;
@@ -167,6 +173,17 @@ export type Contract = {
   payment_required: boolean;
   payment_amount: number | null;
   created_at: string;
+};
+
+export type ContractSignature = {
+  id: string;
+  contract_id: string;
+  signed_name: string;
+  signer_email: string | null;
+  signature_url: string;
+  signer_ip: string | null;
+  signer_ua: string | null;
+  signed_at: string;
 };
 
 export type PortalMessage = {
@@ -194,6 +211,7 @@ export type PortalThreadRead = {
 
 export type ContractTokenView = {
   id: string;
+  kind: ContractKind;
   title: string;
   body_md: string;
   pdf_url: string | null;
@@ -206,9 +224,10 @@ export type ContractTokenView = {
   event_name: string;
   event_date: string;
   event_location: string | null;
-  recipient_name: string;
+  recipient_name: string | null;
   payment_required: boolean;
   payment_amount: number | null;
+  signature_count: number;
   studio_venmo_url: string | null;
   studio_name: string | null;
 };

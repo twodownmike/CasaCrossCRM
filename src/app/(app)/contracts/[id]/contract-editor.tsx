@@ -22,6 +22,7 @@ export function ContractEditor({
   status,
   paymentRequired,
   paymentAmount,
+  isOpen = false,
 }: {
   id: string;
   title: string;
@@ -30,6 +31,7 @@ export function ContractEditor({
   status: "draft" | "sent" | "signed" | "void";
   paymentRequired: boolean;
   paymentAmount: number | null;
+  isOpen?: boolean;
 }) {
   const router = useRouter();
   const [t, setT] = useState(title);
@@ -235,9 +237,9 @@ export function ContractEditor({
               className="muted"
               style={{ fontSize: 11, marginTop: 6, lineHeight: 1.4 }}
             >
-              Merge fields like {"{{participant_name}}"} were filled in
-              when the contract was generated — edits here are
-              participant-specific.
+              {isOpen
+                ? `Keep {{participant_name}} / {{participant_legal_name}} in the body — each signer's typed name fills them in live on the signing page.`
+                : `Merge fields like {{participant_name}} were filled in when the contract was generated — edits here are participant-specific.`}
             </p>
           </div>
 
@@ -335,7 +337,7 @@ export function ContractEditor({
                   borderColor: "var(--terracotta)",
                 }}
               >
-                <Icon.send /> Send to participant
+                <Icon.send /> {isOpen ? "Open for signatures" : "Send to participant"}
               </button>
             )}
             {status === "sent" && (

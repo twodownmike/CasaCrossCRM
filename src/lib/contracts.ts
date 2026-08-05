@@ -50,6 +50,57 @@ export function renderMerge(template: string, ctx: MergeContext): string {
   return template.replace(/\{\{[a-z_]+\}\}/gi, (m) => replacements[m] ?? m);
 }
 
+export type OpenMergeContext = {
+  eventName: string;
+  eventDate: string;
+  eventTime: string | null;
+  eventLocation: string | null;
+};
+
+// Tokens left in an open contract's body for the signer to fill in live.
+export const SIGNER_NAME_TOKENS = [
+  "{{participant_name}}",
+  "{{participant_legal_name}}",
+] as const;
+
+export const SIGNER_NAME_BLANK = "____________________";
+
+/**
+ * Merge pass for shared/open contracts: event + studio fields render as
+ * usual, but the participant name tokens are left in place so each signer
+ * can fill them in live on the signing page. Per-person fields that can't
+ * exist on a shared link (email, phone, role, rate) render as an em dash.
+ */
+export function renderMergeOpen(template: string, ctx: OpenMergeContext): string {
+  const replacements: Record<string, string> = {
+    "{{participant_email}}": "—",
+    "{{participant_phone}}": "—",
+    "{{role}}": "—",
+    "{{rate}}": "—",
+    "{{rate_paid}}": "—",
+    "{{event_name}}": ctx.eventName,
+    "{{event_date}}": fmtDateFull(ctx.eventDate),
+    "{{event_time}}": ctx.eventTime || "TBD",
+    "{{event_location}}": ctx.eventLocation || "TBD",
+    "{{studio_name}}": "Casa Cross Events",
+    "{{today}}": fmtDateFull(new Date().toISOString().slice(0, 10)),
+  };
+  return template.replace(/\{\{[a-z_]+\}\}/gi, (m) => replacements[m] ?? m);
+}
+
+/**
+ * Substitute the signer's typed name into an open contract body.
+ * Before they type anything the tokens show as a blank line to sign on.
+ */
+export function fillSignerName(md: string, name: string): string {
+  const value = name.trim() || SIGNER_NAME_BLANK;
+  let out = md;
+  for (const token of SIGNER_NAME_TOKENS) {
+    out = out.split(token).join(value);
+  }
+  return out;
+}
+
 /**
  * Tiny markdown subset → safe HTML.
  * Supports: # / ## / ### headings, **bold**, *italic*, blank-line paragraphs,
@@ -139,6 +190,29 @@ This agreement confirms the booking of **{{participant_name}}** as **{{role}}** 
 
 ## Compensation
 The agreed rate for this booking is **{{rate}}**, payable per the studio's payment terms.
+
+## Responsibilities
+- Arrive at the call time and location specified by the studio.
+- Provide your own gear / wardrobe / supplies as agreed unless the studio has noted otherwise.
+- Communicate any conflicts or changes as early as possible.
+
+## Image Rights
+Casa Cross Events retains the right to use images from this shoot for editorial, marketing, social, and portfolio purposes. The participant retains the right to use the images for their own portfolio with credit to Casa Cross Events.
+
+## Cancellation
+If the participant cancels within 7 days of the event, any deposits paid are non-refundable. The studio may reschedule the event with at least 7 days' notice.
+
+---
+
+By signing below, I confirm that I have read and agree to this agreement.
+
+Signed by: **{{participant_legal_name}}**
+Date: **{{today}}**
+`;
+
+export const DEFAULT_OPEN_TEMPLATE_BODY = `# Casa Cross Events — Event Agreement
+
+This agreement is between Casa Cross Events and {{participant_name}} regarding the event **{{event_name}}** on **{{event_date}}** at **{{event_location}}**.
 
 ## Responsibilities
 - Arrive at the call time and location specified by the studio.

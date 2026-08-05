@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Sheet } from "@/components/sheet";
 import { Icon } from "@/components/icons";
-import { sendContract } from "@/app/contracts-actions";
+import { sendContract, createOpenContract } from "@/app/contracts-actions";
 import { ROLE_META, type RoleKind } from "@/lib/types";
 import { fmtDate } from "@/lib/format";
 
@@ -20,15 +20,20 @@ type PickerEvent = {
   }>;
 };
 
+type ContractMode = "individual" | "open";
+
 export function NewContractButton({
   events,
+  allEvents,
   templates,
 }: {
   events: PickerEvent[];
+  allEvents: Array<{ id: string; name: string; date: string }>;
   templates: Array<{ id: string; name: string }>;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<ContractMode>("individual");
   const [eventId, setEventId] = useState<string>(
     events[0]?.id ?? "",
   );
@@ -45,13 +50,28 @@ export function NewContractButton({
     | null
   >(null);
 
+  const isOpenMode = mode === "open";
+  const eventChoices = isOpenMode ? allEvents : events;
+
   const activeEvent = useMemo(
     () => events.find((e) => e.id === eventId) || null,
     [events, eventId],
   );
 
+  function switchMode(next: ContractMode) {
+    setMode(next);
+    setParticipantId("");
+    setResult(null);
+    setTitle(next === "open" ? "Event Agreement" : "Booking Agreement");
+    const list = next === "open" ? allEvents : events;
+    if (!list.some((e) => e.id === eventId)) {
+      setEventId(list[0]?.id ?? "");
+    }
+  }
+
   function close() {
     setOpen(false);
+    setMode("individual");
     setEventId(events[0]?.id ?? "");
     setParticipantId("");
     setTemplateId("");
@@ -71,12 +91,21 @@ export function NewContractButton({
   function send(e: React.FormEvent) {
     e.preventDefault();
     setResult(null);
-    if (!participantId) {
+    if (isOpenMode) {
+      if (!eventId) {
+        setResult({ kind: "err", msg: "Pick an event first." });
+        return;
+      }
+    } else if (!participantId) {
       setResult({ kind: "err", msg: "Pick a participant first." });
       return;
     }
     const f = new FormData();
-    f.set("participant_id", participantId);
+    if (isOpenMode) {
+      f.set("event_id", eventId);
+    } else {
+      f.set("participant_id", participantId);
+    }
     if (templateId) f.set("template_id", templateId);
     f.set("title", title);
     if (saveAsDraft) f.set("save_as_draft", "on");
@@ -85,7 +114,9 @@ export function NewContractButton({
       if (paymentAmount) f.set("payment_amount", paymentAmount);
     }
     start(async () => {
-      const r = await sendContract(f);
+      const r = isOpenMode
+        ? await createOpenContract(f)
+        : await sendContract(f);
       if (!r.ok) {
         setResult({ kind: "err", msg: r.error });
         return;
@@ -110,8 +141,12 @@ export function NewContractButton({
         className="btn primary"
         type="button"
         onClick={() => setOpen(true)}
-        disabled={events.length === 0}
-        title={events.length === 0 ? "Add a participant to an event first" : undefined}
+        disabled={events.length === 0 && allEvents.length === 0}
+        title={
+          events.length === 0 && allEvents.length === 0
+            ? "Create an event first"
+            : undefined
+        }
       >
         <Icon.plus /> Send contract
       </button>
@@ -165,8 +200,12 @@ export function NewContractButton({
               style={{ fontSize: 12, lineHeight: 1.5 }}
             >
               {result.isDraft
-                ? "The signing link is reserved but the participant can't sign until you flip the draft to Sent."
-                : "Send this link directly via text, email, or DM. The participant's contract status is now Sent."}
+                ? isOpenMode
+                  ? "The link is reserved but no one can sign until you open the draft for signatures."
+                  : "The signing link is reserved but the participant can't sign until you flip the draft to Sent."
+                : isOpenMode
+                  ? "Send this one link to everyone. Each person fills in their own name, signs, and lands on the contract's signature list."
+                  : "Send this link directly via text, email, or DM. The participant's contract status is now Sent."}
             </p>
             <div className="sheet-footer">
               <button
@@ -181,6 +220,37 @@ export function NewContractButton({
         ) : (
           <form onSubmit={send} className="form-grid" style={{ paddingTop: 8 }}>
             <div>
+              <label className="form-label">Who signs</label>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  type="button"
+                  className={mode === "individual" ? "btn primary" : "btn"}
+                  style={{ flex: 1 }}
+                  onClick={() => switchMode("individual")}
+                >
+                  One participant
+                </button>
+                <button
+                  type="button"
+                  className={isOpenMode ? "btn primary" : "btn"}
+                  style={{ flex: 1 }}
+                  onClick={() => switchMode("open")}
+                >
+                  Shared link
+                </button>
+              </div>
+              {isOpenMode && (
+                <p
+                  className="muted"
+                  style={{ fontSize: 11, marginTop: 6, lineHeight: 1.4 }}
+                >
+                  One link for everyone — each signer types their own name
+                  into the contract and signs. No individual links needed.
+                </p>
+              )}
+            </div>
+
+            <div>
               <label className="form-label">Event</label>
               <select
                 className="input"
@@ -190,10 +260,14 @@ export function NewContractButton({
                   setParticipantId("");
                 }}
               >
-                {events.length === 0 ? (
-                  <option value="">No events with participants yet</option>
+                {eventChoices.length === 0 ? (
+                  <option value="">
+                    {isOpenMode
+                      ? "No events yet"
+                      : "No events with participants yet"}
+                  </option>
                 ) : (
-                  events.map((ev) => (
+                  eventChoices.map((ev) => (
                     <option key={ev.id} value={ev.id}>
                       {ev.name} · {fmtDate(ev.date, { short: true })}
                     </option>
@@ -202,24 +276,26 @@ export function NewContractButton({
               </select>
             </div>
 
-            <div>
-              <label className="form-label">Participant</label>
-              <select
-                className="input"
-                value={participantId}
-                onChange={(e) => setParticipantId(e.target.value)}
-                required
-              >
-                <option value="" disabled>
-                  Pick someone
-                </option>
-                {(activeEvent?.participants ?? []).map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} — {ROLE_META[p.role]?.label || p.role}
+            {!isOpenMode && (
+              <div>
+                <label className="form-label">Participant</label>
+                <select
+                  className="input"
+                  value={participantId}
+                  onChange={(e) => setParticipantId(e.target.value)}
+                  required
+                >
+                  <option value="" disabled>
+                    Pick someone
                   </option>
-                ))}
-              </select>
-            </div>
+                  {(activeEvent?.participants ?? []).map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} — {ROLE_META[p.role]?.label || p.role}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div>
               <label className="form-label">Template</label>
@@ -228,7 +304,11 @@ export function NewContractButton({
                 value={templateId}
                 onChange={(e) => setTemplateId(e.target.value)}
               >
-                <option value="">Default booking agreement</option>
+                <option value="">
+                  {isOpenMode
+                    ? "Default event agreement"
+                    : "Default booking agreement"}
+                </option>
                 {templates.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.name}
@@ -239,8 +319,9 @@ export function NewContractButton({
                 className="muted"
                 style={{ fontSize: 11, marginTop: 6, lineHeight: 1.4 }}
               >
-                Merge fields are filled from the participant + event before the
-                link is generated.{" "}
+                {isOpenMode
+                  ? "Event merge fields are filled now; {{participant_name}} stays blank so each signer fills it in live."
+                  : "Merge fields are filled from the participant + event before the link is generated."}{" "}
                 <a
                   href="/contracts/templates/new"
                   target="_blank"
@@ -371,10 +452,9 @@ export function NewContractButton({
                     lineHeight: 1.4,
                   }}
                 >
-                  Review and edit the rendered body before sending. The signing
-                  link is generated either way, but with this on the
-                  participant&apos;s status stays at <strong>Unsent</strong>{" "}
-                  until you click Send from the editor.
+                  {isOpenMode
+                    ? "Review and edit the rendered body before opening the link for signatures."
+                    : "Review and edit the rendered body before sending. The signing link is generated either way, but with this on the participant's status stays at Unsent until you click Send from the editor."}
                 </span>
               </span>
             </label>
@@ -393,7 +473,9 @@ export function NewContractButton({
                   ? "Generating…"
                   : saveAsDraft
                     ? "Save draft"
-                    : "Generate signing link"}
+                    : isOpenMode
+                      ? "Generate shared link"
+                      : "Generate signing link"}
               </button>
             </div>
           </form>

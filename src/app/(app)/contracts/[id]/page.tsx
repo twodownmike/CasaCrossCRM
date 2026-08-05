@@ -22,18 +22,30 @@ export default async function ContractDetail({
     .maybeSingle();
   if (!c) notFound();
 
-  const [{ data: event }, { data: participant }] = await Promise.all([
-    supabase
-      .from("events")
-      .select("id, name, date")
-      .eq("id", c.event_id)
-      .maybeSingle(),
-    supabase
-      .from("participants")
-      .select("id, person_id")
-      .eq("id", c.participant_id)
-      .maybeSingle(),
-  ]);
+  const isOpen = c.kind === "open";
+
+  const [{ data: event }, { data: participant }, { data: signatures }] =
+    await Promise.all([
+      supabase
+        .from("events")
+        .select("id, name, date")
+        .eq("id", c.event_id)
+        .maybeSingle(),
+      c.participant_id
+        ? supabase
+            .from("participants")
+            .select("id, person_id")
+            .eq("id", c.participant_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+      isOpen
+        ? supabase
+            .from("contract_signatures")
+            .select("*")
+            .eq("contract_id", c.id)
+            .order("signed_at", { ascending: false })
+        : Promise.resolve({ data: null }),
+    ]);
   const { data: person } = participant
     ? await supabase
         .from("people")
@@ -90,13 +102,23 @@ export default async function ContractDetail({
                   ? "Draft"
                   : c.status === "void"
                     ? "Voided"
-                    : undefined
+                    : isOpen && c.status === "sent"
+                      ? "Open for signatures"
+                      : undefined
               }
             />
           </div>
           <h1>{c.title}</h1>
           <div className="sub">
-            For <strong>{person?.name || "Unknown"}</strong>
+            {isOpen ? (
+              <>
+                Shared link — <strong>anyone with the link can sign</strong>
+              </>
+            ) : (
+              <>
+                For <strong>{person?.name || "Unknown"}</strong>
+              </>
+            )}
             {event ? ` · ${event.name}` : ""}
             {event ? ` · ${fmtDateFull(event.date)}` : ""}
           </div>
@@ -140,6 +162,64 @@ export default async function ContractDetail({
         </div>
       )}
 
+      {isOpen && (
+        <div style={{ padding: "0 var(--s-5) var(--s-5)" }}>
+          <div className="card elev" style={{ padding: 18 }}>
+            <div
+              className="muted"
+              style={{
+                fontSize: 11,
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                marginBottom: 10,
+              }}
+            >
+              Signatures · {(signatures ?? []).length}
+            </div>
+            {(signatures ?? []).length === 0 ? (
+              <div style={{ fontSize: 13, color: "var(--ink-3)" }}>
+                No one has signed yet. Share the link above — everyone who
+                signs will appear here.
+              </div>
+            ) : (
+              (signatures ?? []).map((sig) => (
+                <div
+                  key={sig.id}
+                  className="sign-strip"
+                  style={{
+                    padding: "12px 0",
+                    borderTop: "1px solid var(--hair-2)",
+                  }}
+                >
+                  {sig.signature_url && (
+                    <img
+                      src={sig.signature_url}
+                      alt={`Signature of ${sig.signed_name}`}
+                      className="sign-image"
+                    />
+                  )}
+                  <div>
+                    <div className="sign-name">{sig.signed_name}</div>
+                    <div className="sign-when">
+                      {sig.signer_email ? `${sig.signer_email} · ` : ""}
+                      {relTime(sig.signed_at)}
+                    </div>
+                    {sig.signer_ip && (
+                      <div
+                        className="sign-when"
+                        style={{ marginTop: 4, color: "var(--ink-4)" }}
+                      >
+                        IP {sig.signer_ip}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
       {isSigned && c.signed_name && (
         <div style={{ padding: "0 var(--s-5) var(--s-5)" }}>
           <div className="sign-block signed">
@@ -179,6 +259,7 @@ export default async function ContractDetail({
             bodyMd={c.body_md}
             pdfUrl={c.pdf_url}
             status={c.status}
+            isOpen={isOpen}
             paymentRequired={!!c.payment_required}
             paymentAmount={
               c.payment_amount != null ? Number(c.payment_amount) : null

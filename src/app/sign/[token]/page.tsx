@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Logo } from "@/components/logo";
-import { mdToHtml } from "@/lib/contracts";
+import { mdToHtml, fillSignerName } from "@/lib/contracts";
 import { fmtDateFull, fmtMoney } from "@/lib/format";
 import { SignPad } from "./sign-pad";
+import { OpenSignFlow } from "./open-sign";
 import type { ContractTokenView } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -35,10 +36,16 @@ export default async function SignPage({
     await supabase.rpc("mark_contract_opened", { token: params.token });
   }
 
-  const html = mdToHtml(contract.body_md);
+  const isOpen = contract.kind === "open";
   const signed = contract.status === "signed";
   const isVoid = contract.status === "void";
   const hasPdf = !!contract.pdf_url;
+  // Open contracts are signable while 'sent'; the client flow renders the
+  // body itself so the signer's typed name fills in live.
+  const openSignable = isOpen && contract.status === "sent";
+  const html = mdToHtml(
+    isOpen ? fillSignerName(contract.body_md, "") : contract.body_md,
+  );
 
   return (
     <div className="sign-shell">
@@ -48,16 +55,24 @@ export default async function SignPage({
           className={`pill ${signed ? "confirmed" : isVoid ? "wrapped" : "planning"}`}
         >
           <span className="dot" />
-          {signed ? "Signed" : isVoid ? "Voided" : "Awaiting signature"}
+          {signed
+            ? "Signed"
+            : isVoid
+              ? "Voided"
+              : isOpen
+                ? "Open for signatures"
+                : "Awaiting signature"}
         </span>
       </header>
 
       <article className="sign-doc">
         <div className="sign-meta">
-          <div>
-            <div className="eyebrow">For</div>
-            <div className="ival">{contract.recipient_name}</div>
-          </div>
+          {contract.recipient_name && (
+            <div>
+              <div className="eyebrow">For</div>
+              <div className="ival">{contract.recipient_name}</div>
+            </div>
+          )}
           <div>
             <div className="eyebrow">Event</div>
             <div className="ival">{contract.event_name}</div>
@@ -70,7 +85,7 @@ export default async function SignPage({
 
         <h1 className="sign-title">{contract.title}</h1>
 
-        {contract.body_md && contract.body_md.trim() !== "" && (
+        {!openSignable && contract.body_md && contract.body_md.trim() !== "" && (
           <div
             className="sign-body"
             dangerouslySetInnerHTML={{ __html: html }}
@@ -201,6 +216,23 @@ export default async function SignPage({
         ) : isVoid ? (
           <div className="notice warn" style={{ marginTop: 24 }}>
             This contract has been voided and is no longer available to sign.
+          </div>
+        ) : openSignable ? (
+          <OpenSignFlow
+            token={params.token}
+            bodyMd={contract.body_md}
+            paymentRequired={!!contract.payment_required}
+            paymentAmount={
+              contract.payment_amount != null
+                ? Number(contract.payment_amount)
+                : null
+            }
+            studioVenmoUrl={contract.studio_venmo_url}
+            studioName={contract.studio_name}
+          />
+        ) : isOpen ? (
+          <div className="notice warn" style={{ marginTop: 24 }}>
+            This agreement isn&apos;t open for signatures yet.
           </div>
         ) : (
           <SignPad token={params.token} />

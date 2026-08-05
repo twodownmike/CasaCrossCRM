@@ -96,6 +96,7 @@ export default async function PortalHome() {
   ((events ?? []) as EventRow[]).forEach((event) => eventsById.set(event.id, event));
   const contractsByParticipant = new Map<string, Contract[]>();
   ((contracts ?? []) as Contract[]).forEach((contract) => {
+    if (!contract.participant_id) return;
     const list = contractsByParticipant.get(contract.participant_id) ?? [];
     list.push(contract);
     contractsByParticipant.set(contract.participant_id, list);

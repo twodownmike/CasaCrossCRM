@@ -6,8 +6,10 @@ import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import {
   renderMerge,
+  renderMergeOpen,
   generateShareToken,
   DEFAULT_TEMPLATE_BODY,
+  DEFAULT_OPEN_TEMPLATE_BODY,
 } from "@/lib/contracts";
 import { sendNotificationEmail, sendEmail, escapeHtml } from "@/lib/notify";
 import { contractReadyEmail } from "@/emails/contract-ready";
@@ -246,6 +248,178 @@ export async function sendContract(
   return { ok: true, url: link, id: contract!.id, isDraft };
 }
 
+// ─── Open contracts (one shared link, many signers) ───
+export async function createOpenContract(
+  form: FormData,
+): Promise<
+  | { ok: true; url: string; id: string; isDraft: boolean }
+  | { ok: false; error: string }
+> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const eventId = s(form, "event_id");
+  const templateId = nullable(form, "template_id");
+  const title = s(form, "title") || "Event Agreement";
+  const customBody = nullable(form, "body_md");
+  const isDraft = form.get("save_as_draft") === "on";
+  if (!eventId) return { ok: false, error: "Pick an event first." };
+
+  const { data: event } = await supabase
+    .from("events")
+    .select("*")
+    .eq("id", eventId)
+    .maybeSingle();
+  if (!event) return { ok: false, error: "Event not found." };
+
+  let templateBody = customBody;
+  let pdfUrl: string | null = null;
+  if (templateId) {
+    const { data: tpl } = await supabase
+      .from("contract_templates")
+      .select("body_md, pdf_url")
+      .eq("id", templateId)
+      .maybeSingle();
+    if (tpl) {
+      pdfUrl = tpl.pdf_url ?? null;
+      if (!templateBody) templateBody = tpl.body_md ?? null;
+    }
+  }
+  if (!templateBody && !pdfUrl) templateBody = DEFAULT_OPEN_TEMPLATE_BODY;
+
+  // Event + studio fields render now; {{participant_name}} /
+  // {{participant_legal_name}} stay in the body so each signer fills
+  // them in live on the signing page.
+  const renderedBody = templateBody
+    ? renderMergeOpen(templateBody, {
+        eventName: event.name,
+        eventDate: event.date,
+        eventTime: event.time_label,
+        eventLocation: event.location,
+      })
+    : "";
+
+  const paymentRequired = form.get("payment_required") === "on";
+  const paymentAmountRaw = s(form, "payment_amount");
+  const paymentAmount =
+    paymentRequired && paymentAmountRaw !== ""
+      ? Number(paymentAmountRaw)
+      : null;
+
+  const token = generateShareToken();
+  const { data: contract, error } = await supabase
+    .from("contracts")
+    .insert({
+      event_id: eventId,
+      participant_id: null,
+      kind: "open",
+      template_id: templateId,
+      title,
+      body_md: renderedBody,
+      pdf_url: pdfUrl,
+      status: isDraft ? "draft" : "sent",
+      share_token: token,
+      sent_at: isDraft ? null : new Date().toISOString(),
+      payment_required: paymentRequired,
+      payment_amount: paymentAmount,
+      created_by: user.id,
+    })
+    .select("id, share_token")
+    .single();
+  if (error) {
+    console.error("createOpenContract failed", error);
+    return { ok: false, error: error.message };
+  }
+
+  const siteUrl =
+    process.env.NEXT_PUBLIC_PORTAL_URL || process.env.NEXT_PUBLIC_EVENTS_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    "";
+  const link = `${siteUrl}/sign/${contract!.share_token}`;
+
+  revalidatePath(`/events/${eventId}`);
+  revalidatePath("/contracts");
+  return { ok: true, url: link, id: contract!.id, isDraft };
+}
+
+// Public sign action for open contracts (called from /sign/[token]).
+export async function signOpenContract(
+  form: FormData,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = createClient();
+  const token = s(form, "token");
+  const signedName = s(form, "signed_name");
+  const signerEmail = s(form, "signer_email");
+  const signatureDataUrl = s(form, "signature_url");
+  if (!token) return { ok: false, error: "Missing token." };
+  if (!signedName) return { ok: false, error: "Please type your full legal name." };
+  if (!signerEmail || !/^\S+@\S+\.\S+$/.test(signerEmail)) {
+    return { ok: false, error: "Please enter a valid email address." };
+  }
+  if (!signatureDataUrl || !signatureDataUrl.startsWith("data:image/")) {
+    return { ok: false, error: "Please draw your signature." };
+  }
+  if (signatureDataUrl.length > 800_000) {
+    return { ok: false, error: "Signature image is too large." };
+  }
+
+  const h = headers();
+  const ip =
+    h.get("x-forwarded-for")?.split(",")[0].trim() ||
+    h.get("x-real-ip") ||
+    null;
+  const ua = h.get("user-agent") || null;
+
+  const { data, error } = await supabase.rpc("sign_open_contract", {
+    token,
+    signer_name: signedName,
+    signer_email_in: signerEmail,
+    signature_url_in: signatureDataUrl,
+    signer_ip_in: ip,
+    signer_ua_in: ua,
+  });
+  if (error) {
+    console.error("sign_open_contract rpc failed", error);
+    return { ok: false, error: error.message };
+  }
+  const result = data as { ok: boolean; error?: string } | null;
+  if (!result?.ok) {
+    return { ok: false, error: result?.error || "Could not sign contract." };
+  }
+
+  // Notify the team about the new signature.
+  const { data: contract } = await supabase
+    .from("contracts")
+    .select("id, title, event_id")
+    .eq("share_token", token)
+    .maybeSingle();
+  if (contract) {
+    const { data: event } = await supabase
+      .from("events")
+      .select("name")
+      .eq("id", contract.event_id)
+      .maybeSingle();
+    const siteUrl =
+      process.env.NEXT_PUBLIC_CRM_URL ||
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      "";
+    await sendNotificationEmail({
+      subject: `${signedName} signed ${contract.title} — ${event?.name ?? "your event"}`,
+      ...(await contractSignedEmail({
+        signerName: signedName,
+        contractTitle: contract.title,
+        eventName: event?.name ?? "your event",
+        contractUrl: `${siteUrl}/contracts/${contract.id}`,
+      })),
+    });
+  }
+
+  return { ok: true };
+}
+
 // ─── Edit / lifecycle ───
 export async function updateContract(
   form: FormData,
@@ -306,10 +480,12 @@ export async function sendDraftContract(form: FormData) {
       opened_at: null,
     })
     .eq("id", id);
-  await supabase
-    .from("participants")
-    .update({ contract: "sent" })
-    .eq("id", row.participant_id);
+  if (row.participant_id) {
+    await supabase
+      .from("participants")
+      .update({ contract: "sent" })
+      .eq("id", row.participant_id);
+  }
   revalidatePath(`/contracts/${id}`);
   revalidatePath("/contracts");
   revalidatePath(`/events/${row.event_id}`);
@@ -329,10 +505,12 @@ export async function recallContract(form: FormData) {
     .from("contracts")
     .update({ status: "draft", opened_at: null })
     .eq("id", id);
-  await supabase
-    .from("participants")
-    .update({ contract: "unsent" })
-    .eq("id", row.participant_id);
+  if (row.participant_id) {
+    await supabase
+      .from("participants")
+      .update({ contract: "unsent" })
+      .eq("id", row.participant_id);
+  }
   revalidatePath(`/contracts/${id}`);
   revalidatePath("/contracts");
   revalidatePath(`/events/${row.event_id}`);
@@ -377,10 +555,12 @@ export async function voidContract(form: FormData) {
     .from("contracts")
     .update({ status: "void" })
     .eq("id", id);
-  await supabase
-    .from("participants")
-    .update({ contract: "unsent" })
-    .eq("id", row.participant_id);
+  if (row.participant_id) {
+    await supabase
+      .from("participants")
+      .update({ contract: "unsent" })
+      .eq("id", row.participant_id);
+  }
   revalidatePath(`/contracts/${id}`);
   revalidatePath("/contracts");
   revalidatePath(`/events/${row.event_id}`);
