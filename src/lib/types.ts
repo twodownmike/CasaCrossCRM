@@ -183,6 +183,7 @@ export type ContractSignature = {
   signature_url: string;
   signer_ip: string | null;
   signer_ua: string | null;
+  body_md_snapshot: string | null;
   signed_at: string;
 };
 

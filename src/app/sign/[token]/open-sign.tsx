@@ -228,15 +228,9 @@ export function OpenSignFlow({
 
   return (
     <>
-      {hasBody && (
-        <div
-          className="sign-body"
-          dangerouslySetInnerHTML={{ __html: filledHtml }}
-        />
-      )}
-
-      <form onSubmit={submit} className="sign-block">
+      <div className="sign-block">
         <div className="form-grid">
+          <div className="eyebrow">Step 1 · Your details</div>
           <div>
             <label className="form-label">Type your full legal name</label>
             <input
@@ -246,12 +240,14 @@ export function OpenSignFlow({
               placeholder="Your full legal name"
               autoComplete="name"
             />
-            <p
-              className="muted"
-              style={{ fontSize: 11, marginTop: 6, lineHeight: 1.4 }}
-            >
-              Your name fills into the agreement above as you type.
-            </p>
+            {hasBody && (
+              <p
+                className="muted"
+                style={{ fontSize: 11, marginTop: 6, lineHeight: 1.4 }}
+              >
+                Your name fills into the agreement below as you type.
+              </p>
+            )}
           </div>
 
           <div>
@@ -265,7 +261,19 @@ export function OpenSignFlow({
               autoComplete="email"
             />
           </div>
+        </div>
+      </div>
 
+      {hasBody && (
+        <div
+          className="sign-body"
+          dangerouslySetInnerHTML={{ __html: filledHtml }}
+        />
+      )}
+
+      <form onSubmit={submit} className="sign-block">
+        <div className="form-grid">
+          <div className="eyebrow">Step 2 · Sign</div>
           <div>
             <label className="form-label">Draw your signature</label>
             <div className="sign-canvas-wrap">

@@ -183,13 +183,18 @@ export default async function ContractDetail({
               </div>
             ) : (
               (signatures ?? []).map((sig) => (
-                <div
+                <Link
                   key={sig.id}
+                  href={`/contracts/${c.id}/signatures/${sig.id}`}
                   className="sign-strip"
                   style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 14,
                     padding: "12px 0",
                     borderTop: "1px solid var(--hair-2)",
                   }}
+                  title="View the signed document"
                 >
                   {sig.signature_url && (
                     <img
@@ -198,7 +203,7 @@ export default async function ContractDetail({
                       className="sign-image"
                     />
                   )}
-                  <div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="sign-name">{sig.signed_name}</div>
                     <div className="sign-when">
                       {sig.signer_email ? `${sig.signer_email} · ` : ""}
@@ -213,7 +218,8 @@ export default async function ContractDetail({
                       </div>
                     )}
                   </div>
-                </div>
+                  <Icon.chev style={{ color: "var(--ink-4)" }} />
+                </Link>
               ))
             )}
           </div>
