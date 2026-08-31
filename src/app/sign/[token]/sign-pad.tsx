@@ -7,6 +7,7 @@ import { signContract } from "@/app/contracts-actions";
 export function SignPad({ token }: { token: string }) {
   const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const hasInkRef = useRef(false);
   const [hasInk, setHasInk] = useState(false);
   const [name, setName] = useState("");
   const [agreed, setAgreed] = useState(false);
@@ -20,6 +21,7 @@ export function SignPad({ token }: { token: string }) {
     function resize() {
       const c = canvasRef.current;
       if (!c) return;
+      const previous = hasInkRef.current ? c.toDataURL("image/png") : null;
       const rect = c.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
       c.width = rect.width * dpr;
@@ -31,6 +33,11 @@ export function SignPad({ token }: { token: string }) {
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
       ctx.strokeStyle = "#1a1814";
+      if (previous) {
+        const image = new window.Image();
+        image.onload = () => ctx.drawImage(image, 0, 0, rect.width, rect.height);
+        image.src = previous;
+      }
     }
     resize();
     window.addEventListener("resize", resize);
@@ -58,7 +65,10 @@ export function SignPad({ token }: { token: string }) {
     const { x, y } = pointerPos(e);
     ctx.lineTo(x, y);
     ctx.stroke();
-    if (!hasInk) setHasInk(true);
+    if (!hasInkRef.current) {
+      hasInkRef.current = true;
+      setHasInk(true);
+    }
   }
   function endStroke(e: React.PointerEvent<HTMLCanvasElement>) {
     e.currentTarget.releasePointerCapture(e.pointerId);
@@ -70,6 +80,7 @@ export function SignPad({ token }: { token: string }) {
     const ctx = c.getContext("2d");
     if (!ctx) return;
     ctx.clearRect(0, 0, c.width, c.height);
+    hasInkRef.current = false;
     setHasInk(false);
   }
 
@@ -80,15 +91,28 @@ export function SignPad({ token }: { token: string }) {
       setError("Type your full legal name.");
       return;
     }
-    if (!hasInk) {
+    const c = canvasRef.current;
+    const ctx = c?.getContext("2d");
+    const pixels = c && ctx ? ctx.getImageData(0, 0, c.width, c.height).data : null;
+    let hasVisibleInk = false;
+    if (pixels) {
+      for (let alpha = 3; alpha < pixels.length; alpha += 4) {
+        if (pixels[alpha] > 0) {
+          hasVisibleInk = true;
+          break;
+        }
+      }
+    }
+    if (!hasInk || !hasVisibleInk) {
       setError("Please draw your signature in the box.");
+      hasInkRef.current = false;
+      setHasInk(false);
       return;
     }
     if (!agreed) {
       setError("Tap the agreement checkbox to confirm.");
       return;
     }
-    const c = canvasRef.current;
     if (!c) return;
     const dataUrl = c.toDataURL("image/png");
 

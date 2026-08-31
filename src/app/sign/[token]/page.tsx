@@ -1,8 +1,10 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Logo } from "@/components/logo";
+import { Icon } from "@/components/icons";
 import { mdToHtml, fillSignerName } from "@/lib/contracts";
 import { fmtDateFull, fmtMoney } from "@/lib/format";
+import { hasVisiblePngSignature } from "@/lib/signatures";
 import { SignPad } from "./sign-pad";
 import { OpenSignFlow } from "./open-sign";
 import type { ContractTokenView } from "@/lib/types";
@@ -46,6 +48,8 @@ export default async function SignPage({
   const html = mdToHtml(
     isOpen ? fillSignerName(contract.body_md, "") : contract.body_md,
   );
+  const hasGeneratedPdf = !isOpen && !!contract.body_md?.trim();
+  const hasVisibleSignature = hasVisiblePngSignature(contract.signature_url);
 
   return (
     <div className="sign-shell">
@@ -85,6 +89,17 @@ export default async function SignPage({
 
         <h1 className="sign-title">{contract.title}</h1>
 
+        {hasGeneratedPdf && (
+          <div className="sign-download-row">
+            <a
+              href={`/sign/${params.token}/contract.pdf`}
+              className="btn primary"
+            >
+              <Icon.doc /> {signed ? "Download signed PDF" : "Download PDF"}
+            </a>
+          </div>
+        )}
+
         {!openSignable && contract.body_md && contract.body_md.trim() !== "" && (
           <div
             className="sign-body"
@@ -123,7 +138,7 @@ export default async function SignPage({
             <div className="sign-block signed">
               <div className="eyebrow">Signed</div>
               <div className="sign-strip">
-                {contract.signature_url && (
+                {hasVisibleSignature && contract.signature_url && (
                   <img
                     src={contract.signature_url}
                     alt={`Signature of ${contract.signed_name}`}
@@ -131,6 +146,9 @@ export default async function SignPage({
                   />
                 )}
                 <div>
+                  {!hasVisibleSignature && (
+                    <div className="eyebrow">Electronically signed by</div>
+                  )}
                   <div className="sign-name">{contract.signed_name}</div>
                   <div className="sign-when">
                     {contract.signed_at &&

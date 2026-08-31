@@ -2322,6 +2322,11 @@ select.input {
   line-height: 1.1;
   margin: 0 0 24px;
 }
+.sign-download-row {
+  display: flex;
+  justify-content: flex-end;
+  margin: -8px 0 18px;
+}
 .sign-body {
   background: var(--paper);
   border: 1px solid var(--hair);
@@ -2413,6 +2418,8 @@ select.input {
   .sign-body { padding: 20px 18px; font-size: 15px; }
   .sign-title { font-size: 28px; }
   .sign-meta { grid-template-columns: 1fr; gap: 10px; padding: 14px; }
+  .sign-download-row { justify-content: stretch; }
+  .sign-download-row .btn { width: 100%; }
 }
 
 /* PDF embed on the e-sign page */
