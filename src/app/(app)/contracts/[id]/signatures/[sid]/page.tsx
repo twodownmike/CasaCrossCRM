@@ -105,7 +105,7 @@ export default async function SignedDocumentPage({
                   fontFamily: "var(--serif)",
                 }}
               >
-                {event.name} · {fmtDateFull(event.date)}
+                {event.name}{c.show_event_date ? ` · ${fmtDateFull(event.date)}` : ""}
               </div>
             )}
           </header>

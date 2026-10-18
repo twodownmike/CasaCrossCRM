@@ -70,7 +70,7 @@ export default async function SignPage({
       </header>
 
       <article className="sign-doc">
-        <div className="sign-meta">
+        <div className={`sign-meta${contract.show_event_date ? "" : " two-col"}`}>
           {contract.recipient_name && (
             <div>
               <div className="eyebrow">For</div>
@@ -81,10 +81,12 @@ export default async function SignPage({
             <div className="eyebrow">Event</div>
             <div className="ival">{contract.event_name}</div>
           </div>
-          <div>
-            <div className="eyebrow">Date</div>
-            <div className="ival">{fmtDateFull(contract.event_date)}</div>
-          </div>
+          {contract.show_event_date && contract.event_date && (
+            <div>
+              <div className="eyebrow">Date</div>
+              <div className="ival">{fmtDateFull(contract.event_date)}</div>
+            </div>
+          )}
         </div>
 
         <h1 className="sign-title">{contract.title}</h1>

@@ -236,10 +236,12 @@ export function SignedContractPdf({
             <Text style={styles.label}>Event</Text>
             <Text style={styles.value}>{pdfText(contract.event_name)}</Text>
           </View>
-          <View style={styles.metaItem}>
-            <Text style={styles.label}>Date</Text>
-            <Text style={styles.value}>{pdfText(fmtDateFull(contract.event_date))}</Text>
-          </View>
+          {contract.show_event_date && contract.event_date && (
+            <View style={styles.metaItem}>
+              <Text style={styles.label}>Date</Text>
+              <Text style={styles.value}>{pdfText(fmtDateFull(contract.event_date))}</Text>
+            </View>
+          )}
         </View>
 
         <ContractBody markdown={contract.body_md} />

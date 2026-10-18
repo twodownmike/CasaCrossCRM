@@ -171,6 +171,7 @@ export type Contract = {
   signer_ip: string | null;
   signer_ua: string | null;
   payment_required: boolean;
+  show_event_date: boolean;
   payment_amount: number | null;
   created_at: string;
 };
@@ -223,7 +224,8 @@ export type ContractTokenView = {
   signature_url: string | null;
   signed_name: string | null;
   event_name: string;
-  event_date: string;
+  event_date: string | null;
+  show_event_date: boolean;
   event_location: string | null;
   recipient_name: string | null;
   payment_required: boolean;

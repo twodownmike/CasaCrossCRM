@@ -452,6 +452,7 @@ export async function updateContract(
     title: s(form, "title"),
     body_md: s(form, "body_md"),
     pdf_url: nullable(form, "pdf_url"),
+    show_event_date: form.get("show_event_date") === "on",
     payment_required: paymentRequired,
     payment_amount: paymentRequired
       ? paymentAmountRaw !== ""

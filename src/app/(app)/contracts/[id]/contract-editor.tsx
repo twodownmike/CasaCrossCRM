@@ -22,6 +22,7 @@ export function ContractEditor({
   status,
   paymentRequired,
   paymentAmount,
+  showEventDate,
   isOpen = false,
 }: {
   id: string;
@@ -31,6 +32,7 @@ export function ContractEditor({
   status: "draft" | "sent" | "signed" | "void";
   paymentRequired: boolean;
   paymentAmount: number | null;
+  showEventDate: boolean;
   isOpen?: boolean;
 }) {
   const router = useRouter();
@@ -38,6 +40,7 @@ export function ContractEditor({
   const [b, setB] = useState(bodyMd);
   const [pdf, setPdf] = useState(pdfUrl || "");
   const [payReq, setPayReq] = useState(paymentRequired);
+  const [showDate, setShowDate] = useState(showEventDate);
   const [payAmt, setPayAmt] = useState(
     paymentAmount != null ? String(paymentAmount) : "",
   );
@@ -53,6 +56,7 @@ export function ContractEditor({
     t !== title ||
     b !== bodyMd ||
     (pdf || "") !== (pdfUrl || "") ||
+    showDate !== showEventDate ||
     payReq !== paymentRequired ||
     (payReq &&
       payAmt !== (paymentAmount != null ? String(paymentAmount) : ""));
@@ -64,6 +68,7 @@ export function ContractEditor({
     f.set("title", t);
     f.set("body_md", b);
     f.set("pdf_url", pdf);
+    if (showDate) f.set("show_event_date", "on");
     if (payReq) {
       f.set("payment_required", "on");
       if (payAmt) f.set("payment_amount", payAmt);
@@ -242,6 +247,27 @@ export function ContractEditor({
                 : `Merge fields like {{participant_name}} were filled in when the contract was generated — edits here are participant-specific.`}
             </p>
           </div>
+
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              padding: 12,
+              border: "1px solid var(--hair)",
+              borderRadius: "var(--r-2)",
+              background: "var(--paper)",
+              cursor: "pointer",
+              fontSize: 14,
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={showDate}
+              onChange={(e) => setShowDate(e.target.checked)}
+            />
+            Show the event date on the signing page and signed document
+          </label>
 
           <label
             style={{

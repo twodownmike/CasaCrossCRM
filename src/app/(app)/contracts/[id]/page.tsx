@@ -120,7 +120,7 @@ export default async function ContractDetail({
               </>
             )}
             {event ? ` · ${event.name}` : ""}
-            {event ? ` · ${fmtDateFull(event.date)}` : ""}
+            {event && c.show_event_date ? ` · ${fmtDateFull(event.date)}` : ""}
           </div>
         </div>
       </div>
@@ -267,6 +267,7 @@ export default async function ContractDetail({
             status={c.status}
             isOpen={isOpen}
             paymentRequired={!!c.payment_required}
+            showEventDate={c.show_event_date !== false}
             paymentAmount={
               c.payment_amount != null ? Number(c.payment_amount) : null
             }
