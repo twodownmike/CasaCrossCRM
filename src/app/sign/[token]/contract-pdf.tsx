@@ -274,7 +274,8 @@ export function SignedContractPdf({
 }
 
 export function signedContractFilename(contract: ContractTokenView) {
-  const base = `${contract.event_name}-${contract.recipient_name}-signed-contract`
+  const suffix = contract.status === "signed" ? "signed-contract" : "contract";
+  const base = `${contract.event_name}-${contract.recipient_name}-${suffix}`
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
